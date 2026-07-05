@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediaPipe Face Landmarker Diagnostic</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', monospace; background: #1a1a2e; color: #e0e0e0; padding: 12px; }
+  h1 { color: #00d4ff; font-size: 18px; margin-bottom: 8px; }
+  .container { display: flex; gap: 12px; flex-wrap: wrap; }
+  .video-wrap { position: relative; flex: 1 1 480px; max-width: 640px; }
+  video, canvas { display: block; width: 100%; border-radius: 6px; border: 1px solid #333; }
+  canvas { position: absolute; top: 0; left: 0; }
+  .panel { flex: 1 1 300px; min-width: 280px; }
+  .card { background: #16213e; border: 1px solid #333; border-radius: 6px; padding: 10px; margin-bottom: 8px; }
+  .card h2 { font-size: 13px; color: #00d4ff; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
+  .metric { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #1a1a2e; font-size: 12px; }
+  .metric .label { color: #888; }
+  .metric .value { color: #fff; font-weight: bold; }
+  .metric .value.green { color: #00ff88; }
+  .metric .value.red { color: #ff4444; }
+  .metric .value.yellow { color: #ffaa00; }
+  .status { padding: 6px 10px; border-radius: 4px; font-weight: bold; text-align: center; margin-bottom: 8px; font-size: 13px; }
+  .status.ok { background: #003322; color: #00ff88; border: 1px solid #00ff88; }
+  .status.err { background: #330022; color: #ff4444; border: 1px solid #ff4444; }
+  .status.warn { background: #332200; color: #ffaa00; border: 1px solid #ffaa00; }
+  .log { max-height: 200px; overflow-y: auto; font-size: 11px; background: #0d1117; padding: 6px; border-radius: 4px; font-family: monospace; }
+  .log div { padding: 1px 0; }
+  .log .pass { color: #00ff88; }
+  .log .fail { color: #ff4444; }
+  .log .info { color: #888; }
+  .actions { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .actions button { padding: 6px 12px; border: 1px solid #444; background: #16213e; color: #e0e0e0; border-radius: 4px; cursor: pointer; font-size: 12px; }
+  .actions button:hover { background: #1a3a5c; border-color: #00d4ff; }
+  .actions button.active { background: #00d4ff; color: #000; border-color: #00d4ff; }
+  #challenge-display { font-size: 16px; text-align: center; padding: 8px; background: #0d1117; border-radius: 4px; margin-bottom: 8px; color: #ffaa00; min-height: 36px; }
+  .fps-bar { height: 4px; background: #333; border-radius: 2px; overflow: hidden; margin-top: 4px; }
+  .fps-bar .fill { height: 100%; background: #00ff88; transition: width 0.3s; }
+</style>
+</head>
+<body>
+
+<h1>MediaPipe Face Landmarker Diagnostic</h1>
+
+<div id="init-status" class="status warn">Initializing MediaPipe...</div>
+
+<div class="container">
+  <div class="video-wrap">
+    <video id="webcam" autoplay playsinline muted></video>
+    <canvas id="overlay"></canvas>
+  </div>
+
+  <div class="panel">
+    <div id="challenge-display">No challenge</div>
+
+    <div class="card">
+      <h2>Face Detection</h2>
+      <div class="metric"><span class="label">Face Detected</span><span class="value" id="m-face">--</span></div>
+      <div class="metric"><span class="label">Landmarks</span><span class="value" id="m-landmarks">--</span></div>
+      <div class="metric"><span class="label">Detection Confidence</span><span class="value" id="m-det-conf">--</span></div>
+      <div class="metric"><span class="label">Presence Confidence</span><span class="value" id="m-pres-conf">--</span></div>
+      <div class="metric"><span class="label">Tracking Confidence</span><span class="value" id="m-trk-conf">--</span></div>
+    </div>
+
+    <div class="card">
+      <h2>Metrics</h2>
+      <div class="metric"><span class="label">EAR (both eyes)</span><span class="value" id="m-ear">--</span></div>
+      <div class="metric"><span class="label">Left EAR</span><span class="value" id="m-left-ear">--</span></div>
+      <div class="metric"><span class="label">Right EAR</span><span class="value" id="m-right-ear">--</span></div>
+      <div class="metric"><span class="label">MAR</span><span class="value" id="m-mar">--</span></div>
+      <div class="metric"><span class="label">Eyebrow Dist</span><span class="value" id="m-eyebrow">--</span></div>
+      <div class="metric"><span class="label">Yaw</span><span class="value" id="m-yaw">--</span></div>
+      <div class="metric"><span class="label">Pitch</span><span class="value" id="m-pitch">--</span></div>
+      <div class="metric"><span class="label">Roll</span><span class="value" id="m-roll">--</span></div>
+    </div>
+
+    <div class="card">
+      <h2>Performance</h2>
+      <div class="metric"><span class="label">FPS</span><span class="value" id="m-fps">--</span></div>
+      <div class="fps-bar"><div class="fill" id="fps-bar-fill" style="width:0%"></div></div>
+      <div class="metric"><span class="label">Latency</span><span class="value" id="m-latency">--</span></div>
+      <div class="metric"><span class="label">Frame #</span><span class="value" id="m-frame-num">--</span></div>
+    </div>
+
+    <div class="card">
+      <h2>Actions</h2>
+      <div class="actions">
+        <button onclick="startCamera()">Start Camera</button>
+        <button onclick="stopCamera()">Stop</button>
+        <button onclick="toggleDrawMode('landmarks')" id="btn-landmarks">Landmarks</button>
+        <button onclick="toggleDrawMode('contours')" id="btn-contours">Contours</button>
+        <button onclick="toggleDrawMode('pose')" id="btn-pose">Pose Axes</button>
+      </div>
+      <div class="actions">
+        <button onclick="startChallenge('wink_left')">Wink Left</button>
+        <button onclick="startChallenge('wink_right')">Wink Right</button>
+        <button onclick="startChallenge('open_mouth')">Open Mouth</button>
+        <button onclick="startChallenge('nod_up')">Nod Up</button>
+        <button onclick="startChallenge('nod_down')">Nod Down</button>
+        <button onclick="startChallenge('raise_eyebrows')">Raise Eyebrows</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Diagnostic Log</h2>
+      <div class="log" id="diag-log"></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { FaceLandmarker, FilesetResolver } from
+  "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/vision_bundle.mjs";
+
+const video = document.getElementById('webcam');
+const canvas = document.getElementById('overlay');
+const ctx = canvas.getContext('2d');
+const logEl = document.getElementById('diag-log');
+
+let faceLandmarker = null;
+let cameraRunning = false;
+let frameCount = 0;
+let drawMode = { landmarks: true, contours: true, pose: false };
+let challengeMetrics = { left_ear: [], right_ear: [], mar: [], pitch: [], eyebrow: [] };
+let currentChallenge = null;
+let animationId = null;
+
+// Landmark index constants (same as Python backend)
+const LEFT_EYE_IDX = [33, 160, 158, 133, 153, 144];
+const RIGHT_EYE_IDX = [362, 385, 387, 263, 373, 380];
+const NOSE_TIP = 4, NOSE_BRIDGE = 168;
+const LEFT_EYE_OUTER = 33, RIGHT_EYE_OUTER = 263;
+const LEFT_EAR_IDX = 234, RIGHT_EAR_IDX = 454;
+const MOUTH_TOP = 13, MOUTH_BOTTOM = 14, MOUTH_LEFT = 78, MOUTH_RIGHT = 308;
+const MOUTH_TOP_INNER = 82, MOUTH_BOTTOM_INNER = 87;
+const LEFT_EYEBROW_LOWER = 105, RIGHT_EYEBROW_LOWER = 334;
+const LEFT_EYE_UPPER = 159, RIGHT_EYE_UPPER = 386;
+const CHIN = 152, FOREHEAD = 10;
+
+function log(msg, cls='info') {
+  const d = document.createElement('div');
+  d.className = cls;
+  d.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  logEl.prepend(d);
+  if (logEl.children.length > 100) logEl.removeChild(logEl.lastChild);
+}
+
+function dist(a, b) { return Math.hypot(a[0]-b[0], a[1]-b[1]); }
+
+function computeEAR(lm, leftIdx, rightIdx) {
+  const le = leftIdx.map(i => lm[i]);
+  const re = rightIdx.map(i => lm[i]);
+  const v1 = dist(le[1], le[5]), v2 = dist(le[2], le[4]);
+  const h = dist(le[0], le[3]);
+  const leftEAR = (v1+v2)/(2*h+1e-6);
+  const v3 = dist(re[1], re[5]), v4 = dist(re[2], re[4]);
+  const h2 = dist(re[0], re[3]);
+  const rightEAR = (v3+v4)/(2*h2+1e-6);
+  return { left: leftEAR, right: rightEAR, avg: (leftEAR+rightEAR)/2 };
+}
+
+function computeMAR(lm) {
+  const top = lm[MOUTH_TOP], bot = lm[MOUTH_BOTTOM];
+  const left = lm[MOUTH_LEFT], right = lm[MOUTH_RIGHT];
+  const topIn = lm[MOUTH_TOP_INNER], botIn = lm[MOUTH_BOTTOM_INNER];
+  const vert = dist(top, bot) + dist(topIn, botIn);
+  const horiz = dist(left, right) + 1e-6;
+  return (vert/2) / horiz;
+}
+
+function computeHeadPose(lm) {
+  const noseTip = lm[NOSE_TIP], noseBridge = lm[NOSE_BRIDGE];
+  const leftEye = lm[LEFT_EYE_OUTER], rightEye = lm[RIGHT_EYE_OUTER];
+  const fw = dist(rightEye, leftEye);
+  if (fw < 1e-6) return { yaw: 0, pitch: 0, roll: 0 };
+  const noseVec = [noseTip[0]-noseBridge[0], noseTip[1]-noseBridge[1]];
+  const eyeVec = [rightEye[0]-leftEye[0], rightEye[1]-leftEye[1]];
+  const roll = Math.atan2(eyeVec[1], eyeVec[0]) * 180/Math.PI;
+  const hAxis = [eyeVec[0]/fw, eyeVec[1]/fw];
+  const vAxis = [-hAxis[1], hAxis[0]];
+  const yaw = (noseVec[0]*hAxis[0] + noseVec[1]*hAxis[1]) * 200;
+  const pitch = (noseVec[0]*vAxis[0] + noseVec[1]*vAxis[1]) * -200;
+  return { yaw: yaw.toFixed(1), pitch: pitch.toFixed(1), roll: roll.toFixed(1) };
+}
+
+function computeEyebrowDist(lm) {
+  const le = lm[LEFT_EYE_UPPER], re = lm[RIGHT_EYE_UPPER];
+  const lb = lm[LEFT_EYEBROW_LOWER], rb = lm[RIGHT_EYEBROW_LOWER];
+  const fw = dist(lm[RIGHT_EYE_OUTER], lm[LEFT_EYE_OUTER]);
+  if (fw < 1e-6) return 0;
+  const ld = Math.abs(lb[1]-le[1])/fw;
+  const rd = Math.abs(rb[1]-re[1])/fw;
+  return (ld+rd)/2;
+}
+
+function setMetric(id, value, cls) {
+  const el = document.getElementById(id);
+  el.textContent = value;
+  el.className = 'value' + (cls ? ' '+cls : '');
+}
+
+function updateOverlay(lm) {
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  if (drawMode.contours) {
+    ctx.strokeStyle = 'rgba(0,212,255,0.6)';
+    ctx.lineWidth = 1;
+    // Draw face oval
+    const faceOval = [10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109,10];
+    ctx.beginPath();
+    for (let i = 0; i < faceOval.length; i++) {
+      const p = lm[faceOval[i]];
+      i === 0 ? ctx.moveTo(p[0]*w, p[1]*h) : ctx.lineTo(p[0]*w, p[1]*h);
+    }
+    ctx.stroke();
+    // Draw left eye
+    ctx.strokeStyle = 'rgba(0,255,136,0.5)';
+    ctx.beginPath();
+    LEFT_EYE_IDX.forEach((idx,i) => {
+      const p = lm[idx];
+      i === 0 ? ctx.moveTo(p[0]*w, p[1]*h) : ctx.lineTo(p[0]*w, p[1]*h);
+    });
+    ctx.closePath(); ctx.stroke();
+    // Draw right eye
+    ctx.beginPath();
+    RIGHT_EYE_IDX.forEach((idx,i) => {
+      const p = lm[idx];
+      i === 0 ? ctx.moveTo(p[0]*w, p[1]*h) : ctx.lineTo(p[0]*w, p[1]*h);
+    });
+    ctx.closePath(); ctx.stroke();
+    // Draw mouth
+    ctx.strokeStyle = 'rgba(255,170,0,0.5)';
+    ctx.beginPath();
+    [MOUTH_TOP, MOUTH_LEFT, MOUTH_BOTTOM, MOUTH_RIGHT, MOUTH_TOP].forEach((idx,i) => {
+      const p = lm[idx];
+      i === 0 ? ctx.moveTo(p[0]*w, p[1]*h) : ctx.lineTo(p[0]*w, p[1]*h);
+    });
+    ctx.stroke();
+    // Draw eyebrows
+    ctx.strokeStyle = 'rgba(255,0,136,0.5)';
+    [LEFT_EYEBROW_LOWER, RIGHT_EYEBROW_LOWER].forEach(idx => {
+      const p = lm[idx];
+      ctx.beginPath(); ctx.arc(p[0]*w, p[1]*h, 3, 0, Math.PI*2); ctx.fill();
+    });
+  }
+
+  if (drawMode.landmarks) {
+    ctx.fillStyle = 'rgba(0,212,255,0.7)';
+    for (let i = 0; i < lm.length; i++) {
+      const p = lm[i];
+      ctx.beginPath();
+      ctx.arc(p[0]*w, p[1]*h, 1, 0, Math.PI*2);
+      ctx.fill();
+    }
+    // Highlight key landmarks
+    ctx.fillStyle = '#ff4444';
+    [NOSE_TIP, MOUTH_TOP, MOUTH_BOTTOM, LEFT_EYE_OUTER, RIGHT_EYE_OUTER, LEFT_EAR_IDX, RIGHT_EAR_IDX].forEach(idx => {
+      const p = lm[idx];
+      ctx.beginPath(); ctx.arc(p[0]*w, p[1]*h, 3, 0, Math.PI*2); ctx.fill();
+    });
+    ctx.fillStyle = '#00ff88';
+    [LEFT_EYEBROW_LOWER, RIGHT_EYEBROW_LOWER, LEFT_EYE_UPPER, RIGHT_EYE_UPPER].forEach(idx => {
+      const p = lm[idx];
+      ctx.beginPath(); ctx.arc(p[0]*w, p[1]*h, 3, 0, Math.PI*2); ctx.fill();
+    });
+  }
+
+  if (drawMode.pose) {
+    const noseTip = lm[NOSE_TIP], noseBridge = lm[NOSE_BRIDGE];
+    const leftEye = lm[LEFT_EYE_OUTER], rightEye = lm[RIGHT_EYE_OUTER];
+    const fw = dist(rightEye, leftEye);
+    const scale = fw * 0.3;
+    // Nose vector (green)
+    ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(noseBridge[0]*w, noseBridge[1]*h);
+    ctx.lineTo(noseTip[0]*w, (noseTip[1]+scale/10)*h); ctx.stroke();
+    // Eye line (red)
+    ctx.strokeStyle = '#ff0000';
+    ctx.beginPath(); ctx.moveTo(leftEye[0]*w, leftEye[1]*h);
+    ctx.lineTo(rightEye[0]*w, rightEye[1]*h); ctx.stroke();
+  }
+}
+
+let lastTimestamp = 0;
+let fpsArr = [];
+
+function processFrame(timestamp) {
+  if (!cameraRunning) return;
+  const dt = timestamp - lastTimestamp;
+  lastTimestamp = timestamp;
+  if (dt > 0) {
+    fpsArr.push(1000/dt);
+    if (fpsArr.length > 30) fpsArr.shift();
+  }
+
+  const results = faceLandmarker.detectForVideo(video, timestamp);
+  frameCount++;
+
+  if (results.faceLandmarks && results.faceLandmarks.length > 0) {
+    const lm = results.faceLandmarks[0];
+    const confs = results.faceDetectionConfidences ? results.faceDetectionConfidences[0] : null;
+    const presConf = results.facePresenceConfidences ? results.facePresenceConfidences[0] : null;
+
+    setMetric('m-face', 'YES', 'green');
+    setMetric('m-landmarks', '468');
+    setMetric('m-det-conf', confs != null ? confs.toFixed(3) : '--');
+    setMetric('m-pres-conf', presConf != null ? presConf.toFixed(3) : '--');
+    setMetric('m-trk-conf', results.faceBlendshapes ? 'tracked' : 'detected');
+
+    const ear = computeEAR(lm, LEFT_EYE_IDX, RIGHT_EYE_IDX);
+    const mar = computeMAR(lm);
+    const pose = computeHeadPose(lm);
+    const eyebrow = computeEyebrowDist(lm);
+
+    setMetric('m-ear', ear.avg.toFixed(4));
+    setMetric('m-left-ear', ear.left.toFixed(4));
+    setMetric('m-right-ear', ear.right.toFixed(4));
+    setMetric('m-mar', mar.toFixed(4));
+    setMetric('m-eyebrow', eyebrow.toFixed(4));
+    setMetric('m-yaw', pose.yaw + '°');
+    setMetric('m-pitch', pose.pitch + '°');
+    setMetric('m-roll', pose.roll + '°');
+
+    // Challenge metrics collection
+    if (currentChallenge) {
+      challengeMetrics.left_ear.push(ear.left);
+      challengeMetrics.right_ear.push(ear.right);
+      challengeMetrics.mar.push(mar);
+      challengeMetrics.pitch.push(parseFloat(pose.pitch));
+      challengeMetrics.eyebrow.push(eyebrow);
+    }
+
+    updateOverlay(lm);
+
+    // Log every 30 frames
+    if (frameCount % 30 === 0) {
+      log(`Frame ${frameCount}: EAR=${ear.avg.toFixed(3)} L=${ear.left.toFixed(3)} R=${ear.right.toFixed(3)} MAR=${mar.toFixed(3)} pitch=${pose.pitch} eyebrow=${eyebrow.toFixed(3)}`);
+    }
+  } else {
+    setMetric('m-face', 'NO', 'red');
+    setMetric('m-landmarks', '0');
+    setMetric('m-det-conf', '--');
+    setMetric('m-pres-conf', '--');
+    setMetric('m-trk-conf', '--');
+    setMetric('m-ear', '--'); setMetric('m-left-ear', '--'); setMetric('m-right-ear', '--');
+    setMetric('m-mar', '--'); setMetric('m-eyebrow', '--');
+    setMetric('m-yaw', '--'); setMetric('m-pitch', '--'); setMetric('m-roll', '--');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  const fps = fpsArr.length > 0 ? fpsArr.reduce((a,b)=>a+b)/fpsArr.length : 0;
+  setMetric('m-fps', fps.toFixed(1), fps > 15 ? 'green' : fps > 5 ? 'yellow' : 'red');
+  document.getElementById('fps-bar-fill').style.width = Math.min(100, fps*3) + '%';
+  const avgLat = dt.toFixed(0);
+  setMetric('m-latency', avgLat + 'ms', dt < 50 ? 'green' : dt < 100 ? 'yellow' : 'red');
+  setMetric('m-frame-num', frameCount);
+
+  animationId = requestAnimationFrame(processFrame);
+}
+
+window.startCamera = async function() {
+  if (cameraRunning) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } });
+    video.srcObject = stream;
+    await video.play();
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    cameraRunning = true;
+    lastTimestamp = performance.now();
+    animationId = requestAnimationFrame(processFrame);
+    log('Camera started', 'pass');
+  } catch(e) {
+    log('Camera error: ' + e.message, 'fail');
+  }
+};
+
+window.stopCamera = function() {
+  cameraRunning = false;
+  if (animationId) cancelAnimationFrame(animationId);
+  if (video.srcObject) {
+    video.srcObject.getTracks().forEach(t => t.stop());
+    video.srcObject = null;
+  }
+  log('Camera stopped', 'info');
+};
+
+window.toggleDrawMode = function(mode) {
+  drawMode[mode] = !drawMode[mode];
+  const btn = document.getElementById('btn-'+mode);
+  btn.classList.toggle('active', drawMode[mode]);
+  log(`Draw mode ${mode}: ${drawMode[mode] ? 'ON' : 'OFF'}`);
+};
+
+window.startChallenge = function(challenge) {
+  currentChallenge = challenge;
+  challengeMetrics = { left_ear: [], right_ear: [], mar: [], pitch: [], eyebrow: [] };
+  document.getElementById('challenge-display').textContent = 'Challenge: ' + challenge.replace('_',' ').toUpperCase();
+  log('Challenge started: ' + challenge, 'pass');
+  // Auto-stop after 5 seconds
+  setTimeout(() => {
+    if (currentChallenge === challenge) {
+      currentChallenge = null;
+      document.getElementById('challenge-display').textContent = 'Challenge complete - check metrics';
+      logChallengeResults(challenge);
+    }
+  }, 5000);
+};
+
+function logChallengeResults(challenge) {
+  const m = challengeMetrics;
+  if (m.left_ear.length < 3) { log('Too few frames for analysis', 'fail'); return; }
+  const leftRange = Math.max(...m.left_ear) - Math.min(...m.left_ear);
+  const rightRange = Math.max(...m.right_ear) - Math.min(...m.right_ear);
+  const marRange = Math.max(...m.mar) - Math.min(...m.mar);
+  const pitchRange = Math.max(...m.pitch) - Math.min(...m.pitch);
+  const eyebrowRange = Math.max(...m.eyebrow) - Math.min(...m.eyebrow);
+
+  log(`--- Results: ${challenge} (${m.left_ear.length} frames) ---`, 'info');
+  log(`Left EAR:  [${Math.min(...m.left_ear).toFixed(3)}, ${Math.max(...m.left_ear).toFixed(3)}] range=${leftRange.toFixed(3)}`);
+  log(`Right EAR: [${Math.min(...m.right_ear).toFixed(3)}, ${Math.max(...m.right_ear).toFixed(3)}] range=${rightRange.toFixed(3)}`);
+  log(`MAR:       [${Math.min(...m.mar).toFixed(3)}, ${Math.max(...m.mar).toFixed(3)}] range=${marRange.toFixed(3)}`);
+  log(`Pitch:     [${Math.min(...m.pitch).toFixed(1)}, ${Math.max(...m.pitch).toFixed(1)}] range=${pitchRange.toFixed(1)}`);
+  log(`Eyebrow:   [${Math.min(...m.eyebrow).toFixed(3)}, ${Math.max(...m.eyebrow).toFixed(3)}] range=${eyebrowRange.toFixed(3)}`);
+
+  // Basic detection
+  if (challenge === 'wink_left' && leftRange > 0.08) log('Wink left DETECTED (left EAR range > 0.08)', 'pass');
+  else if (challenge === 'wink_right' && rightRange > 0.08) log('Wink right DETECTED (right EAR range > 0.08)', 'pass');
+  else if (challenge === 'open_mouth' && marRange > 0.10) log('Open mouth DETECTED (MAR range > 0.10)', 'pass');
+  else if (challenge === 'nod_up' && pitchRange > 5) log('Nod up DETECTED (pitch range > 5°)', 'pass');
+  else if (challenge === 'nod_down' && pitchRange > 5) log('Nod down DETECTED (pitch range > 5°)', 'pass');
+  else if (challenge === 'raise_eyebrows' && eyebrowRange > 0.02) log('Raise eyebrows DETECTED (eyebrow range > 0.02)', 'pass');
+  else log('Action NOT clearly detected - review metric ranges', 'fail');
+}
+
+// Init
+async function init() {
+  try {
+    const vision = await FilesetResolver.forVisionTasks(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm"
+    );
+    faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+      baseOptions: { modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task", delegate: "GPU" },
+      numFaces: 1,
+      minFaceDetectionConfidence: 0.5,
+      outputFaceBlendshapes: false,
+      outputFacialTransformationMatrixes: false
+    });
+    document.getElementById('init-status').className = 'status ok';
+    document.getElementById('init-status').textContent = 'MediaPipe Face Landmarker READY';
+    log('MediaPipe FaceLandmarker initialized (GPU)', 'pass');
+  } catch(e) {
+    document.getElementById('init-status').className = 'status err';
+    document.getElementById('init-status').textContent = 'FAILED: ' + e.message;
+    log('Init FAILED: ' + e.message, 'fail');
+  }
+}
+
+init();
+</script>
+</body>
+</html>

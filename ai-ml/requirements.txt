@@ -1,0 +1,29 @@
+# Core ML dependencies
+opencv-python>=4.9.0
+opencv-contrib-python-headless>=4.9.0
+Pillow>=10.0.0
+numpy>=1.26.0
+
+# Flask API
+flask>=3.0.0
+flask-cors>=4.0.0
+
+# Face Recognition
+insightface>=0.7.3
+
+# Liveness Detection
+mediapipe>=0.10.0
+
+# Deepfake Detection (training + inference)
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Anti-Spoofing (MiniFASNet V2 ONNX)
+onnxruntime>=1.16.0
+
+# QR Code Detection
+pyzbar>=0.1.9
+
+# Utilities
+python-dotenv>=1.0.0
+requests>=2.31.0

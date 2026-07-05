@@ -1,0 +1,475 @@
+{
+  "timestamp": "2026-06-15T18:04:35",
+  "summary": {
+    "total": 76,
+    "passed": 71,
+    "failed": 0,
+    "warnings": 5
+  },
+  "results": [
+    {
+      "test": "GET /health \u2192 200",
+      "passed": true,
+      "warning": false,
+      "detail": "status=200"
+    },
+    {
+      "test": "Modules: face_verification available",
+      "passed": true,
+      "warning": false,
+      "detail": ""
+    },
+    {
+      "test": "Modules: liveness available",
+      "passed": true,
+      "warning": false,
+      "detail": ""
+    },
+    {
+      "test": "Modules: deepfake available",
+      "passed": true,
+      "warning": false,
+      "detail": ""
+    },
+    {
+      "test": "Modules: anti_spoofing unavailable (expected)",
+      "passed": true,
+      "warning": false,
+      "detail": "MiniFASNet V2 unavailable \u2014 expected, challenge is primary protection"
+    },
+    {
+      "test": "GET /liveness/debug \u2192 200",
+      "passed": true,
+      "warning": false,
+      "detail": ""
+    },
+    {
+      "test": "Face landmarker loaded",
+      "passed": true,
+      "warning": false,
+      "detail": ""
+    },
+    {
+      "test": "Not in fallback mode",
+      "passed": true,
+      "warning": false,
+      "detail": ""
+    },
+    {
+      "test": "7 challenge types registered",
+      "passed": true,
+      "warning": false,
+      "detail": ""
+    },
+    {
+      "test": "Min frames = 3",
+      "passed": true,
+      "warning": false,
+      "detail": ""
+    },
+    {
+      "test": "EAR threshold = 0.20",
+      "passed": true,
+      "warning": false,
+      "detail": "got 0.2"
+    },
+    {
+      "test": "MAR mouth threshold = 0.20",
+      "passed": true,
+      "warning": false,
+      "detail": "got 0.2"
+    },
+    {
+      "test": "MAR smile threshold = 0.15",
+      "passed": true,
+      "warning": false,
+      "detail": "got 0.15"
+    },
+    {
+      "test": "Pitch threshold = 0.25",
+      "passed": true,
+      "warning": false,
+      "detail": "got 0.25"
+    },
+    {
+      "test": "Yaw threshold = 0.30",
+      "passed": true,
+      "warning": false,
+      "detail": "got 0.3"
+    },
+    {
+      "test": "POST /face-detect \u2192 200",
+      "passed": true,
+      "warning": false,
+      "detail": "status=200"
+    },
+    {
+      "test": "At least 1 face detected",
+      "passed": true,
+      "warning": true,
+      "detail": "detected 0 faces"
+    },
+    {
+      "test": "POST /liveness/challenge \u2192 200",
+      "passed": true,
+      "warning": false,
+      "detail": "status=200"
+    },
+    {
+      "test": "Session ID generated",
+      "passed": true,
+      "warning": false,
+      "detail": "67fcb6f2-e502-4985-b"
+    },
+    {
+      "test": "Total challenges = 4",
+      "passed": true,
+      "warning": false,
+      "detail": "got 4"
+    },
+    {
+      "test": "Challenge has type",
+      "passed": true,
+      "warning": false,
+      "detail": "turn_right"
+    },
+    {
+      "test": "Challenge has prompt",
+      "passed": true,
+      "warning": false,
+      "detail": "Turn your head to the right"
+    },
+    {
+      "test": "Challenge timeout = 180s",
+      "passed": true,
+      "warning": false,
+      "detail": ""
+    },
+    {
+      "test": "Session expires_at set",
+      "passed": true,
+      "warning": false,
+      "detail": ""
+    },
+    {
+      "test": "Challenge has nonce",
+      "passed": true,
+      "warning": false,
+      "detail": ""
+    },
+    {
+      "test": "Challenge has created_at",
+      "passed": true,
+      "warning": false,
+      "detail": ""
+    },
+    {
+      "test": "Step 1: challenge_type = turn_right",
+      "passed": true,
+      "warning": false,
+      "detail": "turn_right"
+    },
+    {
+      "test": "Step 1: verify-challenge \u2192 200",
+      "passed": true,
+      "warning": false,
+      "detail": "status=200"
+    },
+    {
+      "test": "Step 1: completedChallenges=1",
+      "passed": true,
+      "warning": false,
+      "detail": "index=1"
+    },
+    {
+      "test": "Step 2: challenge_type = nod",
+      "passed": true,
+      "warning": false,
+      "detail": "nod"
+    },
+    {
+      "test": "Step 2: verify-challenge \u2192 200",
+      "passed": true,
+      "warning": false,
+      "detail": "status=200"
+    },
+    {
+      "test": "Step 2: completedChallenges=2",
+      "passed": true,
+      "warning": false,
+      "detail": "index=2"
+    },
+    {
+      "test": "Step 3: challenge_type = look_up",
+      "passed": true,
+      "warning": false,
+      "detail": "look_up"
+    },
+    {
+      "test": "Step 3: verify-challenge \u2192 200",
+      "passed": true,
+      "warning": false,
+      "detail": "status=200"
+    },
+    {
+      "test": "Step 3: completedChallenges=3",
+      "passed": true,
+      "warning": false,
+      "detail": "index=3"
+    },
+    {
+      "test": "Step 4: challenge_type = look_down",
+      "passed": true,
+      "warning": false,
+      "detail": "look_down"
+    },
+    {
+      "test": "Step 4: verify-challenge \u2192 200",
+      "passed": true,
+      "warning": false,
+      "detail": "status=200"
+    },
+    {
+      "test": "Step 4: completedChallenges=4",
+      "passed": true,
+      "warning": false,
+      "detail": "index=None"
+    },
+    {
+      "test": "POST /detailed-verify (with session) \u2192 200",
+      "passed": true,
+      "warning": false,
+      "detail": "status=200"
+    },
+    {
+      "test": "Has 'verified' field",
+      "passed": true,
+      "warning": false,
+      "detail": "['confidence', 'deepfakeDetected', 'faceMatchPassed', 'livenessDetails', 'livenessPassed', 'livenessSessionId', 'processing_time_ms', 'reasons', 'screenReplayDetected', 'sessionLivenessConfirmed', 'spoofDetected', 'verdict', 'verified']"
+    },
+    {
+      "test": "Has 'livenessPassed' field",
+      "passed": true,
+      "warning": false,
+      "detail": ""
+    },
+    {
+      "test": "Has 'sessionLivenessConfirmed' field",
+      "passed": true,
+      "warning": false,
+      "detail": ""
+    },
+    {
+      "test": "Has 'verdict' field",
+      "passed": true,
+      "warning": false,
+      "detail": ""
+    },
+    {
+      "test": "Has 'confidence' field",
+      "passed": true,
+      "warning": false,
+      "detail": ""
+    },
+    {
+      "test": "Has 'reasons' array",
+      "passed": true,
+      "warning": false,
+      "detail": ""
+    },
+    {
+      "test": "Has 'processing_time_ms'",
+      "passed": true,
+      "warning": false,
+      "detail": ""
+    },
+    {
+      "test": "Liveness passed (4 challenges completed)",
+      "passed": true,
+      "warning": false,
+      "detail": "completed=4"
+    },
+    {
+      "test": "POST /detailed-verify (Re-KYC, no id_face) \u2192 200",
+      "passed": true,
+      "warning": false,
+      "detail": "status=200"
+    },
+    {
+      "test": "No HTTP 500 for Re-KYC",
+      "passed": true,
+      "warning": false,
+      "detail": ""
+    },
+    {
+      "test": "Has 'verified' field",
+      "passed": true,
+      "warning": false,
+      "detail": ""
+    },
+    {
+      "test": "Has 'faceMatchPassed' field",
+      "passed": true,
+      "warning": false,
+      "detail": ""
+    },
+    {
+      "test": "Has 'sessionLivenessConfirmed' field",
+      "passed": true,
+      "warning": false,
+      "detail": ""
+    },
+    {
+      "test": "livenessPassed is populated (not crashing)",
+      "passed": true,
+      "warning": false,
+      "detail": ""
+    },
+    {
+      "test": "Detailed-verify (client-side fallback) \u2192 200",
+      "passed": true,
+      "warning": false,
+      "detail": ""
+    },
+    {
+      "test": "Liveness accepted via client fallback",
+      "passed": true,
+      "warning": false,
+      "detail": "livenessPassed=True, sessionConfirmed=True"
+    },
+    {
+      "test": "Session confirmed via client fallback",
+      "passed": true,
+      "warning": false,
+      "detail": ""
+    },
+    {
+      "test": "Verdict populated",
+      "passed": true,
+      "warning": false,
+      "detail": ""
+    },
+    {
+      "test": "Empty body \u2192 handled (no crash)",
+      "passed": true,
+      "warning": false,
+      "detail": "status=400 (no 500)"
+    },
+    {
+      "test": "Empty selfie only \u2192 handled (no crash)",
+      "passed": true,
+      "warning": false,
+      "detail": "status=200"
+    },
+    {
+      "test": "Null body \u2192 handled gracefully",
+      "passed": true,
+      "warning": false,
+      "detail": "status=415 (no 500)"
+    },
+    {
+      "test": "Invalid session on verify-challenge \u2192 400 with error (no 500)",
+      "passed": true,
+      "warning": false,
+      "detail": "status=400 (no 500)"
+    },
+    {
+      "test": "No HTTP 500 responses",
+      "passed": true,
+      "warning": false,
+      "detail": "Clean"
+    },
+    {
+      "test": "No UnboundLocalError exceptions",
+      "passed": true,
+      "warning": false,
+      "detail": "Clean"
+    },
+    {
+      "test": "[LIVENESS_DEBUG] entries logged",
+      "passed": true,
+      "warning": false,
+      "detail": "Found 18 entries"
+    },
+    {
+      "test": "[BLINK] log entries found",
+      "passed": true,
+      "warning": false,
+      "detail": "Found 2 entries"
+    },
+    {
+      "test": "[TURN_LEFT] log entries found",
+      "passed": true,
+      "warning": true,
+      "detail": "Found 0 entries"
+    },
+    {
+      "test": "[TURN_RIGHT] log entries found",
+      "passed": true,
+      "warning": true,
+      "detail": "Found 0 entries"
+    },
+    {
+      "test": "[LOOK_UP] log entries found",
+      "passed": true,
+      "warning": true,
+      "detail": "Found 0 entries"
+    },
+    {
+      "test": "[LOOK_DOWN] log entries found",
+      "passed": true,
+      "warning": true,
+      "detail": "Found 0 entries"
+    },
+    {
+      "test": "[NOD] log entries found",
+      "passed": true,
+      "warning": false,
+      "detail": "Found 4 entries"
+    },
+    {
+      "test": "[OPEN_MOUTH] log entries found",
+      "passed": true,
+      "warning": false,
+      "detail": "Found 2 entries"
+    },
+    {
+      "test": "[DIAG] entries logged",
+      "passed": true,
+      "warning": false,
+      "detail": "Found 25 entries"
+    },
+    {
+      "test": "No ERROR-level log messages (excluding expected)",
+      "passed": true,
+      "warning": false,
+      "detail": "Clean"
+    },
+    {
+      "test": "POST /api/ai/liveness/combined \u2192 200",
+      "passed": true,
+      "warning": false,
+      "detail": "status=200"
+    },
+    {
+      "test": "Response has 'success'",
+      "passed": true,
+      "warning": false,
+      "detail": ""
+    },
+    {
+      "test": "Has 'liveness_score' or 'confidence'",
+      "passed": true,
+      "warning": false,
+      "detail": "['confidence', 'deepfakeDetected', 'faceMatchPassed', 'livenessPassed', 'processing_time_ms', 'reasons', 'screenReplayDetected', 'sessionLivenessConfirmed', 'spoofDetected', 'verdict', 'verified']"
+    }
+  ],
+  "completed_challenges": [
+    "turn_right",
+    "nod",
+    "look_up",
+    "look_down"
+  ],
+  "errors": [],
+  "success": true
+}

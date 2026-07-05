@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="pragma" content="no-cache">
+    <meta http-equiv="expires" content="0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KYC Application - Indian Overseas Bank</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="../css/kyc.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <img src="../assets/logo.png" alt="IOB" class="iob-logo" height="36">
+            <span>Indian Overseas Bank</span>
+        </div>
+        <div class="hamburger" onclick="toggleMobileMenu()">
+            <span></span><span></span><span></span>
+        </div>
+        <div class="nav-right"><div class="nav-links" id="navLinks">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="kyc.html" class="active">KYC</a>
+            <a href="#" onclick="handleLogout(); return false;">Logout</a>
+        </div> <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">&#9790;</button></div>
+    
+    </nav>
+
+    <div class="dashboard-container">
+        <div class="dashboard-header fade-in">
+            <div>
+                <h1>KYC Application</h1>
+                <p>Complete your identity verification in 4 simple steps</p>
+            </div>
+        </div>
+
+        <div id="alertContainer"></div>
+
+        <div class="kyc-steps-container" id="stepContainer">
+            <!-- Step 1: Upload Documents + Photo -->
+            <div class="kyc-step fade-in" data-step="1">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>&#128196; Upload Identity Documents</h3>
+                        <span class="badge badge-info">Step 1 of 4</span>
+                    </div>
+
+                    <div class="upload-grid">
+                        <!-- Aadhaar Card -->
+                        <div class="upload-box" id="aadhaarBox">
+                            <label class="upload-box-label">&#128196; Aadhaar Card</label>
+                            <div class="file-upload" id="aadhaarUpload" onclick="document.getElementById('aadhaarFile').click()">
+                                <div class="upload-icon">&#128196;</div>
+                                <p>Click to upload</p>
+                                <small style="color:var(--gray-500)">JPG, PNG, PDF (Max 5MB)</small>
+                                <div class="file-name" id="aadhaarFileName"></div>
+                                <input type="file" id="aadhaarFile" accept=".jpg,.jpeg,.png,.pdf" style="display:none" onchange="handleDocSelect(this, 'aadhaar')">
+                            </div>
+                            <button type="button" class="btn-remove" id="aadhaarRemove" style="display:none" onclick="removeFile('aadhaar')">&#10005; Remove</button>
+                        </div>
+
+                        <!-- PAN Card -->
+                        <div class="upload-box" id="panBox">
+                            <label class="upload-box-label">&#128196; PAN Card</label>
+                            <div class="file-upload" id="panUpload" onclick="document.getElementById('panFile').click()">
+                                <div class="upload-icon">&#128196;</div>
+                                <p>Click to upload</p>
+                                <small style="color:var(--gray-500)">JPG, PNG, PDF (Max 5MB)</small>
+                                <div class="file-name" id="panFileName"></div>
+                                <input type="file" id="panFile" accept=".jpg,.jpeg,.png,.pdf" style="display:none" onchange="handleDocSelect(this, 'pan')">
+                            </div>
+                            <button type="button" class="btn-remove" id="panRemove" style="display:none" onclick="removeFile('pan')">&#10005; Remove</button>
+                        </div>
+
+                        <!-- Photo -->
+                        <div class="upload-box" id="photoBox">
+                            <label class="upload-box-label">&#128247; Photo</label>
+                            <div class="file-upload" id="photoUpload" onclick="document.getElementById('profilePhoto').click()">
+                                <div class="upload-icon">&#128247;</div>
+                                <p>Click to upload</p>
+                                <small style="color:var(--gray-500)">JPG, PNG (Max 5MB)</small>
+                                <div class="file-name" id="photoFileName"></div>
+                                <input type="file" id="profilePhoto" accept="image/*" style="display:none" onchange="handleDocSelect(this, 'photo')">
+                            </div>
+                            <button type="button" class="btn-remove" id="photoRemove" style="display:none" onclick="removeFile('photo')">&#10005; Remove</button>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:20px">
+                        <button class="btn btn-primary" id="uploadContinueBtn" onclick="nextStep(1)" disabled>Upload & Continue <span>&rarr;</span></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Verify Details + Personal Info -->
+            <div class="kyc-step fade-in" data-step="2" style="display:none">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>&#128269; Enter & Verify Details</h3>
+                        <span class="badge badge-info">Step 2 of 4</span>
+                    </div>
+                    <div class="ocr-status" id="ocrStatus">
+                        <div class="spinner"></div>
+                        <p>Running OCR extraction...</p>
+                    </div>
+                    <div id="ocrForm" style="display:none">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Full Name (as on document)</label>
+                                <input type="text" id="ocrName" placeholder="Name extracted from document">
+                            </div>
+                            <div class="form-group">
+                                <label>Date of Birth</label>
+                                <input type="date" id="ocrDob">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Aadhaar Number</label>
+                                <input type="text" id="ocrIdNumber" placeholder="Aadhaar number extracted">
+                        </div>
+                        <div class="form-group">
+                            <label>PAN Number</label>
+                                <input type="text" id="ocrPanNumber" placeholder="PAN number extracted" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Address</label>
+                            <textarea id="ocrAddress" rows="3" placeholder="Enter your full address manually"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Branch</label>
+                            <select id="ocrBranch" required>
+                                <option value="">Select your branch</option>
+                                <optgroup label="Tamil Nadu">
+                                    <option value="Chennai Main Branch">Chennai Main Branch</option>
+                                    <option value="T. Nagar Branch">T. Nagar Branch</option>
+                                    <option value="Mylapore Branch">Mylapore Branch</option>
+                                    <option value="Adyar Branch">Adyar Branch</option>
+                                    <option value="Anna Nagar Branch">Anna Nagar Branch</option>
+                                    <option value="Velachery Branch">Velachery Branch</option>
+                                    <option value="Tambaram Branch">Tambaram Branch</option>
+                                    <option value="Porur Branch">Porur Branch</option>
+                                    <option value="Sholinganallur Branch">Sholinganallur Branch</option>
+                                    <option value="Thiruvanmiyur Branch">Thiruvanmiyur Branch</option>
+                                    <option value="Nungambakkam Branch">Nungambakkam Branch</option>
+                                    <option value="T. Nagar South Branch">T. Nagar South Branch</option>
+                                    <option value="Kodambakkam Branch">Kodambakkam Branch</option>
+                                    <option value="Ashok Nagar Branch">Ashok Nagar Branch</option>
+                                    <option value="Guindy Branch">Guindy Branch</option>
+                                    <option value="Meenambakkam Branch">Meenambakkam Branch</option>
+                                    <option value="Pallavaram Branch">Pallavaram Branch</option>
+                                    <option value="Chrompet Branch">Chrompet Branch</option>
+                                    <option value="Ambattur Branch">Ambattur Branch</option>
+                                    <option value="Avadi Branch">Avadi Branch</option>
+                                    <option value="Tiruvallur Branch">Tiruvallur Branch</option>
+                                    <option value="Kancheepuram Branch">Kancheepuram Branch</option>
+                                    <option value="Coimbatore Main Branch">Coimbatore Main Branch</option>
+                                    <option value="RS Puram Branch">RS Puram Branch</option>
+                                    <option value="Gandhipuram Branch">Gandhipuram Branch</option>
+                                    <option value="Peelamedu Branch">Peelamedu Branch</option>
+                                    <option value="Sulur Branch">Sulur Branch</option>
+                                    <option value="Mettupalayam Branch">Mettupalayam Branch</option>
+                                    <option value="Madurai Main Branch">Madurai Main Branch</option>
+                                    <option value="KK Nagar Branch">KK Nagar Branch</option>
+                                    <option value="Anna Nagar Madurai Branch">Anna Nagar Madurai Branch</option>
+                                    <option value="Salem Main Branch">Salem Main Branch</option>
+                                    <option value="Fairlands Branch">Fairlands Branch</option>
+                                    <option value="Surampatti Branch">Surampatti Branch</option>
+                                    <option value="Trichy Main Branch">Trichy Main Branch</option>
+                                    <option value="Thillai Nagar Branch">Thillai Nagar Branch</option>
+                                    <option value="Srirangam Branch">Srirangam Branch</option>
+                                    <option value="Tirunelveli Main Branch">Tirunelveli Main Branch</option>
+                                    <option value="Palayamkottai Branch">Palayamkottai Branch</option>
+                                    <option value="Erode Main Branch">Erode Main Branch</option>
+                                    <option value="Bhavani Branch">Bhavani Branch</option>
+                                    <option value="Tiruppur Main Branch">Tiruppur Main Branch</option>
+                                    <option value="Avinashi Branch">Avinashi Branch</option>
+                                    <option value="Vellore Main Branch">Vellore Main Branch</option>
+                                    <option value="Katpadi Branch">Katpadi Branch</option>
+                                    <option value="Thoothukudi Main Branch">Thoothukudi Main Branch</option>
+                                    <option value="Kovilpatti Branch">Kovilpatti Branch</option>
+                                    <option value="Dindigul Main Branch">Dindigul Main Branch</option>
+                                    <option value="Karur Main Branch">Karur Main Branch</option>
+                                    <option value="Thanjavur Main Branch">Thanjavur Main Branch</option>
+                                    <option value="Kumbakonam Branch">Kumbakonam Branch</option>
+                                    <option value="Cuddalore Branch">Cuddalore Branch</option>
+                                    <option value="Chidambaram Branch">Chidambaram Branch</option>
+                                    <option value=" Villupuram Branch"> Villupuram Branch</option>
+                                    <option value="Sriperumbudur Branch">Sriperumbudur Branch</option>
+                                    <option value="Uthiramerur Branch">Uthiramerur Branch</option>
+                                </optgroup>
+                                <optgroup label="Andhra Pradesh & Telangana">
+                                    <option value="Hyderabad Main Branch">Hyderabad Main Branch</option>
+                                    <option value="Ameerpet Branch">Ameerpet Branch</option>
+                                    <option value="Kukatpally Branch">Kukatpally Branch</option>
+                                    <option value="Dilsukhnagar Branch">Dilsukhnagar Branch</option>
+                                    <option value="Madhapur Branch">Madhapur Branch</option>
+                                    <option value="LB Nagar Branch">LB Nagar Branch</option>
+                                    <option value="Secunderabad Branch">Secunderabad Branch</option>
+                                    <option value="Gachibowli Branch">Gachibowli Branch</option>
+                                    <option value="Begumpet Branch">Begumpet Branch</option>
+                                    <option value="Tarnaka Branch">Tarnaka Branch</option>
+                                    <option value="Vijayawada Main Branch">Vijayawada Main Branch</option>
+                                    <option value="Governorpet Branch">Governorpet Branch</option>
+                                    <option value="Bandar Road Branch">Bandar Road Branch</option>
+                                    <option value="Visakhapatnam Main Branch">Visakhapatnam Main Branch</option>
+                                    <option value="Dwaraka Nagar Branch">Dwaraka Nagar Branch</option>
+                                    <option value="MVP Colony Branch">MVP Colony Branch</option>
+                                    <option value="Gajuwaka Branch">Gajuwaka Branch</option>
+                                    <option value="Tirupati Main Branch">Tirupati Main Branch</option>
+                                    <option value="Renigunta Branch">Renigunta Branch</option>
+                                    <option value="Kadapa Main Branch">Kadapa Main Branch</option>
+                                    <option value="Kurnool Main Branch">Kurnool Main Branch</option>
+                                    <option value="Anantapur Main Branch">Anantapur Main Branch</option>
+                                    <option value="Guntur Main Branch">Guntur Main Branch</option>
+                                    <option value="Nellore Main Branch">Nellore Main Branch</option>
+                                    <option value="Rajahmundry Main Branch">Rajahmundry Main Branch</option>
+                                    <option value="Kakinada Main Branch">Kakinada Main Branch</option>
+                                    <option value="Eluru Main Branch">Eluru Main Branch</option>
+                                </optgroup>
+                                <optgroup label="Karnataka">
+                                    <option value="Bangalore Main Branch">Bangalore Main Branch</option>
+                                    <option value="MG Road Bangalore Branch">MG Road Bangalore Branch</option>
+                                    <option value="Indiranagar Branch">Indiranagar Branch</option>
+                                    <option value="Koramangala Branch">Koramangala Branch</option>
+                                    <option value="Jayanagar Branch">Jayanagar Branch</option>
+                                    <option value="HSR Layout Branch">HSR Layout Branch</option>
+                                    <option value="Whitefield Branch">Whitefield Branch</option>
+                                    <option value="Electronic City Branch">Electronic City Branch</option>
+                                    <option value="Rajajinagar Branch">Rajajinagar Branch</option>
+                                    <option value="Malleshwaram Branch">Malleshwaram Branch</option>
+                                    <option value="Basavanagudi Branch">Basavanagudi Branch</option>
+                                    <option value="JP Nagar Branch">JP Nagar Branch</option>
+                                    <option value="Bannerghatta Road Branch">Bannerghatta Road Branch</option>
+                                    <option value="Hebbal Branch">Hebbal Branch</option>
+                                    <option value="Yelahanka Branch">Yelahanka Branch</option>
+                                    <option value="Mysore Main Branch">Mysore Main Branch</option>
+                                    <option value="Hunsur Road Branch">Hunsur Road Branch</option>
+                                    <option value="Mandya Main Branch">Mandya Main Branch</option>
+                                    <option value="Hubli Main Branch">Hubli Main Branch</option>
+                                    <option value="Dharwad Main Branch">Dharwad Main Branch</option>
+                                    <option value="Gulbarga Main Branch">Gulbarga Main Branch</option>
+                                    <option value="Belgaum Main Branch">Belgaum Main Branch</option>
+                                    <option value="Mangalore Main Branch">Mangalore Main Branch</option>
+                                    <option value="Shimoga Main Branch">Shimoga Main Branch</option>
+                                    <option value="Bellary Main Branch">Bellary Main Branch</option>
+                                    <option value="Raichur Main Branch">Raichur Main Branch</option>
+                                    <option value="Bijapur Main Branch">Bijapur Main Branch</option>
+                                    <option value="Hassan Main Branch">Hassan Main Branch</option>
+                                    <option value="Tumkur Main Branch">Tumkur Main Branch</option>
+                                    <option value="Kolar Main Branch">Kolar Main Branch</option>
+                                </optgroup>
+                                <optgroup label="Maharashtra">
+                                    <option value="Mumbai Main Branch">Mumbai Main Branch</option>
+                                    <option value="Fort Branch Mumbai">Fort Branch Mumbai</option>
+                                    <option value="Andheri Branch">Andheri Branch</option>
+                                    <option value="Bandra Branch">Bandra Branch</option>
+                                    <option value="Borivali Branch">Borivali Branch</option>
+                                    <option value="Dadar Branch">Dadar Branch</option>
+                                    <option value="Juhu Branch">Juhu Branch</option>
+                                    <option value="Goregaon Branch">Goregaon Branch</option>
+                                    <option value="Malad Branch">Malad Branch</option>
+                                    <option value="Kandivali Branch">Kandivali Branch</option>
+                                    <option value="Powai Branch">Powai Branch</option>
+                                    <option value="Vikhroli Branch">Vikhroli Branch</option>
+                                    <option value="Mulund Branch">Mulund Branch</option>
+                                    <option value="Thane Main Branch">Thane Main Branch</option>
+                                    <option value="Kalyan Branch">Kalyan Branch</option>
+                                    <option value="Navi Mumbai Branch">Navi Mumbai Branch</option>
+                                    <option value="Vashi Branch">Vashi Branch</option>
+                                    <option value="Nerul Branch">Nerul Branch</option>
+                                    <option value="Panvel Branch">Panvel Branch</option>
+                                    <option value="Pune Main Branch">Pune Main Branch</option>
+                                    <option value="Shivaji Nagar Branch">Shivaji Nagar Branch</option>
+                                    <option value="Kothrud Branch">Kothrud Branch</option>
+                                    <option value="Kharadi Branch">Kharadi Branch</option>
+                                    <option value="Hinjewadi Branch">Hinjewadi Branch</option>
+                                    <option value="Wakad Branch">Wakad Branch</option>
+                                    <option value="Nagpur Main Branch">Nagpur Main Branch</option>
+                                    <option value="Nashik Main Branch">Nashik Main Branch</option>
+                                    <option value="Aurangabad Main Branch">Aurangabad Main Branch</option>
+                                    <option value="Solapur Main Branch">Solapur Main Branch</option>
+                                    <option value="Kolhapur Main Branch">Kolhapur Main Branch</option>
+                                    <option value="Satara Main Branch">Satara Main Branch</option>
+                                </optgroup>
+                                <optgroup label="Delhi & NCR">
+                                    <option value="Delhi Main Branch">Delhi Main Branch</option>
+                                    <option value="Connaught Place Branch">Connaught Place Branch</option>
+                                    <option value="Karol Bagh Branch">Karol Bagh Branch</option>
+                                    <option value="Lajpat Nagar Branch">Lajpat Nagar Branch</option>
+                                    <option value="Rajouri Garden Branch">Rajouri Garden Branch</option>
+                                    <option value="Dwarka Branch">Dwarka Branch</option>
+                                    <option value="Rohini Branch">Rohini Branch</option>
+                                    <option value="Pitampura Branch">Pitampura Branch</option>
+                                    <option value="Shalimar Bagh Branch">Shalimar Bagh Branch</option>
+                                    <option value="Vasant Kunj Branch">Vasant Kunj Branch</option>
+                                    <option value="Saket Branch">Saket Branch</option>
+                                    <option value="Nehru Place Branch">Nehru Place Branch</option>
+                                    <option value="Defence Colony Branch">Defence Colony Branch</option>
+                                    <option value="Greater Kailash Branch">Greater Kailash Branch</option>
+                                    <option value="Janakpuri Branch">Janakpuri Branch</option>
+                                    <option value="Uttam Nagar Branch">Uttam Nagar Branch</option>
+                                    <option value="Noida Main Branch">Noida Main Branch</option>
+                                    <option value="Sector 18 Noida Branch">Sector 18 Noida Branch</option>
+                                    <option value="Greater Noida Branch">Greater Noida Branch</option>
+                                    <option value="Ghaziabad Main Branch">Ghaziabad Main Branch</option>
+                                    <option value="Indirapuram Branch">Indirapuram Branch</option>
+                                    <option value="Vaishali Branch">Vaishali Branch</option>
+                                    <option value="Faridabad Main Branch">Faridabad Main Branch</option>
+                                    <option value="Gurgaon Main Branch">Gurgaon Main Branch</option>
+                                    <option value="DLF Phase Branch">DLF Phase Branch</option>
+                                    <option value="Sohna Road Branch">Sohna Road Branch</option>
+                                </optgroup>
+                                <optgroup label="West Bengal">
+                                    <option value="Kolkata Main Branch">Kolkata Main Branch</option>
+                                    <option value="Park Street Branch">Park Street Branch</option>
+                                    <option value="Salt Lake Branch">Salt Lake Branch</option>
+                                    <option value="New Town Branch">New Town Branch</option>
+                                    <option value="Ballygunge Branch">Ballygunge Branch</option>
+                                    <option value="Garia Branch">Garia Branch</option>
+                                    <option value="Howrah Main Branch">Howrah Main Branch</option>
+                                    <option value="Durgapur Branch">Durgapur Branch</option>
+                                    <option value="Asansol Branch">Asansol Branch</option>
+                                    <option value="Siliguri Branch">Siliguri Branch</option>
+                                    <option value="Burwan Branch">Burwan Branch</option>
+                                </optgroup>
+                                <optgroup label="Gujarat">
+                                    <option value="Ahmedabad Main Branch">Ahmedabad Main Branch</option>
+                                    <option value="CG Road Branch">CG Road Branch</option>
+                                    <option value="Navrangpura Branch">Navrangpura Branch</option>
+                                    <option value="Satellite Branch">Satellite Branch</option>
+                                    <option value="Bopal Branch">Bopal Branch</option>
+                                    <option value="Vastrapur Branch">Vastrapur Branch</option>
+                                    <option value="Surat Main Branch">Surat Main Branch</option>
+                                    <option value="Athwa Gate Branch">Athwa Gate Branch</option>
+                                    <option value="Vadodara Main Branch">Vadodara Main Branch</option>
+                                    <option value="Alkapuri Branch">Alkapuri Branch</option>
+                                    <option value="Rajkot Main Branch">Rajkot Main Branch</option>
+                                    <option value="Jamnagar Main Branch">Jamnagar Main Branch</option>
+                                    <option value="Bhavnagar Main Branch">Bhavnagar Main Branch</option>
+                                    <option value="Gandhinagar Branch">Gandhinagar Branch</option>
+                                    <option value="Anand Main Branch">Anand Main Branch</option>
+                                    <option value="Nadiad Main Branch">Nadiad Main Branch</option>
+                                </optgroup>
+                                <optgroup label="Kerala">
+                                    <option value="Kochi Main Branch">Kochi Main Branch</option>
+                                    <option value="Ernakulam Branch">Ernakulam Branch</option>
+                                    <option value="Kakkanad Branch">Kakkanad Branch</option>
+                                    <option value="Aluva Branch">Aluva Branch</option>
+                                    <option value="Tripunithura Branch">Tripunithura Branch</option>
+                                    <option value="Thiruvananthapuram Main Branch">Thiruvananthapuram Main Branch</option>
+                                    <option value="Kowdiar Branch">Kowdiar Branch</option>
+                                    <option value="Kazhakoottam Branch">Kazhakoottam Branch</option>
+                                    <option value="Kozhikode Main Branch">Kozhikode Main Branch</option>
+                                    <option value="Calicut Beach Branch">Calicut Beach Branch</option>
+                                    <option value="Thrissur Main Branch">Thrissur Main Branch</option>
+                                    <option value="Palakkad Main Branch">Palakkad Main Branch</option>
+                                    <option value="Kottayam Main Branch">Kottayam Main Branch</option>
+                                    <option value="Kollam Main Branch">Kollam Main Branch</option>
+                                    <option value="Kannur Main Branch">Kannur Main Branch</option>
+                                    <option value="Kasaragod Branch">Kasaragod Branch</option>
+                                    <option value="Idukki Branch">Idukki Branch</option>
+                                    <option value="Malappuram Branch">Malappuram Branch</option>
+                                    <option value="Pathanamthitta Branch">Pathanamthitta Branch</option>
+                                    <option value="Wayanad Branch">Wayanad Branch</option>
+                                </optgroup>
+                                <optgroup label="Madhya Pradesh">
+                                    <option value="Bhopal Main Branch">Bhopal Main Branch</option>
+                                    <option value="MP Nagar Branch">MP Nagar Branch</option>
+                                    <option value="New Market Branch">New Market Branch</option>
+                                    <option value="Indore Main Branch">Indore Main Branch</option>
+                                    <option value="Vijay Nagar Branch">Vijay Nagar Branch</option>
+                                    <option value="Palasia Branch">Palasia Branch</option>
+                                    <option value="Jabalpur Main Branch">Jabalpur Main Branch</option>
+                                    <option value="Gwalior Main Branch">Gwalior Main Branch</option>
+                                    <option value="Ujjain Main Branch">Ujjain Main Branch</option>
+                                </optgroup>
+                                <optgroup label="Rajasthan">
+                                    <option value="Jaipur Main Branch">Jaipur Main Branch</option>
+                                    <option value="MI Road Branch">MI Road Branch</option>
+                                    <option value="Malviya Nagar Branch">Malviya Nagar Branch</option>
+                                    <option value="Vaishali Nagar Branch">Vaishali Nagar Branch</option>
+                                    <option value="Jodhpur Main Branch">Jodhpur Main Branch</option>
+                                    <option value="Udaipur Main Branch">Udaipur Main Branch</option>
+                                    <option value="Kota Main Branch">Kota Main Branch</option>
+                                    <option value="Ajmer Main Branch">Ajmer Main Branch</option>
+                                    <option value="Alwar Main Branch">Alwar Main Branch</option>
+                                    <option value="Bikaner Main Branch">Bikaner Main Branch</option>
+                                </optgroup>
+                                <optgroup label="Uttar Pradesh">
+                                    <option value="Lucknow Main Branch">Lucknow Main Branch</option>
+                                    <option value="Hazratganj Branch">Hazratganj Branch</option>
+                                    <option value="Aliganj Branch">Aliganj Branch</option>
+                                    <option value="Gomti Nagar Branch">Gomti Nagar Branch</option>
+                                    <option value="Kanpur Main Branch">Kanpur Main Branch</option>
+                                    <option value="Agra Main Branch">Agra Main Branch</option>
+                                    <option value="Varanasi Main Branch">Varanasi Main Branch</option>
+                                    <option value="Prayagraj Main Branch">Prayagraj Main Branch</option>
+                                    <option value="Meerut Main Branch">Meerut Main Branch</option>
+                                    <option value="Bareilly Main Branch">Bareilly Main Branch</option>
+                                    <option value="Aligarh Main Branch">Aligarh Main Branch</option>
+                                    <option value="Jhansi Main Branch">Jhansi Main Branch</option>
+                                    <option value="Moradabad Main Branch">Moradabad Main Branch</option>
+                                    <option value="Gorakhpur Main Branch">Gorakhpur Main Branch</option>
+                                </optgroup>
+                                <optgroup label="Punjab & Haryana">
+                                    <option value="Chandigarh Main Branch">Chandigarh Main Branch</option>
+                                    <option value="Sector 17 Branch">Sector 17 Branch</option>
+                                    <option value="Mohali Branch">Mohali Branch</option>
+                                    <option value="Panchkula Branch">Panchkula Branch</option>
+                                    <option value="Ludhiana Main Branch">Ludhiana Main Branch</option>
+                                    <option value="Amritsar Main Branch">Amritsar Main Branch</option>
+                                    <option value="Jalandhar Main Branch">Jalandhar Main Branch</option>
+                                    <option value="Patiala Main Branch">Patiala Main Branch</option>
+                                    <option value="Bathinda Main Branch">Bathinda Main Branch</option>
+                                    <option value="Hoshiarpur Branch">Hoshiarpur Branch</option>
+                                    <option value="Ambala Main Branch">Ambala Main Branch</option>
+                                    <option value="Karnal Main Branch">Karnal Main Branch</option>
+                                    <option value="Hisar Main Branch">Hisar Main Branch</option>
+                                    <option value="Rohtak Main Branch">Rohtak Main Branch</option>
+                                    <option value="Panipat Main Branch">Panipat Main Branch</option>
+                                    <option value="Sonipat Branch">Sonipat Branch</option>
+                                </optgroup>
+                                <optgroup label="Odisha">
+                                    <option value="Bhubaneswar Main Branch">Bhubaneswar Main Branch</option>
+                                    <option value="Saheed Nagar Branch">Saheed Nagar Branch</option>
+                                    <option value="Jaydev Vihar Branch">Jaydev Vihar Branch</option>
+                                    <option value="Patia Branch">Patia Branch</option>
+                                    <option value="Cuttack Main Branch">Cuttack Main Branch</option>
+                                    <option value="Berhampur Branch">Berhampur Branch</option>
+                                    <option value="Sambalpur Branch">Sambalpur Branch</option>
+                                    <option value="Rourkela Branch">Rourkela Branch</option>
+                                </optgroup>
+                                <optgroup label="Assam & Northeast">
+                                    <option value="Guwahati Main Branch">Guwahati Main Branch</option>
+                                    <option value="Fancy Bazaar Branch">Fancy Bazaar Branch</option>
+                                    <option value="Zoo Road Branch">Zoo Road Branch</option>
+                                    <option value="Dispur Branch">Dispur Branch</option>
+                                    <option value="Shillong Main Branch">Shillong Main Branch</option>
+                                    <option value="Imphal Main Branch">Imphal Main Branch</option>
+                                    <option value="Agartala Main Branch">Agartala Main Branch</option>
+                                    <option value="Aizawl Main Branch">Aizawl Main Branch</option>
+                                    <option value="Kohima Main Branch">Kohima Main Branch</option>
+                                    <option value="Itanagar Main Branch">Itanagar Main Branch</option>
+                                </optgroup>
+                                <optgroup label="Bihar & Jharkhand">
+                                    <option value="Patna Main Branch">Patna Main Branch</option>
+                                    <option value="Boring Road Branch">Boring Road Branch</option>
+                                    <option value="Kankarbagh Branch">Kankarbagh Branch</option>
+                                    <option value="Gaya Main Branch">Gaya Main Branch</option>
+                                    <option value="Muzaffarpur Branch">Muzaffarpur Branch</option>
+                                    <option value="Bhagalpur Branch">Bhagalpur Branch</option>
+                                    <option value="Ranchi Main Branch">Ranchi Main Branch</option>
+                                    <option value="Dhanbad Branch">Dhanbad Branch</option>
+                                    <option value="Jamshedpur Branch">Jamshedpur Branch</option>
+                                    <option value="Bokaro Branch">Bokaro Branch</option>
+                                </optgroup>
+                                <optgroup label="Chhattisgarh & Jammu Kashmir">
+                                    <option value="Raipur Main Branch">Raipur Main Branch</option>
+                                    <option value="Bhilai Branch">Bhilai Branch</option>
+                                    <option value="Bilaspur Branch">Bilaspur Branch</option>
+                                    <option value="Jammu Main Branch">Jammu Main Branch</option>
+                                    <option value="Srinagar Main Branch">Srinagar Main Branch</option>
+                                    <option value="Anantnag Branch">Anantnag Branch</option>
+                                    <option value="Udhampur Branch">Udhampur Branch</option>
+                                </optgroup>
+                                <optgroup label="Goa">
+                                    <option value="Panaji Main Branch">Panaji Main Branch</option>
+                                    <option value="Margao Branch">Margao Branch</option>
+                                    <option value="Vasco da Gama Branch">Vasco da Gama Branch</option>
+                                </optgroup>
+                                <optgroup label="Uttarakhand & Himachal Pradesh">
+                                    <option value="Dehradun Main Branch">Dehradun Main Branch</option>
+                                    <option value="Rishikesh Branch">Rishikesh Branch</option>
+                                    <option value="Haridwar Branch">Haridwar Branch</option>
+                                    <option value="Haldwani Branch">Haldwani Branch</option>
+                                    <option value="Shimla Main Branch">Shimla Main Branch</option>
+                                    <option value="Manali Branch">Manali Branch</option>
+                                    <option value="Dharamsala Branch">Dharamsala Branch</option>
+                                </optgroup>
+                                <optgroup label="Other States">
+                                    <option value="Agartala Main Branch">Agartala Main Branch</option>
+                                    <option value="Gangtok Branch">Gangtok Branch</option>
+                                    <option value="Shimla Branch">Shimla Branch</option>
+                                    <option value="Other">Other</option>
+                                </optgroup>
+                            </select>
+                        </div>
+
+                        <div style="border-top:2px solid var(--gray-200);margin:24px 0;padding-top:20px">
+                            <h4 style="margin-bottom:16px;color:var(--gray-800)">&#128221; Additional Details</h4>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="kycMobile">Mobile Number</label>
+                                    <input type="tel" id="kycMobile" placeholder="+91 9876543210" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="kycEmail">Email Address</label>
+                                    <input type="email" id="kycEmail" placeholder="john@example.com" required>
+                                </div>
+                            </div>
+                            <div class="form-group otp-group" id="emailOtpGroup">
+                                <label>Email OTP Verification</label>
+                                <div class="otp-row">
+                                    <input type="text" id="emailOtp" placeholder="6-digit OTP" maxlength="6" pattern="[0-9]{6}">
+                                    <button type="button" class="btn btn-sm btn-primary" onclick="sendEmailOTP()" id="sendEmailOtpBtn">Send OTP</button>
+                                </div>
+                                <small class="otp-timer" id="emailOtpTimer" style="color:var(--gray-500);margin-top:4px;display:block"></small>
+                                <small style="color:#991b1b;display:block;margin-top:6px;font-weight:500">If you do not receive the OTP in your inbox, please check your spam folder</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Account Type</label>
+                                <div class="radio-group">
+                                    <label class="radio-label">
+                                        <input type="radio" name="accountType" value="savings" checked>
+                                        <span class="radio-custom"></span>
+                                        Savings Account
+                                    </label>
+                                    <label class="radio-label">
+                                        <input type="radio" name="accountType" value="current">
+                                        <span class="radio-custom"></span>
+                                        Current Account
+                                    </label>
+                                    <label class="radio-label">
+                                        <input type="radio" name="accountType" value="nri">
+                                        <span class="radio-custom"></span>
+                                        NRI Account
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top:20px;display:flex;gap:12px">
+                            <button class="btn btn-outline" onclick="prevStep(2)"><span>&larr;</span> Back</button>
+                            <button class="btn btn-primary" onclick="verifyDetails()">Continue <span>&rarr;</span></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Face Verification (Live Selfie Only) -->
+            <div class="kyc-step fade-in" data-step="3" style="display:none">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>&#128066; Face Verification</h3>
+                        <span class="badge badge-info">Step 3 of 4</span>
+                    </div>
+                    <div class="face-verification">
+                        <div class="challenge-layout" id="challengeLayout">
+                        <!-- Left Panel -->
+                        <div class="challenge-left-panel" id="challengeLeftPanel">
+                            <div class="panel-title">Face Verification</div>
+                            <div class="panel-icon">&#128066;</div>
+                            <div class="panel-instructions">
+                                <strong>Position your face</strong> within the guide. Complete 4 challenges to prove you are live.
+                            </div>
+                            <div class="step-list" id="challengeStepList">
+                                <div class="step-item" data-step="0"><span class="step-num">1</span>Challenge 1</div>
+                                <div class="step-item" data-step="1"><span class="step-num">2</span>Challenge 2</div>
+                                <div class="step-item" data-step="2"><span class="step-num">3</span>Challenge 3</div>
+                                <div class="step-item" data-step="3"><span class="step-num">4</span>Challenge 4</div>
+                            </div>
+                        </div>
+
+                        <!-- Center: Video -->
+                        <div class="video-container" id="videoContainer">
+                            <video id="webcam" autoplay playsinline></video>
+                            <div class="video-overlay" id="videoOverlay">
+                                <div class="face-guide"></div>
+                            </div>
+                        </div>
+
+                        <!-- Right Panel -->
+                        <div class="challenge-right-panel" id="challengeRightPanel">
+                            <div class="challenge-header">
+                                <span class="challenge-step-label" id="challengeStepLabel">Ready</span>
+                                <span class="challenge-step-counter" id="challengeStepCounter">0 / 4</span>
+                            </div>
+                            <div class="challenge-instruction" id="challengeInstruction">
+                                <div class="challenge-prompt">
+                                    <div class="challenge-icon" id="challengeIcon">&#128270;</div>
+                                    <div class="challenge-text" id="challengeText">Start verification</div>
+                                    <div class="challenge-tip" id="challengeTip">Click the button below to begin</div>
+                                </div>
+                                <div class="challenge-timer">
+                                    <div class="challenge-timer-fill" id="challengeTimerFill"></div>
+                                    <div class="challenge-timer-text" id="challengeTimerText"></div>
+                                </div>
+                                <div class="challenge-sequence-progress" id="challengeSequenceProgress" style="display:none">
+                                    <div class="sequence-steps" id="sequenceSteps"></div>
+                                </div>
+                                <div class="challenge-action-status" id="challengeActionStatus" style="display:none">
+                                    <div class="action-progress-ring" id="actionProgressRing">
+                                        <svg viewBox="0 0 36 36">
+                                            <path class="ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke-width="2.5"></path>
+                                            <path class="ring-fill" id="actionRingFill" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke-width="2.5" stroke-dasharray="0, 100"></path>
+                                        </svg>
+                                        <span class="ring-percent" id="actionPercent">0%</span>
+                                    </div>
+                                    <span class="action-label" id="actionLabel">Follow the instruction</span>
+                                </div>
+                                <div class="challenge-frame-count" id="challengeFrameCount" style="display:none"></div>
+                            </div>
+                            <div id="debugPanel" style="display:none">
+                                <div id="debugContent"></div>
+                            </div>
+                        </div>
+                        </div>
+                        <div class="face-actions">
+                            <button class="btn btn-primary" id="startChallengeBtn" onclick="startLivenessChallenge()">
+                                &#128270; Start Live Verification
+                            </button>
+                            <button class="btn btn-secondary" id="captureBtn" onclick="captureSelfie()" style="display:none">
+                                &#128247; Capture Live Selfie
+                            </button>
+                        </div>
+                        <div id="faceResult" style="display:none;margin-top:20px">
+                            <div class="face-result-card">
+                                <div class="face-match-animation">
+                                    <div class="match-ring">
+                                        <span id="faceMatchPercent">0%</span>
+                                    </div>
+                                </div>
+                                <p id="faceMatchText">Running enhanced AI verification...</p>
+                                <div id="scoreDetails" style="display:none;margin:12px 0;padding:12px;background:var(--gray-50,#f8fafc);border-radius:8px;font-size:13px"></div>
+                                <div class="liveness-checks">
+                                    <div class="liveness-item"><span id="livenessBlink">&#10060;</span> Liveness Check</div>
+                                    <div class="liveness-item"><span id="livenessSpoof">&#10060;</span> Anti-Spoofing</div>
+                                    <div class="liveness-item"><span id="livenessDeepfake">&#10060;</span> Deepfake Detection</div>
+                                    <div class="liveness-item"><span id="livenessChallenge">&#10060;</span> 4-Step Challenge</div>
+                                    <div class="liveness-item"><span id="livenessDepth">&#10060;</span> Face Match Confidence</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="margin-top:20px;display:flex;gap:12px">
+                            <button class="btn btn-outline" onclick="goBackFromFace()"><span>&larr;</span> Back</button>
+                            <button class="btn btn-warning" id="retryFaceBtn" onclick="retryFaceVerification()" style="display:none">
+                                &#128260; Retry Verification
+                            </button>
+                            <button class="btn btn-primary" id="submitKycBtn" onclick="handleFinalSubmit()" disabled>
+                                Submit KYC <span>&rarr;</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4: Complete -->
+            <div class="kyc-step fade-in" data-step="4" style="display:none">
+                <div class="card" style="text-align:center;padding:60px 40px;">
+                    <div style="font-size:72px;margin-bottom:16px;animation:scaleIn 0.5s ease">&#128240;</div>
+                    <h2 style="color:var(--gray-800);margin-bottom:8px">KYC Submitted Successfully!</h2>
+                    <p style="color:var(--gray-500);margin-bottom:24px">Your KYC application is being processed. You will be notified via email/SMS.</p>
+                    <div class="risk-result-card">
+                        <h3>AI Risk Assessment</h3>
+                        <div class="risk-meter">
+                            <div class="risk-fill" id="riskScoreFill" style="width:15%"></div>
+                        </div>
+                        <p>Risk Score: <strong id="finalRiskScore">15/100</strong> - <span class="badge badge-success" id="finalRiskLabel">Low Risk</span></p>
+                    </div>
+                    <div style="display:flex;gap:12px;justify-content:center;margin-top:24px;flex-wrap:wrap">
+                        <a href="dashboard.html" class="btn btn-primary">&#127968; Go to Dashboard</a>
+                        <a href="kyc-status.html" class="btn btn-outline">&#128200; Track Status</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+    <script>
+        (function() {
+            try {
+                var raw = localStorage.getItem('rekycData') || localStorage.getItem('reKycData');
+                var reKycData = raw ? JSON.parse(raw) : null;
+                var urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('rekyc') === '1' && reKycData) {
+                    window.__rekycMode = true;
+                    window.__rekycData = reKycData;
+                } else {
+                    localStorage.removeItem('rekycData');
+                    localStorage.removeItem('reKycData');
+                }
+            } catch(e) {
+                console.warn('Re-KYC data error:', e);
+            }
+        })();
+        window.addEventListener('error', function (e) {
+            try { fetch('/api/debug/error', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({message: e.message, filename: e.filename, lineno: e.lineno, colno: e.colno, stack: e.error && e.error.stack}) }); } catch(ex) {}
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+            try { fetch('/api/debug/error', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({message: e.reason && e.reason.message, stack: e.reason && e.reason.stack}) }); } catch(ex) {}
+        });
+    </script>
+    <script src="../js/main.js?v=10"></script>
+    <script src="../js/auth.js?v=10"></script>
+    <script src="../js/kyc.js?v=11"></script>
+    <script>
+        if (window.__rekycMode) {
+            if (typeof goToStep === 'function') {
+                goToStep(3);
+            } else {
+                document.querySelectorAll('.kyc-step').forEach(function(el) { el.style.display = 'none'; });
+                var step3 = document.querySelector('.kyc-step[data-step="3"]');
+                if (step3) step3.style.display = 'block';
+                var faceResult = document.getElementById('faceResult');
+                if (faceResult) faceResult.style.display = 'none';
+                var submitBtn = document.getElementById('submitKycBtn');
+                if (submitBtn) submitBtn.disabled = true;
+                var startBtn = document.getElementById('startChallengeBtn');
+                if (startBtn) {
+                    startBtn.style.display = '';
+                    startBtn.disabled = false;
+                    startBtn.textContent = '\u{1F50D} Start Live Verification';
+                }
+                var instruction = document.getElementById('challengeInstruction');
+                if (instruction) instruction.style.display = 'none';
+                var actionStatus = document.getElementById('challengeActionStatus');
+                if (actionStatus) actionStatus.style.display = 'none';
+                var seqProgress = document.getElementById('challengeSequenceProgress');
+                if (seqProgress) seqProgress.style.display = 'none';
+                setTimeout(function() {
+                    var video = document.getElementById('webcam');
+                    if (video && !video.srcObject) {
+                        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 } })
+                            .then(function(stream) { video.srcObject = stream; video.play(); })
+                            .catch(function(e) { console.warn('Camera error:', e); });
+                    }
+                }, 500);
+            }
+        }
+    </script>
+</body>
+</html>

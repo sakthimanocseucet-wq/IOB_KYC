@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Dashboard - IOB KYC</title>
+    <link rel="stylesheet" href="../css/style.css?v=10">
+    <link rel="stylesheet" href="../css/dashboard.css?v=10">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <img src="../assets/logo.png" alt="IOB" class="iob-logo" height="36">
+            <span>Indian Overseas Bank</span>
+        </div>
+        <div class="hamburger" onclick="toggleMobileMenu()">
+            <span></span><span></span><span></span>
+        </div>
+        <div class="nav-right"><div class="nav-links" id="navLinks">
+            <a href="dashboard.html" class="active">Dashboard</a>
+            <a href="#" id="logoutBtn" onclick="handleLogout(); return false;">Logout</a>
+        </div> <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">&#9790;</button></div>
+    
+    </nav>
+
+    <div class="dashboard-container">
+        <div class="dashboard-header fade-in">
+            <div>
+                <h1>Welcome, <span id="userName"></span></h1>
+                <p id="userEmail" style="color:var(--gray-500)"></p>
+            </div>
+        </div>
+
+        <div class="bank-details-card" id="bankDetailsCard" style="display:none">
+            <div class="bank-details-header">
+                <div class="profile-image-container" id="profileImageContainer">
+                    <img id="profilePhotoImg" src="../assets/logo.png" alt="Profile"
+                         style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid var(--primary,#1a73e8);background:var(--gray-100,#f1f5f9)">
+                </div>
+                <div>
+                    <h3>Bank Account Details</h3>
+                    <p style="color:var(--gray-500);font-size:13px;margin:0">Linked savings account</p>
+                </div>
+            </div>
+            <div class="bank-details-grid">
+                <div class="bank-detail-item">
+                    <label>Account Holder</label>
+                    <span id="accountHolder">--</span>
+                </div>
+                <div class="bank-detail-item">
+                    <label>Account Number</label>
+                    <span id="accountNumber">--</span>
+                </div>
+                <div class="bank-detail-item">
+                    <label>Account Type</label>
+                    <span id="accountType">Savings</span>
+                </div>
+                <div class="bank-detail-item">
+                    <label>IFSC Code</label>
+                    <span id="ifscCode">--</span>
+                </div>
+                <div class="bank-detail-item">
+                    <label>Branch</label>
+                    <span id="branchName">--</span>
+                </div>
+                <div class="bank-detail-item" id="bankEmailRow">
+                    <label>Email</label>
+                    <span id="bankEmail">--</span>
+                </div>
+                <div class="bank-detail-item" id="bankMobileRow">
+                    <label>Mobile</label>
+                    <span id="bankMobile">--</span>
+                </div>
+                <div class="bank-detail-item" id="bankAddressRow">
+                    <label>Address</label>
+                    <span id="bankAddress">--</span>
+                </div>
+                <div class="bank-detail-item" id="bankAadhaarRow">
+                    <label>Aadhaar Number</label>
+                    <span id="bankAadhaar">--</span>
+                </div>
+                <div class="bank-detail-item" id="bankPanRow">
+                    <label>PAN Number</label>
+                    <span id="bankPan">--</span>
+                </div>
+                <div class="bank-detail-item">
+                    <label>Status</label>
+                    <span class="badge badge-success">KYC Approved</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="kyc-actions" id="kycActions">
+            <a href="kyc.html" class="kyc-action-btn kyc-action-primary glow-btn">
+                <span class="kyc-action-icon">&#128221;</span>
+                <div class="kyc-action-text">
+                    <span class="kyc-action-title">Start KYC</span>
+                    <span class="kyc-action-desc">Begin your identity verification process</span>
+                </div>
+                <span class="kyc-action-arrow">&#10132;</span>
+            </a>
+            <a href="kyc-status.html" class="kyc-action-btn kyc-action-outline">
+                <span class="kyc-action-icon">&#128200;</span>
+                <div class="kyc-action-text">
+                    <span class="kyc-action-title">KYC Status</span>
+                    <span class="kyc-action-desc">Track your verification progress</span>
+                </div>
+                <span class="kyc-action-arrow">&#10132;</span>
+            </a>
+            <a href="rekyc.html" class="kyc-action-btn kyc-action-outline" id="rekycActionBtn" style="display:none;border-color:var(--primary,#1a73e8)">
+                <span class="kyc-action-icon">&#128260;</span>
+                <div class="kyc-action-text">
+                    <span class="kyc-action-title">Re-KYC</span>
+                    <span class="kyc-action-desc">Re-verify your identity with updated documents</span>
+                </div>
+                <span class="kyc-action-arrow">&#10132;</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+    <script src="../js/main.js?v=10"></script>
+    <script src="../js/auth.js?v=10"></script>
+    <script>
+    (function() {
+        try {
+            var kd = JSON.parse(localStorage.getItem('kycData') || '{}');
+            if (!kd || (!kd.status && !kd.ocrName)) {
+                localStorage.removeItem('kycData');
+                return;
+            }
+            if (kd.status === 'APPROVED') {
+                document.getElementById('bankDetailsCard').style.display = '';
+                if (kd.ocrName) document.getElementById('accountHolder').textContent = kd.ocrName;
+                if (kd.accountNumber) document.getElementById('accountNumber').textContent = kd.accountNumber;
+                if (kd.email) document.getElementById('bankEmail').textContent = kd.email;
+                if (kd.mobile) document.getElementById('bankMobile').textContent = kd.mobile;
+                if (kd.ocrAddress) document.getElementById('bankAddress').textContent = kd.ocrAddress;
+                if (kd.ocrIdNumber) document.getElementById('bankAadhaar').textContent = kd.ocrIdNumber;
+                if (kd.ocrPanNumber) document.getElementById('bankPan').textContent = kd.ocrPanNumber;
+                if (kd.ocrName) document.getElementById('userName').textContent = kd.ocrName.split(' ')[0];
+                if (kd.email) document.getElementById('userEmail').textContent = kd.email;
+            }
+        } catch(e) {}
+    })();
+    </script>
+    <script src="../js/kyc.js?v=11"></script>
+    <script>
+    (function() {
+        var kycActionsEl = document.getElementById('kycActions');
+        var bankDetailsCard = document.getElementById('bankDetailsCard');
+        var defaultKycHtml = kycActionsEl ? kycActionsEl.innerHTML : '';
+        console.log('[Dashboard] init, kycActionsEl:', !!kycActionsEl, 'bankDetailsCard:', !!bankDetailsCard);
+
+        function loadDashboard() {
+            var token = getAuthToken();
+            console.log('[Dashboard] token:', !!token);
+            if (!token) return;
+            fetch('/api/kyc/status', { headers: { 'Authorization': 'Bearer ' + token } })
+                .then(function(r) {
+                    if (r.status === 401 || r.status === 403) {
+                        clearAuthData();
+                        window.location.href = 'login.html';
+                        return null;
+                    }
+                    return r.json();
+                })
+                .then(function(resp) {
+                    if (!resp) return;
+                    console.log('[Dashboard] API response:', resp);
+                    if (!resp.success || !resp.data || resp.data.length === 0) {
+                        console.log('[Dashboard] no KYC data from API, clearing stale localStorage');
+                        localStorage.removeItem('kycData');
+                        bankDetailsCard.style.display = 'none';
+                        return;
+                    }
+                    var apps = resp.data;
+                    var approvedApp = null;
+                    for (var i = 0; i < apps.length; i++) {
+                        if (apps[i].status === 'APPROVED') {
+                            approvedApp = apps[i];
+                            break;
+                        }
+                    }
+                    if (approvedApp) {
+                        console.log('[Dashboard] found approved app:', approvedApp.id);
+                        localStorage.setItem('kycData', JSON.stringify(approvedApp));
+                        showApprovedState(approvedApp);
+                    } else {
+                        console.log('[Dashboard] no approved app found among', apps.length, 'applications');
+                        var latest = apps[0];
+                        if (latest && (latest.status === 'REJECTED' || latest.status === 'PENDING' || latest.status === 'UNDER_REVIEW')) {
+                            localStorage.setItem('kycData', JSON.stringify(latest));
+                        }
+                    }
+                })
+                .catch(function(e) { console.error('[Dashboard] fetch error:', e); });
+        }
+
+        function loadProfileImage(imgElement, appId) {
+            var token = getAuthToken();
+            if (!token || !imgElement) return;
+            fetch('/api/kyc/profile-photo', { headers: { 'Authorization': 'Bearer ' + token } })
+                .then(function(r) { if (!r.ok) throw new Error(); return r.blob(); })
+                .then(function(blob) { imgElement.src = URL.createObjectURL(blob); })
+                .catch(function() {
+                    if (appId) {
+                        fetch('/api/kyc/' + appId + '/selfie', { headers: { 'Authorization': 'Bearer ' + token } })
+                            .then(function(r) { if (!r.ok) throw new Error(); return r.blob(); })
+                            .then(function(blob) { imgElement.src = URL.createObjectURL(blob); })
+                            .catch(function() {});
+                    }
+                });
+        }
+
+        function showApprovedState(app) {
+            console.log('[Dashboard] showing APPROVED state');
+            localStorage.setItem('reKycData', JSON.stringify({
+                name: app.ocrName || '',
+                dob: app.ocrDob || '',
+                idNumber: app.ocrIdNumber || '',
+                panNumber: app.ocrPanNumber || '',
+                address: app.ocrAddress || '',
+                id: app.id
+            }));
+            bankDetailsCard.classList.remove('animate-ready');
+            bankDetailsCard.style.display = '';
+            document.getElementById('accountHolder').textContent = app.ocrName || (app.ocr_data && app.ocr_data.name) || '';
+            document.getElementById('accountNumber').textContent = app.accountNumber || '--';
+            document.getElementById('accountType').textContent = (app.accountType || 'SAVINGS').toLowerCase().replace(/^\w/, function(c) { return c.toUpperCase(); });
+            document.getElementById('ifscCode').textContent = app.ifscCode || '--';
+            document.getElementById('branchName').textContent = app.branchId || '--';
+
+            loadProfileImage(document.getElementById('profilePhotoImg'), app.id);
+
+            document.getElementById('bankEmail').textContent = (app.user && app.user.email) || app.email || '';
+            document.getElementById('bankMobile').textContent = (app.user && app.user.phone) || app.mobile || '';
+            document.getElementById('bankAddress').textContent = app.ocrAddress || (app.ocr_data && app.ocr_data.address) || '';
+            document.getElementById('bankAadhaar').textContent = app.ocrIdNumber || (app.ocr_data && app.ocr_data.id_number) || '--';
+            document.getElementById('bankPan').textContent = app.ocrPanNumber || (app.ocr_data && app.ocr_data.pan_number) || '--';
+            kycActionsEl.innerHTML =
+                '<a href="rekyc.html" class="kyc-action-btn kyc-action-primary glow-btn">' +
+                    '<span class="kyc-action-icon">&#128260;</span>' +
+                    '<div class="kyc-action-text">' +
+                        '<span class="kyc-action-title">Re-KYC</span>' +
+                        '<span class="kyc-action-desc">Update your KYC information</span>' +
+                    '</div>' +
+                    '<span class="kyc-action-arrow">&#10132;</span>' +
+                '</a>' +
+                '<a href="kyc-status.html" class="kyc-action-btn kyc-action-outline">' +
+                    '<span class="kyc-action-icon">&#128200;</span>' +
+                    '<div class="kyc-action-text">' +
+                        '<span class="kyc-action-title">KYC Status</span>' +
+                        '<span class="kyc-action-desc">View verification progress</span>' +
+                    '</div>' +
+                    '<span class="kyc-action-arrow">&#10132;</span>' +
+                '</a>';
+        }
+
+        function showRejectedState(app) {
+            console.log('[Dashboard] showing REJECTED state');
+            localStorage.setItem('reKycData', JSON.stringify({
+                name: app.ocrName || '',
+                dob: app.ocrDob || '',
+                idNumber: app.ocrIdNumber || '',
+                panNumber: app.ocrPanNumber || '',
+                address: app.ocrAddress || '',
+                id: app.id
+            }));
+            bankDetailsCard.style.display = 'none';
+            var reason = app.reviewNotes || app.review_notes || 'No specific reason provided';
+            kycActionsEl.innerHTML =
+                '<div class="kyc-rejected-card" style="background:var(--white);border-radius:var(--radius-lg);padding:28px;margin-bottom:24px;box-shadow:var(--shadow-sm);border:2px solid var(--danger);text-align:center">' +
+                    '<div style="font-size:48px;margin-bottom:12px">&#10060;</div>' +
+                    '<h3 style="color:var(--danger);margin:0 0 8px">KYC Application Rejected</h3>' +
+                    '<p style="color:var(--gray-600);margin:0 0 4px"><strong>Reason:</strong> ' + reason + '</p>' +
+                    '<p style="color:var(--gray-500);font-size:13px;margin:4px 0 16px">Application Ref: ' + (app.applicationRef || 'N/A') + '</p>' +
+                    '<div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">' +
+                        '<a href="kyc.html?rekyc=1" class="kyc-action-btn kyc-action-primary glow-btn" style="padding:14px 24px;display:inline-flex">' +
+                            '<span class="kyc-action-icon" style="width:40px;height:40px;font-size:20px">&#128260;</span>' +
+                            '<div class="kyc-action-text">' +
+                                '<span class="kyc-action-title">Re-KYC Application</span>' +
+                                '<span class="kyc-action-desc">Update and resubmit with existing details</span>' +
+                            '</div>' +
+                            '<span class="kyc-action-arrow">&#10132;</span>' +
+                        '</a>' +
+                        '<a href="kyc-status.html" class="kyc-action-btn kyc-action-outline" style="padding:14px 24px;display:inline-flex">' +
+                            '<span class="kyc-action-icon" style="width:40px;height:40px;font-size:20px">&#128200;</span>' +
+                            '<div class="kyc-action-text">' +
+                                '<span class="kyc-action-title">View Application History</span>' +
+                                '<span class="kyc-action-desc">See all past applications</span>' +
+                            '</div>' +
+                            '<span class="kyc-action-arrow">&#10132;</span>' +
+                        '</a>' +
+                    '</div>' +
+                '</div>';
+        }
+
+        function showDefaultState(status) {
+            console.log('[Dashboard] showing default state, status:', status);
+            bankDetailsCard.style.display = 'none';
+            kycActionsEl.innerHTML = defaultKycHtml;
+        }
+
+        loadDashboard();
+    })();
+    </script>
+</body>
+</html>

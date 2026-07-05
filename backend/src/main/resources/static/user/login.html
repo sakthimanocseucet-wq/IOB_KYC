@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Login - IOB KYC</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/auth.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <img src="../assets/logo.png" alt="IOB" class="iob-logo" height="36">
+            <span>Indian Overseas Bank</span>
+        </div>
+        <div class="hamburger" onclick="toggleMobileMenu()">
+            <span></span><span></span><span></span>
+        </div>
+        <div class="nav-right"><div class="nav-links" id="navLinks">
+            <a href="../index.html">Home</a>
+            <a href="login.html" class="active">Login</a>
+            <a href="register.html">Register</a>
+        </div> <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">&#9790;</button></div>
+    
+    </nav>
+
+    <div class="auth-container">
+        <div class="auth-card fade-in">
+            <div class="auth-header">
+                <img src="../assets/logo-full.png" alt="Indian Overseas Bank" height="50">
+                <h2>Welcome Back</h2>
+                <p>Login to your KYC account</p>
+            </div>
+            <div id="alertContainer"></div>
+            <div id="loginForm" autocomplete="off">
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" placeholder="Enter your email" required autocomplete="new-password" name="emailfake" data-lpignore="true">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Enter your password" required autocomplete="new-password" name="passwordfake" data-lpignore="true">
+                    <span class="toggle-password" onclick="togglePassword('password')">&#128065;</span>
+                </div>
+                <div class="form-options">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="remember"> Remember me
+                    </label>
+                    <a href="forgot-password.html" class="forgot-link">Forgot Password?</a>
+                </div>
+                <button type="button" class="btn btn-primary btn-full glow-btn" onclick="handleLogin(event)">
+                    <span id="btnText">Sign In</span>
+                    <span id="btnSpinner" class="spinner" style="display:none;width:20px;height:20px;border-width:2px;margin:0"></span>
+                </button>
+            </div>
+
+            <p class="auth-footer-text">
+                Don't have an account? <a href="register.html">Register here</a>
+            </p>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+    <script src="../js/main.js"></script>
+    <script src="../js/auth.js"></script>
+</body>
+</html>

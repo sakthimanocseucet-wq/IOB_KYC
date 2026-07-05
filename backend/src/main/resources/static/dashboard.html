@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - IOB KYC</title>
+    <link rel="stylesheet" href="../css/style.css?v=5">
+    <link rel="stylesheet" href="../css/admin.css?v=5">
+</head>
+<body class="admin-body">
+    <nav class="navbar admin-navbar">
+        <div class="logo">
+            <img src="../assets/logo.png" alt="IOB" class="iob-logo" height="36">
+            <span>Indian Overseas Bank - Admin</span>
+        </div>
+        <div class="hamburger" onclick="toggleMobileMenu()">
+            <span></span><span></span><span></span>
+        </div>
+        <div class="nav-right"><div class="nav-links" id="navLinks">
+            <a href="dashboard.html" class="active">Dashboard</a>
+            <a href="kyc-review.html">KYC Review</a>
+            <a href="#" id="logoutBtn" onclick="handleAdminLogout(); return false;">Logout</a>
+        </div> <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">&#9790;</button></div>
+    
+    </nav>
+
+    <div class="admin-container">
+        <div class="admin-header fade-in">
+            <div>
+                <h1>KYC Monitoring Dashboard</h1>
+                <p>Real-time overview of all KYC applications and security events</p>
+            </div>
+            <div class="header-badges">
+                <span class="live-badge" id="liveIndicator">&#9679; LIVE</span>
+                <button class="btn btn-sm btn-outline" onclick="exportCSV()">&#128229; Export CSV</button>
+            </div>
+        </div>
+
+        <div class="stats-grid-admin fade-in stagger-1">
+            <div class="stat-card stat-total">
+                <div class="stat-value" id="totalApplications">0</div>
+                <div class="stat-label">Total Applications</div>
+            </div>
+            <div class="stat-card stat-approved">
+                <div class="stat-value" id="approvedCount">0</div>
+                <div class="stat-label">Approved</div>
+            </div>
+            <div class="stat-card stat-pending">
+                <div class="stat-value" id="pendingCount">0</div>
+                <div class="stat-label">Pending Review</div>
+            </div>
+            <div class="stat-card stat-rejected">
+                <div class="stat-value" id="rejectedCount">0</div>
+                <div class="stat-label">Rejected</div>
+            </div>
+        </div>
+
+        <div class="card apps-card fade-in stagger-2">
+            <div class="card-header">
+                <h3>&#128200; Recent KYC Applications</h3>
+                <div class="filter-group">
+                    <select id="kycFilter" onchange="filterKYC()">
+                        <option value="all">All</option>
+                        <option value="pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="rekyc">Re-KYC</option>
+                    </select>
+                </div>
+            </div>
+            <div class="table-container" id="kycTableContainer">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Applicant</th>
+                            <th>Document</th>
+                            <th>Risk Score</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="kycTableBody">
+                        <tr>
+                            <td colspan="4" style="text-align:center;color:var(--gray-500)">Loading applications...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+
+    </div>
+
+    <div class="modal-overlay" id="reviewModal">
+        <div class="modal" style="max-width:700px">
+            <div class="modal-header">
+                <h2>KYC Application Details</h2>
+                <button class="modal-close" onclick="closeReviewModal()">&times;</button>
+            </div>
+            <div id="reviewModalContent">
+                <div class="spinner"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/main.js?v=5"></script>
+    <script src="../js/auth.js?v=5"></script>
+    <script src="../js/admin.js?v=5"></script>
+</body>
+</html>

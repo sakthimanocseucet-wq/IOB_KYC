@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="pragma" content="no-cache">
+    <meta http-equiv="expires" content="0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KYC Application - Indian Overseas Bank</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="../css/kyc.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <img src="../assets/logo.png" alt="IOB" class="iob-logo" height="36">
+            <span>Indian Overseas Bank</span>
+        </div>
+        <div class="hamburger" onclick="toggleMobileMenu()">
+            <span></span><span></span><span></span>
+        </div>
+        <div class="nav-right"><div class="nav-links" id="navLinks">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="kyc.html" class="active">KYC</a>
+            <a href="#" onclick="handleLogout(); return false;">Logout</a>
+        </div> <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">&#9790;</button></div>
+    
+    </nav>
+
+    <div class="dashboard-container">
+        <div class="dashboard-header fade-in">
+            <div>
+                <h1>KYC Application</h1>
+                <p>Complete your identity verification in 4 simple steps</p>
+            </div>
+        </div>
+
+        <div id="alertContainer"></div>
+
+        <div class="kyc-steps-container" id="stepContainer">
+            <!-- Step 1: Upload Documents + Photo -->
+            <div class="kyc-step fade-in" data-step="1">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>&#128196; Upload Identity Documents</h3>
+                        <span class="badge badge-info">Step 1 of 4</span>
+                    </div>
+
+                    <div class="upload-grid">
+                        <!-- Aadhaar Card -->
+                        <div class="upload-box" id="aadhaarBox">
+                            <label class="upload-box-label">&#128196; Aadhaar Card</label>
+                            <div class="file-upload" id="aadhaarUpload" onclick="document.getElementById('aadhaarFile').click()">
+                                <div class="upload-icon">&#128196;</div>
+                                <p>Click to upload</p>
+                                <small style="color:var(--gray-500)">JPG, PNG, PDF (Max 5MB)</small>
+                                <div class="file-name" id="aadhaarFileName"></div>
+                                <input type="file" id="aadhaarFile" accept=".jpg,.jpeg,.png,.pdf" style="display:none" onchange="handleDocSelect(this, 'aadhaar')">
+                            </div>
+                            <button type="button" class="btn-remove" id="aadhaarRemove" style="display:none" onclick="removeFile('aadhaar')">&#10005; Remove</button>
+                        </div>
+
+                        <!-- PAN Card -->
+                        <div class="upload-box" id="panBox">
+                            <label class="upload-box-label">&#128196; PAN Card</label>
+                            <div class="file-upload" id="panUpload" onclick="document.getElementById('panFile').click()">
+                                <div class="upload-icon">&#128196;</div>
+                                <p>Click to upload</p>
+                                <small style="color:var(--gray-500)">JPG, PNG, PDF (Max 5MB)</small>
+                                <div class="file-name" id="panFileName"></div>
+                                <input type="file" id="panFile" accept=".jpg,.jpeg,.png,.pdf" style="display:none" onchange="handleDocSelect(this, 'pan')">
+                            </div>
+                            <button type="button" class="btn-remove" id="panRemove" style="display:none" onclick="removeFile('pan')">&#10005; Remove</button>
+                        </div>
+
+                        <!-- Photo -->
+                        <div class="upload-box" id="photoBox">
+                            <label class="upload-box-label">&#128247; Photo</label>
+                            <div class="file-upload" id="photoUpload" onclick="document.getElementById('profilePhoto').click()">
+                                <div class="upload-icon">&#128247;</div>
+                                <p>Click to upload</p>
+                                <small style="color:var(--gray-500)">JPG, PNG (Max 5MB)</small>
+                                <div class="file-name" id="photoFileName"></div>
+                                <input type="file" id="profilePhoto" accept="image/*" style="display:none" onchange="handleDocSelect(this, 'photo')">
+                            </div>
+                            <button type="button" class="btn-remove" id="photoRemove" style="display:none" onclick="removeFile('photo')">&#10005; Remove</button>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:20px">
+                        <button class="btn btn-primary" id="uploadContinueBtn" onclick="nextStep(1)" disabled>Upload & Continue <span>&rarr;</span></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Verify Details + Personal Info -->
+            <div class="kyc-step fade-in" data-step="2" style="display:none">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>&#128269; Enter & Verify Details</h3>
+                        <span class="badge badge-info">Step 2 of 4</span>
+                    </div>
+                    <div class="ocr-status" id="ocrStatus">
+                        <div class="spinner"></div>
+                        <p>Running OCR extraction...</p>
+                    </div>
+                    <div id="ocrForm" style="display:none">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Full Name (as on document)</label>
+                                <input type="text" id="ocrName" placeholder="Name extracted from document">
+                            </div>
+                            <div class="form-group">
+                                <label>Date of Birth</label>
+                                <input type="date" id="ocrDob">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Gender</label>
+                                <select id="ocrGender">
+                                    <option value="">Select gender</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Aadhaar Number</label>
+                                <input type="text" id="ocrIdNumber" placeholder="Aadhaar number extracted">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>PAN Number</label>
+                                <input type="text" id="ocrPanNumber" placeholder="PAN number extracted" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Address</label>
+                            <textarea id="ocrAddress" rows="3" placeholder="Enter your full address manually"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Branch</label>
+                            <select id="ocrBranch" required>
+                                <option value="">Loading branches...</option>
+                            </select>
+                        </div>
+
+                        <div style="border-top:2px solid var(--gray-200);margin:24px 0;padding-top:20px">
+                            <h4 style="margin-bottom:16px;color:var(--gray-800)">&#128221; Additional Details</h4>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="kycMobile">Mobile Number</label>
+                                    <input type="tel" id="kycMobile" placeholder="+91 9876543210" pattern="\+[0-9]{1,4}\s?[0-9]{7,12}" required>
+                                    <small style="color:var(--gray-500)">Include country code (e.g., +91 for India)</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="kycEmail">Email Address</label>
+                                    <input type="email" id="kycEmail" placeholder="john@example.com" required>
+                                </div>
+                            </div>
+                            <div class="form-group otp-group" id="emailOtpGroup">
+                                <label>Email OTP Verification</label>
+                                <div class="otp-row">
+                                    <input type="text" id="emailOtp" placeholder="6-digit OTP" maxlength="6" pattern="[0-9]{6}">
+                                    <button type="button" class="btn btn-sm btn-primary" onclick="sendEmailOTP()" id="sendEmailOtpBtn">Send OTP</button>
+                                </div>
+                                <small class="otp-timer" id="emailOtpTimer" style="color:var(--gray-500);margin-top:4px;display:block"></small>
+                                <small style="color:#991b1b;display:block;margin-top:6px;font-weight:500">If you do not receive the OTP in your inbox, please check your spam folder</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Account Type</label>
+                                <div class="radio-group">
+                                    <label class="radio-label">
+                                        <input type="radio" name="accountType" value="savings" checked>
+                                        <span class="radio-custom"></span>
+                                        Savings Account
+                                    </label>
+                                    <label class="radio-label">
+                                        <input type="radio" name="accountType" value="current">
+                                        <span class="radio-custom"></span>
+                                        Current Account
+                                    </label>
+                                    <label class="radio-label">
+                                        <input type="radio" name="accountType" value="nri">
+                                        <span class="radio-custom"></span>
+                                        NRI Account
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top:20px;display:flex;gap:12px">
+                            <button class="btn btn-outline" onclick="prevStep(2)"><span>&larr;</span> Back</button>
+                            <button class="btn btn-primary" onclick="verifyDetails()">Continue <span>&rarr;</span></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Face Verification (Live Selfie Only) -->
+            <div class="kyc-step fade-in" data-step="3" style="display:none">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>&#128066; Face Verification</h3>
+                        <span class="badge badge-info">Step 3 of 4</span>
+                    </div>
+                    <div class="face-verification">
+                        <div class="challenge-layout" id="challengeLayout">
+                        <!-- Left Panel -->
+                        <div class="challenge-left-panel" id="challengeLeftPanel">
+                            <div class="panel-title">Face Verification</div>
+                            <div class="panel-icon">&#128066;</div>
+                            <div class="panel-instructions">
+                                <strong>Position your face</strong> within the guide. Complete 4 challenges to prove you are live.
+                            </div>
+                            <div class="step-list" id="challengeStepList">
+                                <div class="step-item" data-step="0"><span class="step-num">1</span>Challenge 1</div>
+                                <div class="step-item" data-step="1"><span class="step-num">2</span>Challenge 2</div>
+                                <div class="step-item" data-step="2"><span class="step-num">3</span>Challenge 3</div>
+                                <div class="step-item" data-step="3"><span class="step-num">4</span>Challenge 4</div>
+                            </div>
+                        </div>
+
+                        <!-- Center: Video -->
+                        <div class="video-container" id="videoContainer">
+                            <video id="webcam" autoplay playsinline></video>
+                            <div class="video-overlay" id="videoOverlay">
+                                <div class="face-guide"></div>
+                            </div>
+                        </div>
+
+                        <!-- Right Panel -->
+                        <div class="challenge-right-panel" id="challengeRightPanel">
+                            <div class="challenge-header">
+                                <span class="challenge-step-label" id="challengeStepLabel">Ready</span>
+                                <span class="challenge-step-counter" id="challengeStepCounter">0 / 4</span>
+                            </div>
+                            <div class="challenge-instruction" id="challengeInstruction">
+                                <div class="challenge-prompt">
+                                    <div class="challenge-icon" id="challengeIcon">&#128270;</div>
+                                    <div class="challenge-text" id="challengeText">Start verification</div>
+                                    <div class="challenge-tip" id="challengeTip">Click the button below to begin</div>
+                                </div>
+                                <div class="challenge-timer">
+                                    <div class="challenge-timer-fill" id="challengeTimerFill"></div>
+                                    <div class="challenge-timer-text" id="challengeTimerText"></div>
+                                </div>
+                                <div class="challenge-sequence-progress" id="challengeSequenceProgress" style="display:none">
+                                    <div class="sequence-steps" id="sequenceSteps"></div>
+                                </div>
+                                <div class="challenge-action-status" id="challengeActionStatus" style="display:none">
+                                    <div class="action-progress-ring" id="actionProgressRing">
+                                        <svg viewBox="0 0 36 36">
+                                            <path class="ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke-width="2.5"></path>
+                                            <path class="ring-fill" id="actionRingFill" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke-width="2.5" stroke-dasharray="0, 100"></path>
+                                        </svg>
+                                        <span class="ring-percent" id="actionPercent">0%</span>
+                                    </div>
+                                    <span class="action-label" id="actionLabel">Follow the instruction</span>
+                                </div>
+                                <div class="challenge-frame-count" id="challengeFrameCount" style="display:none"></div>
+                            </div>
+                            <div id="debugPanel" style="display:none">
+                                <div id="debugContent"></div>
+                            </div>
+                        </div>
+                        </div>
+                        <div class="face-actions">
+                            <button class="btn btn-primary" id="startChallengeBtn" onclick="startLivenessChallenge()">
+                                &#128270; Start Live Verification
+                            </button>
+                            <button class="btn btn-secondary" id="captureBtn" onclick="captureSelfie()" style="display:none">
+                                &#128247; Capture Live Selfie
+                            </button>
+                        </div>
+                        <div id="faceResult" style="display:none;margin-top:20px">
+                            <div class="face-result-card">
+                                <div class="face-match-animation">
+                                    <div class="match-ring">
+                                        <span id="faceMatchPercent">0%</span>
+                                    </div>
+                                </div>
+                                <p id="faceMatchText">Running enhanced AI verification...</p>
+                                <div id="scoreDetails" style="display:none;margin:12px 0;padding:12px;background:var(--gray-50,#f8fafc);border-radius:8px;font-size:13px"></div>
+                                <div class="liveness-checks">
+                                    <div class="liveness-item"><span id="livenessBlink">&#10060;</span> Liveness Check</div>
+                                    <div class="liveness-item"><span id="livenessSpoof">&#10060;</span> Anti-Spoofing</div>
+                                    <div class="liveness-item"><span id="livenessDeepfake">&#10060;</span> Deepfake Detection</div>
+                                    <div class="liveness-item"><span id="livenessChallenge">&#10060;</span> 4-Step Challenge</div>
+                                    <div class="liveness-item"><span id="livenessDepth">&#10060;</span> Face Match Confidence</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="margin-top:20px;display:flex;gap:12px">
+                            <button class="btn btn-outline" onclick="goBackFromFace()"><span>&larr;</span> Back</button>
+                            <button class="btn btn-warning" id="retryFaceBtn" onclick="retryFaceVerification()" style="display:none">
+                                &#128260; Retry Verification
+                            </button>
+                            <button class="btn btn-primary" id="submitKycBtn" onclick="handleFinalSubmit()" disabled>
+                                Submit KYC <span>&rarr;</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4: Complete -->
+            <div class="kyc-step fade-in" data-step="4" style="display:none">
+                <div class="card" style="text-align:center;padding:60px 40px;">
+                    <div style="font-size:72px;margin-bottom:16px;animation:scaleIn 0.5s ease">&#128240;</div>
+                    <h2 style="color:var(--gray-800);margin-bottom:8px">KYC Submitted Successfully!</h2>
+                    <p style="color:var(--gray-500);margin-bottom:24px">Your KYC application is being processed. You will be notified via email/SMS.</p>
+                    <div class="risk-result-card">
+                        <h3>AI Risk Assessment</h3>
+                        <div class="risk-meter">
+                            <div class="risk-fill" id="riskScoreFill" style="width:15%"></div>
+                        </div>
+                        <p>Risk Score: <strong id="finalRiskScore">15/100</strong> - <span class="badge badge-success" id="finalRiskLabel">Low Risk</span></p>
+                    </div>
+                    <div style="display:flex;gap:12px;justify-content:center;margin-top:24px;flex-wrap:wrap">
+                        <a href="dashboard.html" class="btn btn-primary">&#127968; Go to Dashboard</a>
+                        <a href="kyc-status.html" class="btn btn-outline">&#128200; Track Status</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+    <script>
+        (function() {
+            try {
+                var raw = localStorage.getItem('rekycData') || localStorage.getItem('reKycData');
+                var reKycData = raw ? JSON.parse(raw) : null;
+                var urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('rekyc') === '1' && reKycData) {
+                    window.__rekycMode = true;
+                    window.__rekycData = reKycData;
+                } else {
+                    localStorage.removeItem('rekycData');
+                    localStorage.removeItem('reKycData');
+                }
+            } catch(e) {
+                console.warn('Re-KYC data error:', e);
+            }
+        })();
+        window.addEventListener('error', function (e) {
+            try { fetch('/api/debug/error', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({message: e.message, filename: e.filename, lineno: e.lineno, colno: e.colno, stack: e.error && e.error.stack}) }); } catch(ex) {}
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+            try { fetch('/api/debug/error', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({message: e.reason && e.reason.message, stack: e.reason && e.reason.stack}) }); } catch(ex) {}
+        });
+    </script>
+    <script src="../js/main.js?v=10"></script>
+    <script src="../js/auth.js?v=10"></script>
+    <script src="../js/kyc.js?v=11"></script>
+    <script>
+        if (window.__rekycMode) {
+            if (typeof goToStep === 'function') {
+                goToStep(3);
+            } else {
+                document.querySelectorAll('.kyc-step').forEach(function(el) { el.style.display = 'none'; });
+                var step3 = document.querySelector('.kyc-step[data-step="3"]');
+                if (step3) step3.style.display = 'block';
+                var faceResult = document.getElementById('faceResult');
+                if (faceResult) faceResult.style.display = 'none';
+                var submitBtn = document.getElementById('submitKycBtn');
+                if (submitBtn) submitBtn.disabled = true;
+                var startBtn = document.getElementById('startChallengeBtn');
+                if (startBtn) {
+                    startBtn.style.display = '';
+                    startBtn.disabled = false;
+                    startBtn.textContent = '\u{1F50D} Start Live Verification';
+                }
+                var instruction = document.getElementById('challengeInstruction');
+                if (instruction) instruction.style.display = 'none';
+                var actionStatus = document.getElementById('challengeActionStatus');
+                if (actionStatus) actionStatus.style.display = 'none';
+                var seqProgress = document.getElementById('challengeSequenceProgress');
+                if (seqProgress) seqProgress.style.display = 'none';
+                setTimeout(function() {
+                    var video = document.getElementById('webcam');
+                    if (video && !video.srcObject) {
+                        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 } })
+                            .then(function(stream) { video.srcObject = stream; video.play(); })
+                            .catch(function(e) { console.warn('Camera error:', e); });
+                    }
+                }, 500);
+            }
+        }
+    </script>
+</body>
+</html>

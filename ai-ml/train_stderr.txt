@@ -1,0 +1,3 @@
+2026-06-14 20:31:04,334 [INFO] Device: cpu
+2026-06-14 20:31:04,381 [INFO] CASIA-FASD train: 6000 images (live=3000, spoof=3000)
+2026-06-14 20:31:04,528 [INFO] CASIA-FASD test: 2000 images (live=1000, spoof=1000)

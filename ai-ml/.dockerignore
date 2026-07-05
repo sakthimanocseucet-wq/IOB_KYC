@@ -1,0 +1,15 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+data/
+debug_frames/
+debug_blocks/
+*.log
+*.md
+*.bat
+*.jpg
+*.png
+models/trained/antispoof_model_history.json
+models/trained/antispoof_model_final.pth
+models/trained/antispoof_model_best.pth

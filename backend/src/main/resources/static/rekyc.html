@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="pragma" content="no-cache">
+    <meta http-equiv="expires" content="0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Re-KYC Details - Indian Overseas Bank</title>
+    <link rel="stylesheet" href="../css/style.css?v=10">
+    <link rel="stylesheet" href="../css/dashboard.css?v=10">
+    <link rel="stylesheet" href="../css/kyc.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <img src="../assets/logo.png" alt="IOB" class="iob-logo" height="36">
+            <span>Indian Overseas Bank</span>
+        </div>
+        <div class="hamburger" onclick="toggleMobileMenu()">
+            <span></span><span></span><span></span>
+        </div>
+        <div class="nav-right"><div class="nav-links" id="navLinks">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="#" class="active">Re-KYC</a>
+            <a href="#" onclick="handleLogout(); return false;">Logout</a>
+        </div> <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">&#9790;</button></div>
+    </nav>
+
+    <div class="dashboard-container">
+        <div class="dashboard-header fade-in">
+            <div>
+                <h1>Re-KYC - Review Your Details</h1>
+                <p>Review your existing KYC information before updating</p>
+            </div>
+        </div>
+
+        <div id="alertContainer"></div>
+
+        <!-- Loading State -->
+        <div id="rekycLoading" class="card" style="text-align:center;padding:60px 20px">
+            <div class="spinner"></div>
+            <p style="margin-top:16px;color:var(--gray-500)">Loading your KYC details...</p>
+        </div>
+
+        <!-- No Approved Application -->
+        <div id="rekycNoData" class="card" style="display:none;text-align:center;padding:60px 20px">
+            <div style="font-size:48px;margin-bottom:16px">&#128269;</div>
+            <h3>No Approved KYC Found</h3>
+            <p style="color:var(--gray-500);margin:8px 0 24px">You don't have an approved KYC application to re-verify.</p>
+            <a href="kyc.html" class="btn btn-primary">Start New KYC</a>
+        </div>
+
+        <!-- Re-KYC Details Content -->
+        <div id="rekycContent" style="display:none">
+            <!-- Profile Photo + Name Header -->
+            <div class="card" style="margin-bottom:20px">
+                <div class="bank-details-header" style="border-bottom:none;margin-bottom:0;padding-bottom:0">
+                    <div class="profile-image-container">
+                        <img id="rekycProfilePhoto" src="../assets/logo.png" alt="Profile"
+                             style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid var(--primary,#1a73e8);background:var(--gray-100,#f1f5f9)">
+                    </div>
+                    <div style="flex:1">
+                        <h3 id="rekycName" style="margin:0">--</h3>
+                        <p style="color:var(--gray-500);font-size:13px;margin:4px 0 0">
+                            Application Ref: <span id="rekycRef">--</span>
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Personal Details -->
+            <div class="card" style="margin-bottom:20px">
+                <div class="card-header">
+                    <h3>&#128100; Personal Information</h3>
+                    <span class="badge badge-info">Step 1 of 4</span>
+                </div>
+                <div class="bank-details-grid">
+                    <div class="bank-detail-item">
+                        <label>Full Name</label>
+                        <span id="rekycOcrName">--</span>
+                    </div>
+                    <div class="bank-detail-item">
+                        <label>Date of Birth</label>
+                        <span id="rekycDob">--</span>
+                    </div>
+                    <div class="bank-detail-item">
+                        <label>Aadhaar Number</label>
+                        <span id="rekycAadhaar">--</span>
+                    </div>
+                    <div class="bank-detail-item">
+                        <label>PAN Number</label>
+                        <span id="rekycPan">--</span>
+                    </div>
+                    <div class="bank-detail-item" style="grid-column:1/-1">
+                        <label>Address</label>
+                        <span id="rekycAddress">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Documents -->
+            <div class="card" style="margin-bottom:20px">
+                <div class="card-header">
+                    <h3>&#128196; Uploaded Documents</h3>
+                    <span class="badge badge-info">Step 2 of 4</span>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">
+                    <div class="document-card" style="text-align:center;padding:16px">
+                        <div style="font-size:32px;margin-bottom:8px">&#127380;</div>
+                        <label style="font-size:12px;color:var(--gray-500);margin-bottom:8px;display:block">Aadhaar Front</label>
+                        <img id="rekycAadhaarFront" src="" alt="Aadhaar Front" style="max-width:100%;max-height:150px;border-radius:8px;display:none;border:1px solid var(--gray-200)">
+                        <div id="rekycAadhaarFrontPlaceholder" style="color:var(--gray-400);font-size:13px;padding:20px">No image</div>
+                    </div>
+
+                    <div class="document-card" style="text-align:center;padding:16px">
+                        <div style="font-size:32px;margin-bottom:8px">&#128196;</div>
+                        <label style="font-size:12px;color:var(--gray-500);margin-bottom:8px;display:block">PAN Card</label>
+                        <img id="rekycPanCard" src="" alt="PAN Card" style="max-width:100%;max-height:150px;border-radius:8px;display:none;border:1px solid var(--gray-200)">
+                        <div id="rekycPanCardPlaceholder" style="color:var(--gray-400);font-size:13px;padding:20px">No image</div>
+                    </div>
+                    <div class="document-card" style="text-align:center;padding:16px">
+                        <div style="font-size:32px;margin-bottom:8px">&#128247;</div>
+                        <label style="font-size:12px;color:var(--gray-500);margin-bottom:8px;display:block">Profile Photo</label>
+                        <img id="rekycDocProfilePhoto" src="" alt="Profile Photo" style="max-width:100%;max-height:150px;border-radius:8px;display:none;border:1px solid var(--gray-200)">
+                        <div id="rekycProfilePhotoPlaceholder" style="color:var(--gray-400);font-size:13px;padding:20px">No image</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Verification Details -->
+            <div class="card" style="margin-bottom:20px">
+                <div class="card-header">
+                    <h3>&#128274; Verification Status</h3>
+                    <span class="badge badge-info">Step 3 of 4</span>
+                </div>
+                <div class="bank-details-grid">
+                    <div class="bank-detail-item">
+                        <label>Face Match</label>
+                        <span id="rekycFaceMatch">--</span>
+                    </div>
+                    <div class="bank-detail-item">
+                        <label>Liveness Check</label>
+                        <span id="rekycLiveness">--</span>
+                    </div>
+                    <div class="bank-detail-item">
+                        <label>Risk Level</label>
+                        <span id="rekycRiskLevel">--</span>
+                    </div>
+                    <div class="bank-detail-item">
+                        <label>Application Type</label>
+                        <span class="badge badge-info" id="rekycAppType">RE_KYC</span>
+                    </div>
+                    <div class="bank-detail-item">
+                        <label>Approval Date</label>
+                        <span id="rekycApprovedAt">--</span>
+                    </div>
+                    <div class="bank-detail-item">
+                        <label>Current Status</label>
+                        <span class="badge badge-success" id="rekycStatus">APPROVED</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Next Step Actions -->
+            <div class="card" style="margin-bottom:40px">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px">
+                    <div>
+                        <h3 style="margin:0">Ready to Update?</h3>
+                        <p style="color:var(--gray-500);margin:4px 0 0;font-size:14px">
+                            Proceed to face verification and update your details
+                        </p>
+                    </div>
+                    <div style="display:flex;gap:12px;flex-wrap:wrap">
+                        <a href="dashboard.html" class="btn btn-outline">Back to Dashboard</a>
+                        <button class="btn btn-primary glow-btn" onclick="proceedToReKycVerify()">
+                            Next: Face Verification &#10132;
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+    <script src="../js/main.js?v=x7k9m2"></script>
+    <script src="../js/auth.js?v=x7k9m2"></script>
+    <script src="../js/kyc.js?v=11"></script>
+    <script>
+    (function() {
+        var approvedApp = null;
+
+        function initReKyc() {
+            var token = getAuthToken();
+            if (!token) {
+                window.location.href = '../index.html';
+                return;
+            }
+
+            /* Try localStorage first — dashboard already saved approved app there */
+            var cached = null;
+            try { cached = JSON.parse(localStorage.getItem('kycData') || 'null'); } catch(e) {}
+
+            if (cached && cached.status === 'APPROVED') {
+                approvedApp = cached;
+                renderDetails(approvedApp);
+                document.getElementById('rekycLoading').style.display = 'none';
+                document.getElementById('rekycContent').style.display = '';
+                return;
+            }
+
+            /* Fallback: use /api/kyc/status (same endpoint dashboard uses) and find approved */
+            fetch('/api/kyc/status', { headers: { 'Authorization': 'Bearer ' + token } })
+                .then(function(r) { return r.json(); })
+                .then(function(resp) {
+                    if (!resp.success || !resp.data || resp.data.length === 0) {
+                        document.getElementById('rekycLoading').style.display = 'none';
+                        document.getElementById('rekycNoData').style.display = '';
+                        return;
+                    }
+                    /* Find the latest APPROVED application */
+                    var found = null;
+                    var apps = resp.data;
+                    for (var i = 0; i < apps.length; i++) {
+                        if (apps[i].status === 'APPROVED') {
+                            found = apps[i];
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        document.getElementById('rekycLoading').style.display = 'none';
+                        document.getElementById('rekycNoData').style.display = '';
+                        return;
+                    }
+                    approvedApp = found;
+                    localStorage.setItem('kycData', JSON.stringify(found));
+                    renderDetails(found);
+                    document.getElementById('rekycLoading').style.display = 'none';
+                    document.getElementById('rekycContent').style.display = '';
+                })
+                .catch(function(e) {
+                    console.error('[ReKYC] Error:', e);
+                    document.getElementById('rekycLoading').style.display = 'none';
+                    document.getElementById('rekycNoData').style.display = '';
+                });
+        }
+
+        function renderDetails(app) {
+            var token = getAuthToken();
+
+            function loadImage(imgId, placeholderId, url) {
+                var img = document.getElementById(imgId);
+                var placeholder = document.getElementById(placeholderId);
+                if (!img) return;
+                fetch(url, { headers: { 'Authorization': 'Bearer ' + token } })
+                    .then(function(r) { if (!r.ok) throw new Error(r.status); return r.blob(); })
+                    .then(function(blob) {
+                        img.src = URL.createObjectURL(blob);
+                        img.style.display = '';
+                        if (placeholder) placeholder.style.display = 'none';
+                    })
+                    .catch(function() {
+                        if (placeholder) placeholder.innerHTML = '<span style="color:var(--gray-400);font-size:13px">Image unavailable</span>';
+                    });
+            }
+
+            document.getElementById('rekycName').textContent = app.ocrName || '--';
+            document.getElementById('rekycRef').textContent = app.applicationRef || '--';
+
+            if (app.photoFilePath) {
+                loadImage('rekycProfilePhoto', null, '/api/kyc/' + app.id + '/photo');
+            }
+
+            document.getElementById('rekycOcrName').textContent = app.ocrName || '--';
+            document.getElementById('rekycAadhaar').textContent = app.ocrIdNumber || '--';
+            document.getElementById('rekycPan').textContent = app.ocrPanNumber || '--';
+            document.getElementById('rekycAddress').textContent = app.ocrAddress || '--';
+
+            if (app.ocrDob) {
+                var d = new Date(app.ocrDob);
+                document.getElementById('rekycDob').textContent = d.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+            }
+
+            document.getElementById('rekycFaceMatch').textContent = app.faceMatchPercentage ? app.faceMatchPercentage + '%' : '--';
+            document.getElementById('rekycLiveness').textContent = app.livenessPassed ? 'Passed' : 'Failed';
+            document.getElementById('rekycRiskLevel').textContent = app.riskLevel || 'LOW';
+            document.getElementById('rekycAppType').textContent = app.applicationType || 'NORMAL';
+            document.getElementById('rekycStatus').textContent = app.status || '--';
+
+            if (app.reviewedAt) {
+                var ra = new Date(app.reviewedAt);
+                document.getElementById('rekycApprovedAt').textContent = ra.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+            }
+
+            if (app.aadhaarFrontPath) {
+                loadImage('rekycAadhaarFront', 'rekycAadhaarFrontPlaceholder', '/api/kyc/' + app.id + '/aadhaar-front');
+            }
+            if (app.panCardPath) {
+                loadImage('rekycPanCard', 'rekycPanCardPlaceholder', '/api/kyc/' + app.id + '/pan-card');
+            }
+            if (app.photoFilePath) {
+                loadImage('rekycDocProfilePhoto', 'rekycProfilePhotoPlaceholder', '/api/kyc/' + app.id + '/photo');
+            }
+        }
+
+        window.proceedToReKycVerify = function() {
+            var app = approvedApp;
+            if (!app) {
+                try { app = JSON.parse(localStorage.getItem('kycData') || 'null'); } catch(e) {}
+            }
+            if (!app) {
+                try { app = JSON.parse(localStorage.getItem('rekycData') || 'null'); } catch(e) {}
+                if (app && app.id) app = { id: app.id, ocrName: app.name, ocrDob: app.dob, ocrIdNumber: app.idNumber, ocrPanNumber: app.panNumber, ocrAddress: app.address };
+            }
+            if (!app || !app.id) {
+                showToast('Please wait for data to load', 'error');
+                return;
+            }
+            localStorage.setItem('rekycApprovedId', app.id);
+            localStorage.setItem('rekycData', JSON.stringify({
+                name: app.ocrName || '',
+                dob: app.ocrDob || '',
+                idNumber: app.ocrIdNumber || '',
+                panNumber: app.ocrPanNumber || '',
+                address: app.ocrAddress || '',
+                id: app.id,
+                appId: app.id
+            }));
+            window.location.href = 'kyc.html?rekyc=1&_t=' + Date.now();
+        };
+
+        initReKyc();
+    })();
+    </script>
+</body>
+</html>

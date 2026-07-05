@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - IOB KYC</title>
+    <link rel="stylesheet" href="../css/style.css?v=5">
+    <link rel="stylesheet" href="../css/admin.css?v=5">
+</head>
+<body class="admin-body">
+    <nav class="navbar admin-navbar">
+        <div class="logo">
+            <img src="../assets/logo.png" alt="IOB" class="iob-logo" height="36">
+            <span>Indian Overseas Bank - Admin</span>
+        </div>
+        <div class="hamburger" onclick="toggleMobileMenu()">
+            <span></span><span></span><span></span>
+        </div>
+        <div class="nav-right"><div class="nav-links" id="navLinks">
+            <a href="dashboard.html" class="active">Dashboard</a>
+            <a href="kyc-review.html">KYC Review</a>
+            <a href="account-details.html">Account Details</a>
+            <a href="#" id="logoutBtn" onclick="handleAdminLogout(); return false;">Logout</a>
+        </div> <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">&#9790;</button></div>
+    
+    </nav>
+
+    <div class="admin-container">
+        <div class="admin-header fade-in">
+            <div>
+                <h1>KYC Monitoring Dashboard</h1>
+                <p>Real-time overview of all KYC applications and security events</p>
+            </div>
+            <div class="header-badges">
+                <span class="live-badge" id="liveIndicator">&#9679; LIVE</span>
+                <button class="btn btn-sm btn-outline admin-only" id="createAccountBtn" style="display:none" onclick="showCreateAccountModal()">&#128101; Create Account</button>
+                <button class="btn btn-sm btn-outline admin-only" id="resetPasswordBtn" style="display:none" onclick="showResetPasswordModal()">&#128274; Reset Password</button>
+                <button class="btn btn-sm btn-outline admin-only" onclick="exportCSV()">&#128229; Export CSV</button>
+            </div>
+        </div>
+
+        <div id="duplicateAlerts" class="fade-in stagger-1" style="display:none;margin-bottom:20px">
+            <div class="card" style="border:2px solid var(--danger,#dc2626);background:linear-gradient(135deg,#fef2f2,#fff)">
+                <div class="card-header" style="border-bottom:1px solid #fecaca">
+                    <h3 style="color:var(--danger,#dc2626)">&#9888; Fraud Detection Alerts</h3>
+                    <span id="duplicateAlertCount" style="background:var(--danger,#dc2626);color:#fff;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600"></span>
+                </div>
+                <div id="duplicateAlertList" style="padding:16px"></div>
+            </div>
+        </div>
+
+        <div class="stats-grid-admin fade-in stagger-1">
+            <div class="stat-card stat-total">
+                <div class="stat-value" id="totalApplications">0</div>
+                <div class="stat-label">Total Applications</div>
+            </div>
+            <div class="stat-card stat-approved">
+                <div class="stat-value" id="approvedCount">0</div>
+                <div class="stat-label">Approved</div>
+            </div>
+            <div class="stat-card stat-pending">
+                <div class="stat-value" id="pendingCount">0</div>
+                <div class="stat-label">Pending Review</div>
+            </div>
+            <div class="stat-card stat-rejected">
+                <div class="stat-value" id="rejectedCount">0</div>
+                <div class="stat-label">Rejected</div>
+            </div>
+        </div>
+
+        <div class="card apps-card fade-in stagger-2">
+            <div class="card-header">
+                <h3>&#128200; Recent KYC Applications</h3>
+                <div class="filter-group" style="display:flex;gap:8px;align-items:center">
+                    <input type="text" id="kycSearch" placeholder="Search name, mobile, email, ID..." oninput="filterKYC()" style="padding:6px 12px;border:1px solid var(--gray-300);border-radius:6px;font-size:13px;width:220px">
+                    <select id="kycFilter" onchange="filterKYC()">
+                        <option value="all">All</option>
+                        <option value="pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="rekyc">Re-KYC</option>
+                    </select>
+                </div>
+            </div>
+            <div class="table-container" id="kycTableContainer">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Applicant</th>
+                            <th>Document</th>
+                            <th>Risk Score</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="kycTableBody">
+                        <tr>
+                            <td colspan="4" style="text-align:center;color:var(--gray-500)">Loading applications...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+
+    </div>
+
+    <div class="modal-overlay" id="reviewModal">
+        <div class="modal" style="max-width:700px">
+            <div class="modal-header">
+                <h2>KYC Application Details</h2>
+                <button class="modal-close" onclick="closeReviewModal()">&times;</button>
+            </div>
+            <div id="reviewModalContent">
+                <div class="spinner"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="createAccountModal">
+        <div class="modal" style="max-width:500px">
+            <div class="modal-header">
+                <h2>Create Employee Account</h2>
+                <button class="modal-close" onclick="closeCreateAccountModal()">&times;</button>
+            </div>
+            <div style="padding:20px">
+                <div class="form-group" style="margin-bottom:12px">
+                    <label style="font-weight:600;font-size:13px;margin-bottom:4px;display:block">First Name</label>
+                    <input type="text" id="caFirstName" placeholder="John" style="width:100%;padding:8px 12px;border:1px solid var(--gray-300);border-radius:6px;font-size:14px">
+                </div>
+                <div class="form-group" style="margin-bottom:12px">
+                    <label style="font-weight:600;font-size:13px;margin-bottom:4px;display:block">Last Name</label>
+                    <input type="text" id="caLastName" placeholder="Doe" style="width:100%;padding:8px 12px;border:1px solid var(--gray-300);border-radius:6px;font-size:14px">
+                </div>
+                <div class="form-group" style="margin-bottom:12px">
+                    <label style="font-weight:600;font-size:13px;margin-bottom:4px;display:block">Email</label>
+                    <input type="email" id="caEmail" placeholder="john@iobank.com" style="width:100%;padding:8px 12px;border:1px solid var(--gray-300);border-radius:6px;font-size:14px">
+                </div>
+                <div class="form-group" style="margin-bottom:12px">
+                    <label style="font-weight:600;font-size:13px;margin-bottom:4px;display:block">Phone</label>
+                    <input type="tel" id="caPhone" placeholder="+91 9876543210" style="width:100%;padding:8px 12px;border:1px solid var(--gray-300);border-radius:6px;font-size:14px">
+                </div>
+                <div class="form-group" style="margin-bottom:12px">
+                    <label style="font-weight:600;font-size:13px;margin-bottom:4px;display:block">Branch ID</label>
+                    <input type="text" id="caBranchId" placeholder="e.g. BRANCH-001" style="width:100%;padding:8px 12px;border:1px solid var(--gray-300);border-radius:6px;font-size:14px">
+                </div>
+                <div class="form-group" style="margin-bottom:12px">
+                    <label style="font-weight:600;font-size:13px;margin-bottom:4px;display:block">Role</label>
+                    <select id="caRole" style="width:100%;padding:8px 12px;border:1px solid var(--gray-300);border-radius:6px;font-size:14px">
+                        <option value="MANAGER">Manager</option>
+                        <option value="OFFICER">Officer</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom:16px">
+                    <label style="font-weight:600;font-size:13px;margin-bottom:4px;display:block">Password</label>
+                    <input type="password" id="caPassword" placeholder="Min 8 characters" minlength="8" style="width:100%;padding:8px 12px;border:1px solid var(--gray-300);border-radius:6px;font-size:14px">
+                </div>
+                <div style="display:flex;gap:10px;justify-content:flex-end">
+                    <button class="btn btn-sm btn-outline" onclick="closeCreateAccountModal()">Cancel</button>
+                    <button class="btn btn-sm btn-success" onclick="createEmployeeAccount()">Create Account</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="resetPasswordModal">
+        <div class="modal" style="max-width:500px">
+            <div class="modal-header">
+                <h2>Reset Employee Password</h2>
+                <button class="modal-close" onclick="closeResetPasswordModal()">&times;</button>
+            </div>
+            <div style="padding:20px">
+                <div class="form-group" style="margin-bottom:12px">
+                    <label style="font-weight:600;font-size:13px;margin-bottom:4px;display:block">Select Employee</label>
+                    <select id="rpEmployeeId" style="width:100%;padding:8px 12px;border:1px solid var(--gray-300);border-radius:6px;font-size:14px">
+                        <option value="">Loading employees...</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom:12px">
+                    <label style="font-weight:600;font-size:13px;margin-bottom:4px;display:block">New Password</label>
+                    <input type="password" id="rpNewPassword" placeholder="Min 12 characters" minlength="12" style="width:100%;padding:8px 12px;border:1px solid var(--gray-300);border-radius:6px;font-size:14px">
+                </div>
+                <div class="form-group" style="margin-bottom:16px">
+                    <label style="font-weight:600;font-size:13px;margin-bottom:4px;display:block">Confirm Password</label>
+                    <input type="password" id="rpConfirmPassword" placeholder="Confirm new password" minlength="12" style="width:100%;padding:8px 12px;border:1px solid var(--gray-300);border-radius:6px;font-size:14px">
+                </div>
+                <div style="display:flex;gap:10px;justify-content:flex-end">
+                    <button class="btn btn-sm btn-outline" onclick="closeResetPasswordModal()">Cancel</button>
+                    <button class="btn btn-sm btn-warning" onclick="resetEmployeePassword()">&#128274; Reset Password</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/main.js?v=5"></script>
+    <script src="../js/auth.js?v=5"></script>
+    <script src="../js/admin.js?v=5"></script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Register - IOB KYC</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/auth.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <img src="../assets/logo.png" alt="IOB" class="iob-logo" height="36">
+            <span>Indian Overseas Bank - Employee Portal</span>
+        </div>
+        <div class="hamburger" onclick="toggleMobileMenu()">
+            <span></span><span></span><span></span>
+        </div>
+        <div class="nav-right"><div class="nav-links" id="navLinks">
+            <a href="../index.html">Home</a>
+            <a href="login.html">Employee Login</a>
+            <a href="register.html" class="active">Register</a>
+        </div> <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">&#9790;</button></div>
+    
+    </nav>
+
+    <div class="auth-container">
+        <div class="auth-card fade-in">
+            <div class="auth-header">
+                <img src="../assets/logo-full.png" alt="Indian Overseas Bank" height="50">
+                <h2>Employee Registration</h2>
+                <p>Create your employee account</p>
+            </div>
+            <div id="alertContainer"></div>
+            <form id="employeeRegisterForm" onsubmit="handleEmployeeRegister(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="firstName">First Name</label>
+                        <input type="text" id="firstName" placeholder="John" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="lastName">Last Name</label>
+                        <input type="text" id="lastName" placeholder="Doe" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="employeeId">Employee ID</label>
+                    <input type="text" id="employeeId" placeholder="EMP-XXXX" required>
+                </div>
+                <div class="form-group">
+                    <label for="role">Role</label>
+                    <select id="role" required>
+                        <option value="">Select your role</option>
+                        <option value="ADMIN">Admin</option>
+                        <option value="MANAGER">Manager</option>
+                        <option value="OFFICER">Officer</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" placeholder="john@iobank.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="phone">Phone Number</label>
+                    <input type="tel" id="phone" placeholder="+91 9876543210" pattern="\+[0-9]{1,4}\s?[0-9]{7,12}" required>
+                    <small style="color:var(--gray-500)">Include country code (e.g., +91 for India)</small>
+                </div>
+                <div class="form-group otp-group" id="otpGroup">
+                    <label for="regOtp">OTP Verification</label>
+                    <div class="otp-row" id="otpEmailRow">
+                        <input type="email" id="regOtpEmail" placeholder="Enter email for OTP">
+                    </div>
+                    <div class="otp-row" style="margin-top:8px">
+                        <input type="text" id="regOtp" placeholder="6-digit OTP" maxlength="6" pattern="[0-9]{6}">
+                        <button type="button" class="btn btn-sm btn-primary" onclick="sendRegOTP()" id="sendOtpBtn">Send OTP</button>
+                    </div>
+                    <small class="otp-timer" id="otpTimer" style="color:var(--gray-500);margin-top:4px;display:block"></small>
+                    <small style="color:#991b1b;display:block;margin-top:6px;font-weight:500">If you do not receive the OTP in your inbox, please check your spam folder</small>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Min 8 characters" minlength="8" required oninput="renderPasswordStrength('passwordStrength', this.value)">
+                    <span class="toggle-password" onclick="togglePassword('password')">&#128065;</span>
+                    <div id="passwordStrength"></div>
+                </div>
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm Password</label>
+                    <input type="password" id="confirmPassword" placeholder="Re-enter password" required>
+                    <span class="toggle-password" onclick="togglePassword('confirmPassword')">&#128065;</span>
+                </div>
+                <div class="form-group terms-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="terms" required>
+                        I agree to the <a href="#">Terms of Service</a> & <a href="#">Privacy Policy</a>
+                    </label>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full glow-btn">
+                    <span id="btnText">Create Account</span>
+                    <span id="btnSpinner" class="spinner" style="display:none;width:20px;height:20px;border-width:2px;margin:0"></span>
+                </button>
+            </form>
+
+            <p class="auth-footer-text">
+                Already have an account? <a href="login.html">Sign in</a>
+            </p>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+    <script src="../js/main.js?v=2"></script>
+    <script src="../js/auth.js?v=2"></script>
+</body>
+</html>

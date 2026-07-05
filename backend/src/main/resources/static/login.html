@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Portal - IOB KYC</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/auth.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <img src="../assets/logo.png" alt="IOB" class="iob-logo" height="36">
+            <span>Indian Overseas Bank - Employee Portal</span>
+        </div>
+        <div class="hamburger" onclick="toggleMobileMenu()">
+            <span></span><span></span><span></span>
+        </div>
+        <div class="nav-right"><div class="nav-links" id="navLinks">
+            <a href="../index.html">Home</a>
+            <a href="login.html" class="active">Employee Login</a>
+            <a href="register.html">Register</a>
+        </div> <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">&#9790;</button></div>
+    
+    </nav>
+
+    <div class="auth-container">
+        <div class="auth-card fade-in">
+            <div class="auth-header">
+                <img src="../assets/logo-full.png" alt="Indian Overseas Bank" height="50">
+                <h2>Employee Portal</h2>
+                <p>Secure admin access with role-based authentication</p>
+            </div>
+            <div class="alert alert-info">
+                &#128274; Authorized personnel only. All access is monitored and audited.
+            </div>
+            <div id="alertContainer"></div>
+            <div id="adminLoginForm" autocomplete="off">
+                <div class="form-group">
+                    <label for="employeeId">Employee ID</label>
+                    <input type="text" id="employeeId" placeholder="Enter employee ID" required autocomplete="new-password" name="employeeIdfake" data-lpignore="true">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Enter password" required autocomplete="new-password" name="passwordfake" data-lpignore="true">
+                    <span class="toggle-password" onclick="togglePassword('password')">&#128065;</span>
+                    <a href="forgot-password.html" class="forgot-link" style="display:block;margin-top:6px;font-size:13px">Forgot Password?</a>
+                </div>
+                <button type="button" class="btn btn-primary btn-full glow-btn" id="adminLoginBtn" onclick="handleAdminLogin(event)">
+                    <span id="btnText">Sign In</span>
+                    <span id="btnSpinner" class="spinner" style="display:none;width:20px;height:20px;border-width:2px;margin:0"></span>
+                </button>
+            </div>
+            <p class="auth-footer-text" style="margin-top:16px">
+                Don't have an account? <a href="register.html">Register</a>
+            </p>
+            <p class="auth-footer-text" style="margin-top:8px">
+                <a href="../index.html">&larr; Back to Home</a>
+            </p>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+    <script src="../js/main.js?v=2"></script>
+    <script src="../js/auth.js?v=2"></script>
+</body>
+</html>

@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KYC Status - Indian Overseas Bank</title>
+    <link rel="stylesheet" href="../css/style.css?v=10">
+    <link rel="stylesheet" href="../css/dashboard.css?v=10">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <img src="../assets/logo.png" alt="IOB" class="iob-logo" height="36">
+            <span>Indian Overseas Bank</span>
+        </div>
+        <div class="hamburger" onclick="toggleMobileMenu()">
+            <span></span><span></span><span></span>
+        </div>
+        <div class="nav-right"><div class="nav-links" id="navLinks">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="kyc-status.html" class="active">KYC Status</a>
+            <a href="#" onclick="handleLogout(); return false;">Logout</a>
+        </div> <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">&#9790;</button></div>
+    </nav>
+
+    <div class="dashboard-container">
+        <div class="dashboard-header fade-in">
+            <h1 id="statusTitle">KYC Application Status</h1>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <span id="appTypeBadge"></span>
+                <p id="appRef" style="color:var(--gray-500);margin:0"></p>
+                <span id="liveStatusBadge"></span>
+                <small id="lastUpdated" style="color:var(--gray-400);font-size:11px"></small>
+            </div>
+        </div>
+
+        <div class="card" style="min-height:200px">
+            <div id="statusContent"></div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+    <script src="../js/main.js?v=10"></script>
+    <script src="../js/auth.js?v=10"></script>
+    <script>
+    (function() {
+        var pollTimer = null;
+
+        function loadStatus() {
+            var container = document.getElementById('statusContent');
+            var token = getAuthToken();
+            if (!token) {
+                container.innerHTML = '<div style="text-align:center;padding:40px"><p>Please <a href="login.html">login</a> to view KYC status.</p></div>';
+                return;
+            }
+
+            container.innerHTML = '<div style="text-align:center;padding:40px"><div class="spinner" style="margin:0 auto 12px"></div><p style="color:var(--gray-500)">Loading application status...</p></div>';
+
+            fetch('/api/kyc/status', { headers: { 'Authorization': 'Bearer ' + token } })
+                .then(function(r) {
+                    if (r.status === 401 || r.status === 403) {
+                        clearAuthData();
+                        window.location.href = 'login.html';
+                        return null;
+                    }
+                    return r.json();
+                })
+                .then(function(result) {
+                    if (!result) return;
+                    if (!result.success || !result.data || result.data.length === 0) {
+                        container.innerHTML = '<div style="text-align:center;padding:40px">' +
+                            '<p style="font-size:48px;margin-bottom:16px">&#128196;</p>' +
+                            '<h3>No KYC Application Found</h3>' +
+                            '<p style="color:var(--gray-500);margin:12px 0">You haven\'t submitted a KYC application yet.</p>' +
+                            '<a href="kyc.html" class="btn btn-primary" style="margin-top:12px">Start KYC Application</a>' +
+                            '</div>';
+                        document.getElementById('appRef').textContent = '';
+                        document.getElementById('liveStatusBadge').textContent = '';
+                        document.getElementById('lastUpdated').textContent = '';
+                        return;
+                    }
+
+                    var apps = result.data;
+                    var dedupedApps = {};
+                    for (var di = 0; di < apps.length; di++) {
+                        var da = apps[di];
+                        var dKey = (da.ocrName || '') + '|' + (da.applicationType || 'NORMAL');
+                        if (!dedupedApps[dKey] || da.id > dedupedApps[dKey].id) {
+                            dedupedApps[dKey] = da;
+                        }
+                    }
+                    apps = [];
+                    for (var dk in dedupedApps) apps.push(dedupedApps[dk]);
+                    apps.sort(function(a, b) { return b.id - a.id; });
+
+                    var app = apps[0];
+                    var appId = app.id || 1;
+                    var appRef = app.applicationRef || ('IOB-KYC-' + String(appId).padStart(5, '0'));
+                    var status = app.status || 'PENDING';
+                    var appType = app.applicationType || 'NORMAL';
+                    var riskScore = app.riskScore || 0;
+                    var faceMatch = app.faceMatchPercentage || 0;
+                    var hasDoc = !!(app.aadhaarFrontPath || app.panCardPath || app.docFilePath);
+                    var hasSelfie = !!(app.selfieFilePath);
+                    var ocrName = app.ocrName || 'User';
+                    var livenessPassed = !!(app.livenessPassed);
+
+                    // For RE_KYC: merge face data from earlier apps (first Re-KYC app from kyc.html has face data)
+                    var rekycFaceMatch = faceMatch;
+                    var rekycLiveness = livenessPassed;
+                    var rekycHasDoc = hasDoc;
+                    var rekycHasSelfie = hasSelfie;
+                    var oldApprovedApp = null;
+
+                    if (appType === 'RE_KYC') {
+                        for (var j = 1; j < apps.length; j++) {
+                            var prev = apps[j];
+                            if (!rekycFaceMatch && prev.faceMatchPercentage) rekycFaceMatch = prev.faceMatchPercentage;
+                            if (!rekycLiveness && prev.livenessPassed) rekycLiveness = true;
+                            if (!rekycHasSelfie && prev.selfieFilePath) rekycHasSelfie = true;
+                            if (!rekycHasDoc && (prev.aadhaarFrontPath || prev.panCardPath || prev.docFilePath)) rekycHasDoc = true;
+                            if (!oldApprovedApp && prev.status === 'APPROVED') oldApprovedApp = prev;
+                        }
+                    }
+
+                    // Title and badge
+                    document.getElementById('appRef').textContent = 'Ref: ' + appRef;
+                    if (appType === 'RE_KYC') {
+                        document.getElementById('statusTitle').textContent = 'Re-KYC Application Status';
+                        document.getElementById('appTypeBadge').innerHTML = '<span style="background:var(--primary,#1a73e8);color:#fff;padding:4px 12px;border-radius:12px;font-size:12px;font-weight:600">Re-KYC</span>';
+                    } else {
+                        document.getElementById('statusTitle').textContent = 'KYC Application Status';
+                        document.getElementById('appTypeBadge').innerHTML = '';
+                    }
+
+                    // Live status badge
+                    var statusBadgeHtml = '';
+                    if (status === 'APPROVED') {
+                        statusBadgeHtml = '<span class="badge badge-success" style="font-size:14px;padding:6px 16px">&#9989; Approved</span>';
+                    } else if (status === 'REJECTED') {
+                        statusBadgeHtml = '<span class="badge badge-danger" style="font-size:14px;padding:6px 16px">&#10060; Rejected</span>';
+                    } else if (status === 'UNDER_REVIEW') {
+                        statusBadgeHtml = '<span class="badge badge-warning" style="font-size:14px;padding:6px 16px">&#128260; Under Review</span>';
+                    } else {
+                        statusBadgeHtml = '<span class="badge badge-warning" style="font-size:14px;padding:6px 16px">&#9203; Pending</span>';
+                    }
+                    document.getElementById('liveStatusBadge').innerHTML = statusBadgeHtml;
+                    document.getElementById('lastUpdated').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+
+                    localStorage.setItem('kycSubmitted', 'true');
+                    localStorage.setItem('kycAppId', appId);
+                    var kycData = JSON.parse(localStorage.getItem('kycData') || '{}');
+                    kycData.status = status;
+                    kycData.appId = appId;
+                    kycData.riskScore = riskScore;
+                    kycData.faceMatch = faceMatch;
+                    kycData.ocrName = ocrName;
+                    localStorage.setItem('kycData', JSON.stringify(kycData));
+
+                    // Build stages based on application type
+                    var stages = [];
+                    if (appType === 'RE_KYC') {
+                        var detailsVerified = !!(app.ocrName && app.ocrName !== 'User');
+                        var faceVerified = !!(rekycFaceMatch > 0 || rekycLiveness);
+                        stages = [
+                            { title: 'Previous KYC Verified', desc: oldApprovedApp ? 'Previous KYC (' + (oldApprovedApp.applicationRef || 'IOB-KYC-' + String(oldApprovedApp.id).padStart(5, '0')) + ') confirmed as approved' : 'Your existing approved KYC has been verified', done: true },
+                            { title: 'Face Re-Verification', desc: faceVerified ? 'Face re-verified successfully' + (rekycFaceMatch ? ' (Match: ' + rekycFaceMatch + '%)' : '') : 'Awaiting face verification', done: faceVerified },
+                            { title: 'Details Reviewed & Updated', desc: detailsVerified ? 'Personal details reviewed and updated for Re-KYC' : 'Awaiting details review', done: detailsVerified },
+                            { title: 'Documents Submitted', desc: rekycHasDoc ? 'Identity documents submitted for Re-KYC' : 'Documents from previous KYC on file', done: true },
+                            { title: 'Bank Review', desc: status === 'APPROVED' ? 'Re-KYC approved by bank' : status === 'REJECTED' ? 'Re-KYC application was rejected' : 'Awaiting review by bank officer', done: status === 'APPROVED' || status === 'REJECTED' }
+                        ];
+                    } else {
+                        stages = [
+                            { title: 'Document Upload', desc: hasDoc ? 'Document uploaded successfully' : 'Upload your identity document', done: hasDoc },
+                            { title: 'Personal Details & OCR', desc: (app.ocrName && app.ocrName !== 'User') ? 'Details verified and document data extracted' : 'Verify your personal details', done: !!(app.ocrName && app.ocrName !== 'User') },
+                            { title: 'Face Verification', desc: hasSelfie ? 'Live selfie captured and face matched (' + faceMatch + '%)' : 'Live selfie matching', done: hasSelfie },
+                            { title: 'AI Risk Assessment', desc: riskScore > 0 ? 'Risk score: ' + riskScore + '/100 (' + (riskScore < 30 ? 'Low Risk' : riskScore < 60 ? 'Medium Risk' : 'High Risk') + ')' : 'Risk score pending', done: riskScore > 0 },
+                            { title: 'Final Review', desc: status === 'APPROVED' ? 'KYC verified and approved by bank' : status === 'REJECTED' ? 'KYC application was rejected' : 'Awaiting review by bank officer', done: status === 'APPROVED' || status === 'REJECTED' }
+                        ];
+                    }
+
+                    // Render timeline
+                    var terminalIndex = -1;
+                    if (status === 'REJECTED') {
+                        terminalIndex = stages.length - 1;
+                    }
+
+                    var renderStages = terminalIndex >= 0 ? stages.slice(0, terminalIndex + 1) : stages.slice();
+                    var lastUndone = stages.length;
+                    if (terminalIndex < 0) {
+                        for (var i = 0; i < stages.length; i++) {
+                            if (!stages[i].done) { lastUndone = i; break; }
+                        }
+                    }
+
+                    var html = '<div class="kyc-status-timeline">';
+                    renderStages.forEach(function(s, i) {
+                        var cls = '';
+                        if (terminalIndex >= 0) {
+                            if (i < terminalIndex) cls = 'completed';
+                            else if (i === terminalIndex) cls = 'rejected';
+                        } else if (status === 'APPROVED') {
+                            cls = 'completed';
+                        } else {
+                            if (i < lastUndone) cls = 'completed';
+                            else if (i === lastUndone) cls = 'active';
+                        }
+
+                        var statusBadge = '';
+                        if (status === 'APPROVED' && i === stages.length - 1) {
+                            statusBadge = ' <span class="badge badge-success">Approved</span>';
+                        } else if (status === 'REJECTED' && terminalIndex >= 0 && i === terminalIndex) {
+                            statusBadge = ' <span class="badge badge-danger">Rejected</span>';
+                        } else if (status === 'UNDER_REVIEW' && i === stages.length - 1) {
+                            statusBadge = ' <span class="badge badge-warning">Under Review</span>';
+                        }
+
+                        var statusLabel = cls === 'completed' ? 'Completed' : cls === 'rejected' ? 'Rejected' : cls === 'active' ? 'In Progress' : 'Pending';
+
+                        html += '<div class="timeline-item ' + cls + '">' +
+                            '<div class="timeline-dot"></div>' +
+                            '<div class="timeline-content">' +
+                            '<h4>' + s.title + statusBadge + '</h4>' +
+                            '<p>' + s.desc + '</p>' +
+                            '<small>' + statusLabel + '</small>' +
+                            '</div></div>';
+                    });
+                    html += '</div>';
+
+                    // Rejected section
+                    if (status === 'REJECTED') {
+                        var reason = app.reviewNotes || app.review_notes || 'No specific reason provided. Please contact support for more details.';
+                        localStorage.setItem('reKycData', JSON.stringify({
+                            name: app.ocrName || '',
+                            dob: app.ocrDob || '',
+                            idNumber: app.ocrIdNumber || '',
+                            panNumber: app.ocrPanNumber || '',
+                            address: app.ocrAddress || '',
+                            id: app.id
+                        }));
+                        var rejectTitle = appType === 'RE_KYC' ? 'Re-KYC Application Rejected' : 'Application Rejected';
+                        html +=
+                            '<div class="kyc-rejected-detail" style="background:var(--danger-bg,rgba(220,38,38,0.05));border:2px solid var(--danger,#dc2626);border-radius:var(--radius-lg,12px);padding:24px;margin-top:24px;text-align:center">' +
+                                '<div style="font-size:40px;margin-bottom:8px">&#10060;</div>' +
+                                '<h3 style="color:var(--danger,#dc2626);margin:0 0 12px">' + rejectTitle + '</h3>' +
+                                '<div style="background:var(--white);border-radius:8px;padding:16px;margin-bottom:16px;text-align:left;max-width:500px;margin-left:auto;margin-right:auto">' +
+                                    '<p style="margin:0;color:var(--gray-700)"><strong>Rejection Reason:</strong></p>' +
+                                    '<p style="margin:8px 0 0;color:var(--gray-600);font-size:14px">' + reason + '</p>' +
+                                '</div>' +
+                                '<div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">' +
+                                    '<a href="rekyc.html" class="btn btn-primary" style="margin-top:8px;display:inline-flex;align-items:center;gap:8px;padding:12px 28px;font-size:16px">' +
+                                        '&#128260; Re-KYC Application' +
+                                    '</a>' +
+                                    '<a href="kyc.html" class="btn btn-outline" style="margin-top:8px;display:inline-flex;align-items:center;gap:8px;padding:12px 28px;font-size:16px">' +
+                                        '&#128221; New Application' +
+                                    '</a>' +
+                                '</div>' +
+                            '</div>';
+                    }
+
+                    // Application History
+                    if (apps.length > 1) {
+                        var historyHtml =
+                            '<div style="margin-top:32px;border-top:1px solid var(--gray-200);padding-top:24px">' +
+                                '<h3 style="margin:0 0 16px;font-size:18px">Application History</h3>' +
+                                '<div class="kyc-history-list">';
+                        apps.forEach(function(h, idx) {
+                            var hStatus = h.status || 'PENDING';
+                            var hBadge = '';
+                            if (hStatus === 'APPROVED') hBadge = '<span class="badge badge-success">Approved</span>';
+                            else if (hStatus === 'REJECTED') hBadge = '<span class="badge badge-danger">Rejected</span>';
+                            else if (hStatus === 'UNDER_REVIEW') hBadge = '<span class="badge badge-warning">Under Review</span>';
+                            else hBadge = '<span class="badge badge-warning">Pending</span>';
+                            var hType = h.applicationType || 'NORMAL';
+                            var typeLabel = hType === 'RE_KYC' ? '<span style="background:var(--primary,#1a73e8);color:#fff;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600;margin-left:6px">Re-KYC</span>' : '';
+                            var isActive = (idx === 0) ? 'style="border-left:3px solid var(--primary);background:var(--light-bg,rgba(0,71,171,0.03))"' : '';
+                            var activeLabel = (idx === 0) ? '<span class="badge badge-primary" style="margin-left:8px;font-size:10px">Latest</span>' : '';
+                            historyHtml +=
+                                '<div class="kyc-history-item" ' + isActive + ' style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--gray-100);border-radius:8px;margin-bottom:8px;gap:12px;flex-wrap:wrap">' +
+                                    '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
+                                        '<span style="font-weight:600;color:var(--gray-700)">' + (h.applicationRef || 'IOB-KYC-' + String(h.id).padStart(5, '0')) + '</span>' +
+                                        hBadge + typeLabel + activeLabel +
+                                    '</div>' +
+                                    '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
+                                        '<small style="color:var(--gray-500)">' + (h.submittedAt ? new Date(h.submittedAt).toLocaleDateString() : (h.createdAt ? new Date(h.createdAt).toLocaleDateString() : 'N/A')) + '</small>' +
+                                    '</div>' +
+                                '</div>';
+                        });
+                        historyHtml += '</div></div>';
+                        html += historyHtml;
+                    }
+
+                    cachedStatusHtml = html;
+                    container.innerHTML = html;
+
+                })
+                .catch(function(e) {
+                    console.error('[KYC-Status] Error:', e);
+                    container.innerHTML = '<div style="text-align:center;padding:40px"><p style="color:var(--danger)">Unable to load status. Please try again.</p></div>';
+                });
+        }
+
+        var cachedStatusHtml = null;
+        loadStatus();
+        pollTimer = setInterval(loadStatus, 10000);
+    })();
+    </script>
+</body>
+</html>

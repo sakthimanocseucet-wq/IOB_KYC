@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Account Details - IOB KYC</title>
+    <link rel="stylesheet" href="../css/style.css?v=5">
+    <link rel="stylesheet" href="../css/admin.css?v=5">
+    <style>
+        .details-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
+        .details-grid .full-width { grid-column:1/-1; }
+        .info-card { background:var(--gray-50,#f8fafc); border:1px solid var(--gray-200,#e2e8f0); border-radius:10px; padding:16px; }
+        .info-card h4 { margin:0 0 12px 0; font-size:14px; color:var(--gray-700); border-bottom:2px solid var(--primary,#2563eb); padding-bottom:8px; display:flex; align-items:center; gap:8px; }
+        .info-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--gray-100,#f1f5f9); font-size:13px; }
+        .info-row:last-child { border-bottom:none; }
+        .info-label { color:var(--gray-500); font-weight:500; }
+        .info-value { color:var(--gray-800); font-weight:600; text-align:right; max-width:60%; }
+        .status-badge { display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:600; }
+        .status-APPROVED { background:rgba(16,185,129,0.15); color:var(--success); }
+        .status-PENDING { background:rgba(245,158,11,0.15); color:var(--warning); }
+        .status-REJECTED { background:rgba(220,38,38,0.15); color:var(--danger); }
+        .status-UNDER_REVIEW { background:rgba(59,130,246,0.15); color:var(--primary); }
+        .timeline { position:relative; padding-left:24px; }
+        .timeline::before { content:''; position:absolute; left:8px; top:0; bottom:0; width:2px; background:var(--gray-200); }
+        .timeline-item { position:relative; margin-bottom:16px; padding:10px 14px; background:var(--gray-50); border-radius:8px; border:1px solid var(--gray-200); }
+        .timeline-item::before { content:''; position:absolute; left:-20px; top:14px; width:10px; height:10px; border-radius:50%; background:var(--primary); border:2px solid #fff; }
+        .timeline-item .event { font-weight:600; font-size:13px; color:var(--gray-800); }
+        .timeline-item .date { font-size:11px; color:var(--gray-500); margin-top:2px; }
+        .timeline-item .remarks { font-size:12px; color:var(--gray-600); margin-top:4px; font-style:italic; }
+        .doc-thumb { width:120px; height:80px; object-fit:cover; border-radius:6px; border:1px solid var(--gray-200); cursor:pointer; }
+        .doc-grid { display:flex; gap:12px; flex-wrap:wrap; }
+        .masked { font-family:monospace; letter-spacing:2px; }
+        .search-box { display:flex; gap:10px; margin-bottom:20px; }
+        .search-box input { flex:1; padding:10px 16px; border:2px solid var(--gray-300); border-radius:8px; font-size:14px; }
+        .results-list { max-height:400px; overflow-y:auto; }
+        .result-item { padding:12px 16px; border:1px solid var(--gray-200); border-radius:8px; margin-bottom:8px; cursor:pointer; transition:all 0.2s; }
+        .result-item:hover { border-color:var(--primary); background:rgba(37,99,235,0.03); }
+    </style>
+</head>
+<body class="admin-body">
+    <nav class="navbar admin-navbar">
+        <div class="logo">
+            <img src="../assets/logo.png" alt="IOB" class="iob-logo" height="36">
+            <span>Indian Overseas Bank - Account Details</span>
+        </div>
+        <div class="nav-right"><div class="nav-links">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="kyc-review.html">KYC Review</a>
+            <a href="#" onclick="handleAdminLogout(); return false;">Logout</a>
+        </div></div>
+    </nav>
+
+    <div class="admin-container">
+        <!-- Search Section -->
+        <div id="searchSection">
+            <div class="admin-header fade-in">
+                <div>
+                    <h1>Customer Account Details</h1>
+                    <p>Search and view customer account information with RBAC access control</p>
+                </div>
+            </div>
+
+            <div class="card fade-in stagger-1">
+                <div class="card-header">
+                    <h3>&#128269; Search Customer Accounts</h3>
+                </div>
+                <div style="padding:16px">
+                    <div class="search-box">
+                        <input type="text" id="searchQuery" placeholder="Search by Account No, Customer ID, Name, Mobile, Aadhaar, PAN, Branch, IFSC..." onkeypress="if(event.key==='Enter')searchAccounts()">
+                        <button class="btn btn-primary" onclick="searchAccounts()">Search</button>
+                        <button class="btn btn-outline" onclick="clearSearch()">Clear</button>
+                    </div>
+                    <div id="searchResults" class="results-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Details Section (hidden initially) -->
+        <div id="detailsSection" style="display:none">
+            <div class="admin-header fade-in">
+                <div>
+                    <h1 id="detailsTitle">Customer Account Details</h1>
+                    <p id="detailsSubtitle"></p>
+                </div>
+                <button class="btn btn-outline" onclick="backToSearch()">&#8592; Back to Search</button>
+            </div>
+
+            <!-- Branch Information -->
+            <div class="info-card fade-in stagger-1" id="branchInfoCard">
+                <h4>&#127970; Branch Information</h4>
+                <div class="details-grid" id="branchInfoGrid"></div>
+            </div>
+
+            <!-- Account Information -->
+            <div class="info-card fade-in stagger-2" id="accountInfoCard">
+                <h4>&#128179; Account Information</h4>
+                <div class="details-grid" id="accountInfoGrid"></div>
+            </div>
+
+            <!-- Customer Information -->
+            <div class="info-card fade-in stagger-3" id="customerInfoCard">
+                <h4>&#128100; Customer Information</h4>
+                <div class="details-grid" id="customerInfoGrid"></div>
+            </div>
+
+            <!-- Identity Documents -->
+            <div class="info-card fade-in stagger-4" id="identityCard">
+                <h4>&#128196; Identity Documents</h4>
+                <div class="details-grid" id="identityGrid"></div>
+            </div>
+
+            <!-- KYC Details -->
+            <div class="info-card fade-in stagger-5" id="kycDetailsCard">
+                <h4>&#128220; KYC Details</h4>
+                <div class="details-grid" id="kycDetailsGrid"></div>
+            </div>
+
+            <!-- Verification Results -->
+            <div class="info-card fade-in stagger-6" id="verificationCard">
+                <h4>&#9989; Verification Results</h4>
+                <div id="verificationContent"></div>
+            </div>
+
+            <!-- Documents -->
+            <div class="info-card fade-in stagger-7" id="documentsCard">
+                <h4>&#128194; Documents</h4>
+                <div class="doc-grid" id="documentsGrid"></div>
+            </div>
+
+            <!-- Timeline -->
+            <div class="info-card fade-in stagger-8" id="timelineCard">
+                <h4>&#128336; Application Timeline</h4>
+                <div class="timeline" id="timelineContent"></div>
+            </div>
+
+            <!-- Device & Session -->
+            <div class="info-card fade-in stagger-9" id="sessionCard">
+                <h4>&#128187; Device & Session</h4>
+                <div class="details-grid" id="sessionGrid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Modal -->
+    <div class="modal-overlay" id="imageModal">
+        <div class="modal" style="max-width:90%;max-height:90vh;padding:0">
+            <button class="modal-close" onclick="closeImageModal()">&times;</button>
+            <img id="modalImage" src="" style="width:100%;height:auto;max-height:85vh;object-fit:contain">
+        </div>
+    </div>
+
+    <script src="../js/main.js?v=5"></script>
+    <script src="../js/auth.js?v=5"></script>
+    <script>
+        var API_BASE = '/api/admin/account-details';
+
+        function checkAuth() {
+            var token = getAuthToken();
+            if (!token) { window.location.href = '/admin/login.html'; return false; }
+            return true;
+        }
+
+        async function searchAccounts() {
+            var query = document.getElementById('searchQuery').value.trim();
+            var container = document.getElementById('searchResults');
+            container.innerHTML = '<div style="text-align:center;padding:20px"><div class="spinner"></div><p>Searching...</p></div>';
+
+            try {
+                var token = getAuthToken();
+                var url = API_BASE + '/search' + (query ? '?query=' + encodeURIComponent(query) : '');
+                var res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+                var data = await res.json();
+
+                if (!data.success || !data.data || data.data.length === 0) {
+                    container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--gray-500)">&#128269; No results found</div>';
+                    return;
+                }
+
+                var html = '<p style="font-size:12px;color:var(--gray-500);margin-bottom:8px">Found ' + data.count + ' result(s)</p>';
+                data.data.forEach(function(app) {
+                    var statusClass = 'status-' + (app.status || '');
+                    html += '<div class="result-item" onclick="viewAccountDetails(' + app.id + ')">' +
+                        '<div style="display:flex;justify-content:space-between;align-items:center">' +
+                        '<div>' +
+                        '<div style="font-weight:700;font-size:14px">' + (app.ocrName || 'N/A') + '</div>' +
+                        '<div style="font-size:12px;color:var(--gray-500)">' + (app.applicationRef || '') + ' &bull; ' + (app.mobile || '') + '</div>' +
+                        '</div>' +
+                        '<div style="text-align:right">' +
+                        '<span class="status-badge ' + statusClass + '">' + (app.status || 'N/A') + '</span>' +
+                        '<div style="font-size:11px;color:var(--gray-500);margin-top:4px">Risk: ' + (app.riskScore || 0) + '/100</div>' +
+                        '</div>' +
+                        '</div>' +
+                        '</div>';
+                });
+                container.innerHTML = html;
+            } catch(e) {
+                container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--danger)">&#10060; Error: ' + e.message + '</div>';
+            }
+        }
+
+        function clearSearch() {
+            document.getElementById('searchQuery').value = '';
+            document.getElementById('searchResults').innerHTML = '';
+        }
+
+        async function viewAccountDetails(id) {
+            document.getElementById('searchSection').style.display = 'none';
+            document.getElementById('detailsSection').style.display = 'block';
+            document.getElementById('detailsTitle').textContent = 'Loading...';
+
+            try {
+                var token = getAuthToken();
+                var res = await fetch(API_BASE + '/' + id, { headers: { 'Authorization': 'Bearer ' + token } });
+                var data = await res.json();
+
+                if (!data.success) {
+                    alert(data.message || 'Access denied');
+                    backToSearch();
+                    return;
+                }
+
+                renderAccountDetails(data.data);
+            } catch(e) {
+                alert('Error: ' + e.message);
+                backToSearch();
+            }
+        }
+
+        function renderAccountDetails(d) {
+            document.getElementById('detailsTitle').textContent = 'Account Details - ' + (d.customerInfo.fullName || 'N/A');
+            document.getElementById('detailsSubtitle').textContent = 'Application: ' + (d.applicationRef || '');
+
+            // Branch Info
+            var b = d.branchInfo || {};
+            renderGrid('branchInfoGrid', [
+                { label: 'Branch ID', value: b.branchId || 'N/A' },
+                { label: 'Branch Name', value: b.branchName || 'N/A' },
+                { label: 'IFSC Code', value: b.ifscCode || 'N/A' },
+                { label: 'Branch Address', value: b.branchAddress || 'N/A', fullWidth: true },
+                { label: 'City', value: b.branchCity || 'N/A' },
+                { label: 'State', value: b.branchState || 'N/A' },
+                { label: 'Pincode', value: b.branchPincode || 'N/A' },
+                { label: 'Phone', value: b.branchPhone || 'N/A' },
+                { label: 'Email', value: b.branchEmail || 'N/A' }
+            ]);
+
+            // Account Info
+            var a = d.accountInfo || {};
+            renderGrid('accountInfoGrid', [
+                { label: 'Account Number', value: a.accountNumber || 'N/A' },
+                { label: 'Account Type', value: a.accountType || 'N/A' },
+                { label: 'Customer ID', value: a.customerId || 'N/A' },
+                { label: 'Account Status', value: '<span class="status-badge status-' + (a.accountStatus || 'ACTIVE') + '">' + (a.accountStatus || 'ACTIVE') + '</span>' },
+                { label: 'Opening Date', value: a.accountOpeningDate ? new Date(a.accountOpeningDate).toLocaleDateString('en-IN') : 'N/A' }
+            ]);
+
+            // Customer Info
+            var c = d.customerInfo || {};
+            var dobDisplay = 'N/A';
+            if (c.dateOfBirth) {
+                try {
+                    dobDisplay = new Date(c.dateOfBirth).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+                    if (dobDisplay === 'Invalid Date') dobDisplay = String(c.dateOfBirth).substring(0, 10);
+                } catch(e) { dobDisplay = String(c.dateOfBirth).substring(0, 10); }
+            }
+            renderGrid('customerInfoGrid', [
+                { label: 'Full Name', value: c.fullName || 'N/A' },
+                { label: 'Date of Birth', value: dobDisplay },
+                { label: 'Gender', value: c.gender || 'N/A' },
+                { label: 'Mobile', value: c.mobile || 'N/A' },
+                { label: 'Email', value: c.email || 'N/A', fullWidth: true },
+                { label: 'Address', value: c.address || 'N/A', fullWidth: true }
+            ]);
+
+            // Identity
+            var id = d.identityInfo || {};
+            renderGrid('identityGrid', [
+                { label: 'Aadhaar Number', value: '<span class="masked">' + (id.aadhaarNumber || 'N/A') + '</span>' },
+                { label: 'PAN Number', value: '<span class="masked">' + (id.panNumber || 'N/A') + '</span>' }
+            ]);
+
+            // KYC Details
+            var k = d.kycDetails || {};
+            renderGrid('kycDetailsGrid', [
+                { label: 'KYC Status', value: '<span class="status-badge status-' + (k.kycStatus || '') + '">' + (k.kycStatus || 'N/A') + '</span>' },
+                { label: 'Re-KYC Status', value: k.reKycStatus || 'N/A' },
+                { label: 'Application ID', value: k.applicationRef || 'N/A' },
+                { label: 'Submitted', value: k.submittedAt ? new Date(k.submittedAt).toLocaleString('en-IN') : 'N/A' },
+                { label: 'Last Updated', value: k.reviewedAt ? new Date(k.reviewedAt).toLocaleString('en-IN') : 'N/A' }
+            ]);
+
+            // Verification
+            var v = d.verification || {};
+            var vHtml = '';
+            if (v.ocr) {
+                var ocrDobDisplay = 'N/A';
+                if (v.ocr.dob) {
+                    try {
+                        ocrDobDisplay = new Date(v.ocr.dob).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+                        if (ocrDobDisplay === 'Invalid Date') ocrDobDisplay = String(v.ocr.dob).substring(0, 10);
+                    } catch(e) { ocrDobDisplay = String(v.ocr.dob).substring(0, 10); }
+                }
+                vHtml += '<div style="margin-bottom:12px"><strong style="font-size:13px">OCR Extraction:</strong>' +
+                    '<div class="details-grid">' +
+                    infoItem('Name', v.ocr.name) +
+                    infoItem('DOB', ocrDobDisplay) +
+                    infoItem('Aadhaar', '<span class="masked">' + (v.ocr.idNumber || 'N/A') + '</span>') +
+                    infoItem('PAN', '<span class="masked">' + (v.ocr.panNumber || 'N/A') + '</span>') +
+                    infoItem('Address', v.ocr.address || 'N/A', true) +
+                    '</div></div>';
+            }
+            if (v.face) {
+                vHtml += '<div style="margin-bottom:12px"><strong style="font-size:13px">Face Verification:</strong>' +
+                    '<div class="details-grid">' +
+                    infoItem('Match %', (v.face.matchPercentage || 0) + '%') +
+                    infoItem('Liveness', v.face.livenessPassed ? 'Passed' : 'Failed') +
+                    '</div></div>';
+            }
+            if (v.risk) {
+                vHtml += '<div style="margin-bottom:12px"><strong style="font-size:13px">Risk Assessment:</strong>' +
+                    '<div class="details-grid">' +
+                    infoItem('Score', (v.risk.score || 0) + '/100') +
+                    infoItem('Level', '<span class="status-badge status-' + (v.risk.level === 'HIGH' ? 'REJECTED' : v.risk.level === 'MEDIUM' ? 'PENDING' : 'APPROVED') + '">' + (v.risk.level || 'LOW') + '</span>') +
+                    '</div></div>';
+            }
+            if (v.qr) {
+                vHtml += '<div><strong style="font-size:13px">QR Verification:</strong>' +
+                    '<div class="details-grid">' +
+                    infoItem('Status', v.qr.status || 'SKIPPED') +
+                    infoItem('Match %', (v.qr.matchPercentage || 0) + '%') +
+                    '</div></div>';
+            }
+            document.getElementById('verificationContent').innerHTML = vHtml || '<p style="color:var(--gray-500)">No verification data available</p>';
+
+            // Documents
+            var docs = d.documents || {};
+            var docHtml = '';
+            var docItems = [
+                { label: 'Selfie', path: docs.selfiePath },
+                { label: 'Aadhaar Front', path: docs.aadhaarFrontPath },
+                { label: 'Aadhaar Back', path: docs.aadhaarBackPath },
+                { label: 'PAN Card', path: docs.panCardPath },
+                { label: 'Document', path: docs.docFilePath }
+            ];
+            docItems.forEach(function(item) {
+                if (item.path) {
+                    var url = '/api/admin/applications/' + d.id + '/' + item.label.toLowerCase().replace(/ /g, '-');
+                    if (item.label === 'Selfie') url = '/api/admin/applications/' + d.id + '/selfie';
+                    else if (item.label === 'Aadhaar Front') url = '/api/admin/applications/' + d.id + '/aadhaar-front';
+                    else if (item.label === 'Aadhaar Back') url = '/api/admin/applications/' + d.id + '/aadhaar-back';
+                    else if (item.label === 'PAN Card') url = '/api/admin/applications/' + d.id + '/pan-card';
+                    else if (item.label === 'Document') url = '/api/admin/applications/' + d.id + '/document';
+                    docHtml += '<div style="text-align:center">' +
+                        '<img src="' + url + '?t=' + Date.now() + '" class="doc-thumb" onclick="openImageModal(this.src)" onerror="this.style.display=\'none\'">' +
+                        '<div style="font-size:11px;color:var(--gray-500);margin-top:4px">' + item.label + '</div></div>';
+                }
+            });
+            document.getElementById('documentsGrid').innerHTML = docHtml || '<p style="color:var(--gray-500)">No documents available</p>';
+
+            // Timeline
+            var tl = d.timeline || [];
+            var tlHtml = '';
+            tl.sort(function(a,b) { return new Date(a.date) - new Date(b.date); });
+            tl.forEach(function(t) {
+                tlHtml += '<div class="timeline-item">' +
+                    '<div class="event">' + (t.icon || '') + ' ' + t.event + '</div>' +
+                    '<div class="date">' + new Date(t.date).toLocaleString('en-IN') + '</div>' +
+                    (t.remarks ? '<div class="remarks">Remarks: ' + t.remarks + '</div>' : '') +
+                    '</div>';
+            });
+            document.getElementById('timelineContent').innerHTML = tlHtml || '<p style="color:var(--gray-500)">No timeline events</p>';
+
+            // Session
+            var s = d.session || {};
+            renderGrid('sessionGrid', [
+                { label: 'Device', value: s.device || 'N/A' },
+                { label: 'IP Address', value: s.ipAddress || 'N/A' },
+                { label: 'Location', value: s.location || 'N/A' }
+            ]);
+        }
+
+        function renderGrid(containerId, items) {
+            var html = '';
+            items.forEach(function(item) {
+                var cls = item.fullWidth ? ' class="full-width"' : '';
+                html += '<div class="info-row"' + cls + '>' +
+                    '<span class="info-label">' + item.label + '</span>' +
+                    '<span class="info-value">' + (item.value || 'N/A') + '</span></div>';
+            });
+            document.getElementById(containerId).innerHTML = html;
+        }
+
+        function infoItem(label, value, fullWidth) {
+            return '<div class="info-row"' + (fullWidth ? ' style="grid-column:1/-1"' : '') + '>' +
+                '<span class="info-label">' + label + '</span>' +
+                '<span class="info-value">' + (value || 'N/A') + '</span></div>';
+        }
+
+        function backToSearch() {
+            document.getElementById('searchSection').style.display = 'block';
+            document.getElementById('detailsSection').style.display = 'none';
+        }
+
+        function openImageModal(src) {
+            document.getElementById('modalImage').src = src;
+            document.getElementById('imageModal').classList.add('active');
+        }
+
+        function closeImageModal() {
+            document.getElementById('imageModal').classList.remove('active');
+        }
+
+        function handleAdminLogout() {
+            clearAuthData();
+            window.location.href = '/admin/login.html';
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!checkAuth()) return;
+        });
+    </script>
+</body>
+</html>

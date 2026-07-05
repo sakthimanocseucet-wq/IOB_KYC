@@ -10,7 +10,7 @@ RUN cd backend && mvn clean package -DskipTests -q
 FROM eclipse-temurin:17-jre
 
 RUN apt-get update && \
-    apt-get install -y python3 python3-pip libgl1-mesa-glx libglib2.0-0 && \
+    apt-get install -y python3 python3-pip libgl1 libglib2.0-0 && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

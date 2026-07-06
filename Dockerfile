@@ -25,6 +25,6 @@ COPY --from=builder /app/backend/target/kyc-system-1.0.0.jar app.jar
 ENV JAVA_OPTS="-Xms256m -Xmx512m"
 ENV FILE_UPLOAD_DIR=./uploads
 ENV SERVER_PORT=8080
-EXPOSE 8080
+EXPOSE 8080 5001
 
-CMD ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+CMD ["sh", "-c", "cd /app/ai-ml && python3 api_server.py & java $JAVA_OPTS -jar /app/app.jar"]

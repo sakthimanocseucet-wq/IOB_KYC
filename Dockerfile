@@ -7,21 +7,22 @@ COPY backend/src backend/src
 RUN cd backend && mvn clean package -DskipTests -q
 
 # Stage 2: Runtime
-FROM eclipse-temurin:17-jre
+FROM python:3.11-slim
 
 RUN apt-get update && \
-    apt-get install -y python3 python3-pip libgl1 libglib2.0-0 libzbar0 libegl1 libgles2 && \
+    apt-get install -y --no-install-recommends default-jre-headless libgl1 libglib2.0-0 libzbar0 libegl1 libgles2 && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY ai-ml/requirements.txt ai-ml/requirements.txt
-RUN pip3 install --break-system-packages --no-cache-dir -r ai-ml/requirements.txt
+RUN pip3 install --no-cache-dir --no-compile -r ai-ml/requirements.txt && \
+    rm -rf /root/.cache/pip /tmp/*
 
 COPY ai-ml/ ai-ml/
 COPY --from=builder /app/backend/target/kyc-system-1.0.0.jar app.jar
 
-ENV JAVA_OPTS="-Xms256m -Xmx1g"
+ENV JAVA_OPTS="-Xms256m -Xmx768m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication"
 ENV FILE_UPLOAD_DIR=./uploads
 ENV SERVER_PORT=8080
 EXPOSE 8080 5001

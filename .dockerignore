@@ -8,6 +8,7 @@
 **/*.log
 **/debug_frames
 **/debug_blocks
+**/models
 **/*.jpg
 **/*.md
 **/*report*
@@ -25,3 +26,5 @@
 **/.idea
 **/.vscode
 **/BOOT-INF
+**/uploads
+**/.agents

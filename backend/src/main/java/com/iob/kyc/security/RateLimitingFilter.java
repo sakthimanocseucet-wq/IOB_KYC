@@ -12,7 +12,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -64,15 +63,9 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     }
 
     private void cleanupExpiredBuckets() {
-        if (buckets.size() < 1000) return; // Only cleanup when memory pressure exists
+        if (buckets.size() < 100) return;
         long now = System.currentTimeMillis();
-        Iterator<Map.Entry<String, BucketWrapper>> it = buckets.entrySet().iterator();
-        while (it.hasNext()) {
-            Map.Entry<String, BucketWrapper> entry = it.next();
-            if (now - entry.getValue().lastAccessed > BUCKET_TTL_MS) {
-                it.remove();
-            }
-        }
+        buckets.entrySet().removeIf(entry -> now - entry.getValue().lastAccessed > BUCKET_TTL_MS);
     }
 
     private Bucket createBucket() {

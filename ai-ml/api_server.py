@@ -55,6 +55,7 @@ CORS(app, origins=[
     'http://127.0.0.1:8090',
     'http://localhost:5500',
     'http://127.0.0.1:5500',
+    'https://iobkyc-production.up.railway.app',
 ])
 
 # Debug frame directory (only used when AI_DEBUG=1)

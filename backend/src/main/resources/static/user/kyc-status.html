@@ -7,14 +7,6 @@
     <link rel="stylesheet" href="../css/style.css?v=12">
     <link rel="stylesheet" href="../css/dashboard.css?v=12">
     <style>
-        .auto-refresh-bar{display:flex;align-items:center;gap:8px;justify-content:center;padding:8px 16px;margin:12px 0;border-radius:8px;background:rgba(0,71,171,0.04);border:1px solid rgba(0,71,171,0.1);font-size:12px;color:#555;transition:all 0.3s}
-        .auto-refresh-bar.refreshing{background:rgba(0,71,171,0.1);border-color:rgba(0,71,171,0.3)}
-        .auto-refresh-dot{width:8px;height:8px;border-radius:50%;background:#1a73e8;animation:pulse-dot 2s infinite}
-        @keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.8)}}
-        .kyc-info-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:14px}
-        .kyc-info-row:last-child{border-bottom:none}
-        .kyc-info-label{color:#666;font-weight:500}
-        .kyc-info-value{color:#222;font-weight:600}
     </style>
 </head>
 <body>
@@ -43,12 +35,6 @@
             </div>
         </div>
 
-        <div class="auto-refresh-bar" id="refreshIndicator">
-            <div class="auto-refresh-dot"></div>
-            <span id="refreshText">Auto-refreshing every 10s</span>
-            <span id="refreshTime" style="color:var(--gray-400);margin-left:8px"></span>
-        </div>
-
         <div class="card" style="min-height:200px">
             <div id="statusContent"></div>
         </div>
@@ -59,22 +45,7 @@
     <script src="../js/auth.js?v=12"></script>
     <script>
     (function() {
-        var pollTimer = null;
-        var refreshCount = 0;
-
-        function updateRefreshTime() {
-            var now = new Date();
-            var timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            document.getElementById('refreshTime').textContent = 'Last refresh: ' + timeStr;
-        }
-
-        function pulseRefreshIndicator() {
-            var bar = document.getElementById('refreshIndicator');
-            bar.classList.add('refreshing');
-            setTimeout(function() { bar.classList.remove('refreshing'); }, 800);
-        }
-
-        function loadStatus(isRefresh) {
+        function loadStatus() {
             var container = document.getElementById('statusContent');
             var token = getAuthToken();
             if (!token) {
@@ -82,11 +53,7 @@
                 return;
             }
 
-            if (isRefresh) {
-                pulseRefreshIndicator();
-            } else {
-                container.innerHTML = '<div style="text-align:center;padding:40px"><div class="spinner" style="margin:0 auto 12px"></div><p style="color:var(--gray-500)">Loading application status...</p></div>';
-            }
+            container.innerHTML = '<div style="text-align:center;padding:40px"><div class="spinner" style="margin:0 auto 12px"></div><p style="color:var(--gray-500)">Loading application status...</p></div>';
 
             fetch('/api/kyc/status', { headers: { 'Authorization': 'Bearer ' + token } })
                 .then(function(r) {
@@ -99,9 +66,6 @@
                 })
                 .then(function(result) {
                     if (!result) return;
-                    refreshCount++;
-                    updateRefreshTime();
-                    document.getElementById('refreshText').textContent = 'Auto-refreshing every 10s (' + refreshCount + ' updates)';
 
                     if (!result.success || !result.data || result.data.length === 0) {
                         container.innerHTML = '<div style="text-align:center;padding:40px">' +
@@ -275,26 +239,6 @@
                             '</div></div>';
                     }
 
-                    html += '<div style="margin-top:32px;border-top:1px solid #e5e7eb;padding-top:24px">';
-                    html += '<h3 style="margin:0 0 16px;font-size:18px">&#128196; Application Details</h3>';
-                    html += '<div style="background:#f8f9fa;border-radius:12px;padding:20px">';
-                    var infoItems = [
-                        ['Application Ref', appRef], ['Status', status], ['Application Type', appType],
-                        ['Submitted', app.submittedAt ? fmtDate(app.submittedAt) : (app.createdAt ? fmtDate(app.createdAt) : 'N/A')],
-                        ['Last Updated', app.updatedAt ? fmtDate(app.updatedAt) : 'N/A']
-                    ];
-                    if (ocrName && ocrName !== 'User') infoItems.push(['Name', ocrName]);
-                    if (gender) infoItems.push(['Gender', gender]);
-                    if (mobile) infoItems.push(['Mobile', mobile]);
-                    if (branchId) infoItems.push(['Branch', branchId]);
-                    if (faceMatchNum > 0) infoItems.push(['Face Match', faceMatchNum.toFixed(1) + '%']);
-                    if (riskScore > 0) infoItems.push(['Risk Score', riskScore + '/100 (' + (riskScore < 30 ? 'Low' : riskScore < 60 ? 'Medium' : 'High') + ')']);
-                    if (app.reviewNotes) infoItems.push(['Review Notes', app.reviewNotes]);
-                    infoItems.forEach(function(item) {
-                        html += '<div class="kyc-info-row"><span class="kyc-info-label">' + item[0] + '</span><span class="kyc-info-value">' + item[1] + '</span></div>';
-                    });
-                    html += '</div></div>';
-
                     if (apps.length > 1) {
                         html += '<div style="margin-top:32px;border-top:1px solid #e5e7eb;padding-top:24px">';
                         html += '<h3 style="margin:0 0 16px;font-size:18px">Application History</h3>';
@@ -325,15 +269,12 @@
                 })
                 .catch(function(e) {
                     console.error('[KYC-Status] Error:', e);
-                    if (!isRefresh) {
-                        container.innerHTML = '<div style="text-align:center;padding:40px"><p style="color:var(--danger)">Unable to load status. Please try again.</p></div>';
-                    }
+                    container.innerHTML = '<div style="text-align:center;padding:40px"><p style="color:var(--danger)">Unable to load status. Please try again.</p></div>';
                 });
         }
 
         var cachedStatusHtml = null;
-        loadStatus(false);
-        pollTimer = setInterval(function() { loadStatus(true); }, 10000);
+        loadStatus();
     })();
     </script>
 </body>

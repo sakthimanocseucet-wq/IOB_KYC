@@ -147,7 +147,7 @@ async function sendRegOTP() {
         if (data.success) {
             const otpVal = data.data && data.data.otp ? data.data.otp : null;
             if (otpVal) {
-                showAlert('Your OTP: <strong style="font-size:24px;letter-spacing:4px;color:#1e3a5f">' + otpVal + '</strong><br><small style="color:#64748b">Valid for 5 minutes</small>', 'success');
+                showToast('Your OTP: ' + otpVal, 'success');
             } else {
                 showToast('OTP sent to ' + identifier, 'success');
             }

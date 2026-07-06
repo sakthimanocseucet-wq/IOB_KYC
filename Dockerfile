@@ -27,7 +27,4 @@ ENV FILE_UPLOAD_DIR=./uploads
 ENV SERVER_PORT=8080
 EXPOSE 8080 5001
 
-COPY start.sh /app/start.sh
-RUN chmod +x /app/start.sh
-
-CMD ["/app/start.sh"]
+CMD ["sh", "-c", "python3 /app/ai-ml/api_server.py & sleep 5 && java $JAVA_OPTS -jar /app/app.jar"]

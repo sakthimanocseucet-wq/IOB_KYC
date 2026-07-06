@@ -488,8 +488,14 @@ async function sendEmailOTP() {
     btn.disabled = true;
 
     try {
-        await fetch('/api/auth/otp/generate?identifier=' + encodeURIComponent(email) + '&purpose=KYC', { method: 'POST' });
-        showToast('OTP sent to ' + email, 'success');
+        const otpRes = await fetch('/api/auth/otp/generate?identifier=' + encodeURIComponent(email) + '&purpose=KYC', { method: 'POST' });
+        const otpData = await otpRes.json();
+        const otpVal = otpData.data && otpData.data.otp ? otpData.data.otp : null;
+        if (otpVal) {
+            showToast('Your OTP: ' + otpVal, 'success');
+        } else {
+            showToast('OTP sent to ' + email, 'success');
+        }
     } catch (err) {
         showToast('Failed to send OTP. Please try again.', 'error');
         btn.disabled = false;

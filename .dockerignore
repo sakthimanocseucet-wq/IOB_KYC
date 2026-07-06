@@ -8,7 +8,9 @@
 **/*.log
 **/debug_frames
 **/debug_blocks
-**/models
+**/models/trained
+**/models/debug*
+**/models/__pycache__
 **/*.jpg
 **/*.md
 **/*report*

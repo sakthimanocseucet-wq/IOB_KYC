@@ -16,15 +16,14 @@ RUN apt-get update && \
 WORKDIR /app
 
 COPY ai-ml/requirements.txt ai-ml/requirements.txt
-RUN pip3 install --break-system-packages --no-cache-dir -r ai-ml/requirements.txt || \
-    pip3 install --break-system-packages --no-cache-dir flask flask-cors opencv-python-headless pyzbar numpy Pillow requests python-dotenv
+RUN pip3 install --break-system-packages --no-cache-dir -r ai-ml/requirements.txt
 
 COPY ai-ml/ ai-ml/
 COPY --from=builder /app/backend/target/kyc-system-1.0.0.jar app.jar
 
-ENV JAVA_OPTS="-Xms256m -Xmx512m"
+ENV JAVA_OPTS="-Xms256m -Xmx1g"
 ENV FILE_UPLOAD_DIR=./uploads
 ENV SERVER_PORT=8080
 EXPOSE 8080 5001
 
-CMD ["sh", "-c", "python3 /app/ai-ml/api_server.py 2>&1 & sleep 10 && java $JAVA_OPTS -jar /app/app.jar"]
+CMD ["sh", "-c", "python3 /app/ai-ml/api_server.py 2>&1 & sleep 30 && java $JAVA_OPTS -jar /app/app.jar"]

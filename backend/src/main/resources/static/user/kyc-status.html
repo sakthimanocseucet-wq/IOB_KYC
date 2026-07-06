@@ -96,8 +96,8 @@
                     var app = apps[0];
                     var appId = app.id || 1;
                     var appRef = app.applicationRef || ('IOB-KYC-' + String(appId).padStart(5, '0'));
-                    var status = app.status || 'PENDING';
-                    var appType = app.applicationType || 'NORMAL';
+                    var status = (app.status || 'PENDING').toUpperCase();
+                    var appType = (app.applicationType || 'NORMAL').toUpperCase();
                     var riskScore = app.riskScore || 0;
                     var faceMatch = app.faceMatchPercentage || 0;
                     var hasDoc = !!(app.aadhaarFrontPath || app.panCardPath || app.docFilePath);
@@ -145,7 +145,7 @@
                         statusBadgeHtml = '<span class="badge badge-warning" style="font-size:14px;padding:6px 16px">&#9203; Pending</span>';
                     }
                     document.getElementById('liveStatusBadge').innerHTML = statusBadgeHtml;
-                    document.getElementById('lastUpdated').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+                    document.getElementById('lastUpdated').textContent = 'Updated: ' + new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
                     localStorage.setItem('kycSubmitted', 'true');
                     localStorage.setItem('kycAppId', appId);
@@ -265,13 +265,13 @@
                                 '<h3 style="margin:0 0 16px;font-size:18px">Application History</h3>' +
                                 '<div class="kyc-history-list">';
                         apps.forEach(function(h, idx) {
-                            var hStatus = h.status || 'PENDING';
+                            var hStatus = (h.status || 'PENDING').toUpperCase();
                             var hBadge = '';
                             if (hStatus === 'APPROVED') hBadge = '<span class="badge badge-success">Approved</span>';
                             else if (hStatus === 'REJECTED') hBadge = '<span class="badge badge-danger">Rejected</span>';
                             else if (hStatus === 'UNDER_REVIEW') hBadge = '<span class="badge badge-warning">Under Review</span>';
                             else hBadge = '<span class="badge badge-warning">Pending</span>';
-                            var hType = h.applicationType || 'NORMAL';
+                            var hType = (h.applicationType || 'NORMAL').toUpperCase();
                             var typeLabel = hType === 'RE_KYC' ? '<span style="background:var(--primary,#1a73e8);color:#fff;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600;margin-left:6px">Re-KYC</span>' : '';
                             var isActive = (idx === 0) ? 'style="border-left:3px solid var(--primary);background:var(--light-bg,rgba(0,71,171,0.03))"' : '';
                             var activeLabel = (idx === 0) ? '<span class="badge badge-primary" style="margin-left:8px;font-size:10px">Latest</span>' : '';
@@ -282,7 +282,7 @@
                                         hBadge + typeLabel + activeLabel +
                                     '</div>' +
                                     '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
-                                        '<small style="color:var(--gray-500)">' + (h.submittedAt ? new Date(h.submittedAt).toLocaleDateString() : (h.createdAt ? new Date(h.createdAt).toLocaleDateString() : 'N/A')) + '</small>' +
+                                        '<small style="color:var(--gray-500)">' + (h.submittedAt ? new Date(h.submittedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + new Date(h.submittedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : (h.createdAt ? new Date(h.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + new Date(h.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : 'N/A')) + '</small>' +
                                     '</div>' +
                                 '</div>';
                         });

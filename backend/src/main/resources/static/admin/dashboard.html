@@ -36,6 +36,7 @@
                 <button class="btn btn-sm btn-outline admin-only" id="createAccountBtn" style="display:none" onclick="showCreateAccountModal()">&#128101; Create Account</button>
                 <button class="btn btn-sm btn-outline admin-only" id="resetPasswordBtn" style="display:none" onclick="showResetPasswordModal()">&#128274; Reset Password</button>
                 <button class="btn btn-sm btn-outline admin-only" onclick="exportCSV()">&#128229; Export CSV</button>
+                
             </div>
         </div>
 
@@ -90,11 +91,12 @@
                             <th>Document</th>
                             <th>Risk Score</th>
                             <th>Status</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="kycTableBody">
                         <tr>
-                            <td colspan="4" style="text-align:center;color:var(--gray-500)">Loading applications...</td>
+                            <td colspan="5" style="text-align:center;color:var(--gray-500)">Loading applications...</td>
                         </tr>
                     </tbody>
                 </table>

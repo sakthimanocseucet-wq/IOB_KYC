@@ -1020,4 +1020,98 @@ public class AdminController {
             return ResponseEntity.internalServerError().body(Map.of("success", false, "message", e.getMessage()));
         }
     }
+
+    @DeleteMapping("/delete-all-kyc")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> deleteAllKycData(HttpServletRequest request) {
+        try {
+            long kycCount = kycApplicationRepository.count();
+            long qrCount = qrVerificationRepository.count();
+            long fraudCount = fraudAlertRepository.count();
+
+            qrVerificationRepository.deleteAllInBatch();
+            kycApplicationRepository.deleteAllInBatch();
+            fraudAlertRepository.deleteAllInBatch();
+
+            java.io.File uploadDir = Paths.get(uploadBaseDir).toAbsolutePath().toFile();
+            if (uploadDir.exists() && uploadDir.isDirectory()) {
+                deleteDir(uploadDir);
+            }
+            Paths.get(uploadBaseDir).toAbsolutePath().toFile().mkdirs();
+
+            auditLogService.log("ADMIN", "DELETE_ALL_KYC", "KYCApplication", null,
+                    "Deleted " + kycCount + " KYC applications, " + qrCount + " QR verifications, " + fraudCount + " fraud alerts");
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "All KYC data deleted successfully",
+                    "deletedApplications", kycCount,
+                    "deletedQrResults", qrCount,
+                    "deletedFraudAlerts", fraudCount
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("success", false, "message", "Failed to delete data: " + e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/applications/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public ResponseEntity<?> deleteKycApplication(@PathVariable Long id, HttpServletRequest request) {
+        try {
+            KYCApplication app = kycApplicationRepository.findById(id).orElse(null);
+            if (app == null) {
+                return ResponseEntity.status(404).body(Map.of("success", false, "message", "Application not found"));
+            }
+
+            String appRef = app.getApplicationRef();
+            String appName = app.getOcrName();
+
+            qrVerificationRepository.deleteAll(qrVerificationRepository.findByApplicationIdOrderByVerifiedAtDesc(id));
+
+            String[] filePaths = { app.getSelfieFilePath(), app.getDocFilePath(), app.getAadhaarFrontPath(), app.getAadhaarBackPath(), app.getPanCardPath(), app.getPhotoFilePath() };
+            for (String fp : filePaths) {
+                if (fp != null && !fp.isEmpty()) {
+                    try {
+                        Path p = Paths.get(fp);
+                        if (!Files.exists(p)) {
+                            String rel = fp.startsWith("uploads/") ? fp.substring("uploads/".length()) : fp;
+                            p = Paths.get(uploadBaseDir).resolve(rel).normalize();
+                        }
+                        if (Files.exists(p)) {
+                            java.io.File f = p.toFile();
+                            if (f.isFile()) f.delete();
+                            java.io.File parent = f.getParentFile();
+                            if (parent != null && parent.isDirectory() && parent.list() != null && parent.list().length == 0) {
+                                parent.delete();
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                }
+            }
+
+            kycApplicationRepository.deleteById(id);
+
+            auditLogService.log("ADMIN", "DELETE_APPLICATION", "KYCApplication", String.valueOf(id),
+                    "Deleted application " + appRef + " for " + appName);
+
+            return ResponseEntity.ok(Map.of("success", true, "message", "Application deleted successfully", "id", id));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("success", false, "message", "Failed to delete: " + e.getMessage()));
+        }
+    }
+
+    private void deleteDir(java.io.File dir) {
+        if (dir == null || !dir.exists()) return;
+        java.io.File[] files = dir.listFiles();
+        if (files != null) {
+            for (java.io.File f : files) {
+                if (f.isDirectory()) {
+                    deleteDir(f);
+                } else {
+                    f.delete();
+                }
+            }
+        }
+        dir.delete();
+    }
 }

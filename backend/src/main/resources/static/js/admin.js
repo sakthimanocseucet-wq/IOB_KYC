@@ -404,7 +404,7 @@ function renderDashboard() {
     }
 
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--gray-500)">No matching applications</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray-500)">No matching applications</td></tr>';
         tbody.setAttribute('data-hash', currentHash);
         return;
     }
@@ -418,10 +418,10 @@ function renderDashboard() {
         var statusLabel = app.status === 'highrisk' ? 'High Risk' : app.status.charAt(0).toUpperCase() + app.status.slice(1);
 
         var reKycBadge = app.applicationType === 'RE_KYC' ? ' <span class="badge badge-info" style="font-size:10px;padding:2px 8px;background:var(--primary,#3b82f6);color:white">Re-KYC</span>' : '';
-        return '<tr onclick="viewApplication(' + app.id + ')" style="cursor:pointer">' +
-            '<td><strong>' + app.name + '</strong>' + reKycBadge + '<br><small style="color:var(--gray-500)">' + app.date + '</small></td>' +
-            '<td>' + app.docType + '</td>' +
-            '<td>' +
+        return '<tr>' +
+            '<td style="cursor:pointer" onclick="viewApplication(' + app.id + ')"><strong>' + app.name + '</strong>' + reKycBadge + '<br><small style="color:var(--gray-500)">' + app.date + '</small></td>' +
+            '<td style="cursor:pointer" onclick="viewApplication(' + app.id + ')">' + app.docType + '</td>' +
+            '<td style="cursor:pointer" onclick="viewApplication(' + app.id + ')">' +
                 '<div class="risk-bar">' +
                     '<div class="risk-indicator">' +
                         '<div class="risk-fill-bar" style="width:' + app.riskScore + '%;background:' + riskColor + '"></div>' +
@@ -429,7 +429,10 @@ function renderDashboard() {
                     '<span style="font-size:13px;font-weight:600;color:' + riskColor + '">' + app.riskScore + '</span>' +
                 '</div>' +
             '</td>' +
-            '<td><span class="badge ' + statusBadge + '">' + statusLabel + '</span></td>' +
+            '<td style="cursor:pointer" onclick="viewApplication(' + app.id + ')"><span class="badge ' + statusBadge + '">' + statusLabel + '</span></td>' +
+            '<td>' +
+                '<button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteKycApplication(' + app.id + ')" title="Delete Application">&#128465;</button>' +
+            '</td>' +
         '</tr>';
     }).join('');
     tbody.setAttribute('data-hash', currentHash);
@@ -1400,6 +1403,61 @@ async function resetEmployeePassword() {
             document.getElementById('rpConfirmPassword').value = '';
         } else {
             showToast(data.message || 'Failed to reset password', 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function deleteAllKycData() {
+    if (!confirm('WARNING: This will permanently delete ALL KYC applications, QR verification results, fraud alerts, and uploaded files. This cannot be undone.\n\nAre you sure you want to continue?')) return;
+    if (!confirm('This is your LAST CHANCE. All data will be permanently deleted. Continue?')) return;
+
+    try {
+        var token = getAuthToken();
+        if (!token) { checkAdminAuth(); return; }
+
+        showToast('Deleting all KYC data...', 'info');
+        var res = await fetch(ADMIN_API + '/delete-all-kyc', {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        var data = await res.json();
+        if (res.ok && data.success) {
+            showToast('All KYC data deleted: ' + data.deletedApplications + ' applications, ' + data.deletedQrResults + ' QR results, ' + data.deletedFraudAlerts + ' fraud alerts', 'success');
+            kycApplications = [];
+            loadReviewList();
+            refreshDashboard();
+        } else {
+            showToast(data.message || 'Failed to delete data', 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function deleteKycApplication(id) {
+    var app = kycApplications.find(function(a) { return a.id === id; });
+    var appName = app ? app.name : 'this application';
+    if (!confirm('Delete application for "' + appName + '" (ID: IOB-KYC-' + String(id).padStart(5, '0') + ')?\n\nThis will permanently remove all data and uploaded files. This cannot be undone.')) return;
+
+    try {
+        var token = getAuthToken();
+        if (!token) { checkAdminAuth(); return; }
+
+        showToast('Deleting application...', 'info');
+        var res = await fetch(ADMIN_API + '/applications/' + id, {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        var data = await res.json();
+        if (res.ok && data.success) {
+            showToast('Application deleted successfully', 'success');
+            kycApplications = kycApplications.filter(function(a) { return a.id !== id; });
+            renderDashboard();
+            refreshDashboard();
+        } else {
+            showToast(data.message || 'Failed to delete application', 'error');
         }
     } catch (e) {
         showToast('Error: ' + e.message, 'error');

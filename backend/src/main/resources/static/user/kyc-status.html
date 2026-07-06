@@ -4,8 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KYC Status - Indian Overseas Bank</title>
-    <link rel="stylesheet" href="../css/style.css?v=10">
-    <link rel="stylesheet" href="../css/dashboard.css?v=10">
+    <link rel="stylesheet" href="../css/style.css?v=12">
+    <link rel="stylesheet" href="../css/dashboard.css?v=12">
+    <style>
+        .auto-refresh-bar{display:flex;align-items:center;gap:8px;justify-content:center;padding:8px 16px;margin:12px 0;border-radius:8px;background:rgba(0,71,171,0.04);border:1px solid rgba(0,71,171,0.1);font-size:12px;color:#555;transition:all 0.3s}
+        .auto-refresh-bar.refreshing{background:rgba(0,71,171,0.1);border-color:rgba(0,71,171,0.3)}
+        .auto-refresh-dot{width:8px;height:8px;border-radius:50%;background:#1a73e8;animation:pulse-dot 2s infinite}
+        @keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.8)}}
+        .kyc-info-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:14px}
+        .kyc-info-row:last-child{border-bottom:none}
+        .kyc-info-label{color:#666;font-weight:500}
+        .kyc-info-value{color:#222;font-weight:600}
+    </style>
 </head>
 <body>
     <nav class="navbar">
@@ -30,8 +40,13 @@
                 <span id="appTypeBadge"></span>
                 <p id="appRef" style="color:var(--gray-500);margin:0"></p>
                 <span id="liveStatusBadge"></span>
-                <small id="lastUpdated" style="color:var(--gray-400);font-size:11px"></small>
             </div>
+        </div>
+
+        <div class="auto-refresh-bar" id="refreshIndicator">
+            <div class="auto-refresh-dot"></div>
+            <span id="refreshText">Auto-refreshing every 10s</span>
+            <span id="refreshTime" style="color:var(--gray-400);margin-left:8px"></span>
         </div>
 
         <div class="card" style="min-height:200px">
@@ -40,13 +55,26 @@
     </div>
 
     <div class="toast-container" id="toastContainer"></div>
-    <script src="../js/main.js?v=10"></script>
-    <script src="../js/auth.js?v=10"></script>
+    <script src="../js/main.js?v=12"></script>
+    <script src="../js/auth.js?v=12"></script>
     <script>
     (function() {
         var pollTimer = null;
+        var refreshCount = 0;
 
-        function loadStatus() {
+        function updateRefreshTime() {
+            var now = new Date();
+            var timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            document.getElementById('refreshTime').textContent = 'Last refresh: ' + timeStr;
+        }
+
+        function pulseRefreshIndicator() {
+            var bar = document.getElementById('refreshIndicator');
+            bar.classList.add('refreshing');
+            setTimeout(function() { bar.classList.remove('refreshing'); }, 800);
+        }
+
+        function loadStatus(isRefresh) {
             var container = document.getElementById('statusContent');
             var token = getAuthToken();
             if (!token) {
@@ -54,7 +82,11 @@
                 return;
             }
 
-            container.innerHTML = '<div style="text-align:center;padding:40px"><div class="spinner" style="margin:0 auto 12px"></div><p style="color:var(--gray-500)">Loading application status...</p></div>';
+            if (isRefresh) {
+                pulseRefreshIndicator();
+            } else {
+                container.innerHTML = '<div style="text-align:center;padding:40px"><div class="spinner" style="margin:0 auto 12px"></div><p style="color:var(--gray-500)">Loading application status...</p></div>';
+            }
 
             fetch('/api/kyc/status', { headers: { 'Authorization': 'Bearer ' + token } })
                 .then(function(r) {
@@ -67,6 +99,10 @@
                 })
                 .then(function(result) {
                     if (!result) return;
+                    refreshCount++;
+                    updateRefreshTime();
+                    document.getElementById('refreshText').textContent = 'Auto-refreshing every 10s (' + refreshCount + ' updates)';
+
                     if (!result.success || !result.data || result.data.length === 0) {
                         container.innerHTML = '<div style="text-align:center;padding:40px">' +
                             '<p style="font-size:48px;margin-bottom:16px">&#128196;</p>' +
@@ -76,7 +112,6 @@
                             '</div>';
                         document.getElementById('appRef').textContent = '';
                         document.getElementById('liveStatusBadge').textContent = '';
-                        document.getElementById('lastUpdated').textContent = '';
                         return;
                     }
 
@@ -98,15 +133,18 @@
                     var appRef = app.applicationRef || ('IOB-KYC-' + String(appId).padStart(5, '0'));
                     var status = (app.status || 'PENDING').toUpperCase();
                     var appType = (app.applicationType || 'NORMAL').toUpperCase();
-                    var riskScore = app.riskScore || 0;
-                    var faceMatch = app.faceMatchPercentage || 0;
+                    var riskScore = parseInt(app.riskScore) || 0;
+                    var faceMatchNum = parseFloat(String(app.faceMatchPercentage || '0')) || 0;
                     var hasDoc = !!(app.aadhaarFrontPath || app.panCardPath || app.docFilePath);
                     var hasSelfie = !!(app.selfieFilePath);
+                    var hasPhoto = !!(app.photoFilePath);
                     var ocrName = app.ocrName || 'User';
                     var livenessPassed = !!(app.livenessPassed);
+                    var gender = app.gender || '';
+                    var mobile = app.mobile || '';
+                    var branchId = app.branchId || '';
 
-                    // For RE_KYC: merge face data from earlier apps (first Re-KYC app from kyc.html has face data)
-                    var rekycFaceMatch = faceMatch;
+                    var rekycFaceMatch = faceMatchNum;
                     var rekycLiveness = livenessPassed;
                     var rekycHasDoc = hasDoc;
                     var rekycHasSelfie = hasSelfie;
@@ -115,7 +153,7 @@
                     if (appType === 'RE_KYC') {
                         for (var j = 1; j < apps.length; j++) {
                             var prev = apps[j];
-                            if (!rekycFaceMatch && prev.faceMatchPercentage) rekycFaceMatch = prev.faceMatchPercentage;
+                            if (!rekycFaceMatch && prev.faceMatchPercentage) rekycFaceMatch = parseFloat(String(prev.faceMatchPercentage)) || 0;
                             if (!rekycLiveness && prev.livenessPassed) rekycLiveness = true;
                             if (!rekycHasSelfie && prev.selfieFilePath) rekycHasSelfie = true;
                             if (!rekycHasDoc && (prev.aadhaarFrontPath || prev.panCardPath || prev.docFilePath)) rekycHasDoc = true;
@@ -123,7 +161,6 @@
                         }
                     }
 
-                    // Title and badge
                     document.getElementById('appRef').textContent = 'Ref: ' + appRef;
                     if (appType === 'RE_KYC') {
                         document.getElementById('statusTitle').textContent = 'Re-KYC Application Status';
@@ -133,7 +170,6 @@
                         document.getElementById('appTypeBadge').innerHTML = '';
                     }
 
-                    // Live status badge
                     var statusBadgeHtml = '';
                     if (status === 'APPROVED') {
                         statusBadgeHtml = '<span class="badge badge-success" style="font-size:14px;padding:6px 16px">&#9989; Approved</span>';
@@ -145,7 +181,6 @@
                         statusBadgeHtml = '<span class="badge badge-warning" style="font-size:14px;padding:6px 16px">&#9203; Pending</span>';
                     }
                     document.getElementById('liveStatusBadge').innerHTML = statusBadgeHtml;
-                    document.getElementById('lastUpdated').textContent = 'Updated: ' + new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
                     localStorage.setItem('kycSubmitted', 'true');
                     localStorage.setItem('kycAppId', appId);
@@ -153,41 +188,38 @@
                     kycData.status = status;
                     kycData.appId = appId;
                     kycData.riskScore = riskScore;
-                    kycData.faceMatch = faceMatch;
+                    kycData.faceMatch = faceMatchNum;
                     kycData.ocrName = ocrName;
                     localStorage.setItem('kycData', JSON.stringify(kycData));
 
-                    // Build stages based on application type
-                    var stages = [];
                     var fmtDate = function(d) {
                         if (!d) return '';
                         try { return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + new Date(d).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }); } catch(e) { return ''; }
                     };
+
+                    var stages = [];
                     if (appType === 'RE_KYC') {
                         var detailsVerified = !!(app.ocrName && app.ocrName !== 'User');
                         var faceVerified = !!(rekycFaceMatch > 0 || rekycLiveness);
                         stages = [
-                            { title: 'Previous KYC Verified', desc: oldApprovedApp ? 'Previous KYC (' + (oldApprovedApp.applicationRef || 'IOB-KYC-' + String(oldApprovedApp.id).padStart(5, '0')) + ') confirmed as approved' : 'Your existing approved KYC has been verified', done: true, time: '' },
-                            { title: 'Face Re-Verification', desc: faceVerified ? 'Face re-verified successfully' + (rekycFaceMatch ? ' (Match: ' + rekycFaceMatch + '%)' : '') : 'Awaiting face verification', done: faceVerified, time: '' },
-                            { title: 'Details Reviewed & Updated', desc: detailsVerified ? 'Personal details reviewed and updated for Re-KYC' : 'Awaiting details review', done: detailsVerified, time: '' },
-                            { title: 'Documents Submitted', desc: rekycHasDoc ? 'Identity documents submitted for Re-KYC' : 'Documents from previous KYC on file', done: true, time: '' },
+                            { title: 'Previous KYC Verified', desc: oldApprovedApp ? 'Previous KYC (' + (oldApprovedApp.applicationRef || 'IOB-KYC-' + String(oldApprovedApp.id).padStart(5, '0')) + ') confirmed as approved' : 'Your existing approved KYC has been verified', done: true, time: oldApprovedApp && oldApprovedApp.reviewedAt ? fmtDate(oldApprovedApp.reviewedAt) : '' },
+                            { title: 'Face Re-Verification', desc: faceVerified ? 'Face re-verified successfully' + (rekycFaceMatch ? ' (Match: ' + rekycFaceMatch.toFixed(1) + '%)' : '') : 'Awaiting face verification', done: faceVerified, time: (rekycFaceMatch > 0 || rekycLiveness) && app.submittedAt ? fmtDate(app.submittedAt) : '' },
+                            { title: 'Details Reviewed & Updated', desc: detailsVerified ? 'Personal details reviewed and updated for Re-KYC' : 'Awaiting details review', done: detailsVerified, time: detailsVerified && app.submittedAt ? fmtDate(app.submittedAt) : '' },
+                            { title: 'Documents Submitted', desc: rekycHasDoc ? 'Identity documents submitted for Re-KYC' : 'Documents from previous KYC on file', done: true, time: app.submittedAt ? fmtDate(app.submittedAt) : '' },
                             { title: 'Bank Review', desc: status === 'APPROVED' ? 'Re-KYC approved by bank' : status === 'REJECTED' ? 'Re-KYC application was rejected' : 'Awaiting review by bank officer', done: status === 'APPROVED' || status === 'REJECTED', time: app.reviewedAt ? fmtDate(app.reviewedAt) : '' }
                         ];
                     } else {
                         stages = [
-                            { title: 'Document Upload', desc: hasDoc ? 'Document uploaded successfully' : 'Upload your identity document', done: hasDoc, time: app.submittedAt ? fmtDate(app.submittedAt) : '' },
-                            { title: 'Personal Details & OCR', desc: (app.ocrName && app.ocrName !== 'User') ? 'Details verified and document data extracted' : 'Verify your personal details', done: !!(app.ocrName && app.ocrName !== 'User'), time: app.submittedAt ? fmtDate(app.submittedAt) : '' },
-                            { title: 'Face Verification', desc: (faceMatch > 0 || hasSelfie || livenessPassed) ? 'Live selfie captured and face matched (' + faceMatch + '%)' : 'Live selfie matching', done: !!(faceMatch > 0 || hasSelfie || livenessPassed), time: app.submittedAt ? fmtDate(app.submittedAt) : '' },
-                            { title: 'AI Risk Assessment', desc: riskScore > 0 ? 'Risk score: ' + riskScore + '/100 (' + (riskScore < 30 ? 'Low Risk' : riskScore < 60 ? 'Medium Risk' : 'High Risk') + ')' : 'Risk score pending', done: riskScore > 0, time: app.submittedAt ? fmtDate(app.submittedAt) : '' },
+                            { title: 'Document Upload', desc: hasDoc ? 'Identity document uploaded successfully' : 'Upload your identity document', done: hasDoc, time: app.createdAt ? fmtDate(app.createdAt) : '' },
+                            { title: 'Personal Details & OCR', desc: (app.ocrName && app.ocrName !== 'User') ? 'Details verified: ' + ocrName : 'Verifying personal details', done: !!(app.ocrName && app.ocrName !== 'User'), time: app.submittedAt ? fmtDate(app.submittedAt) : '' },
+                            { title: 'Face Verification', desc: (faceMatchNum > 0 || hasSelfie || livenessPassed) ? 'Face matched (' + faceMatchNum.toFixed(1) + '%)' + (livenessPassed ? ' - Liveness OK' : '') : 'Awaiting live selfie verification', done: !!(faceMatchNum > 0 || hasSelfie || livenessPassed), time: (faceMatchNum > 0 || hasSelfie) && app.submittedAt ? fmtDate(app.submittedAt) : '' },
+                            { title: 'AI Risk Assessment', desc: riskScore > 0 ? 'Risk score: ' + riskScore + '/100 (' + (riskScore < 30 ? 'Low Risk' : riskScore < 60 ? 'Medium Risk' : 'High Risk') + ')' : 'Risk assessment pending', done: riskScore > 0, time: riskScore > 0 && app.updatedAt ? fmtDate(app.updatedAt) : '' },
                             { title: 'Bank Review', desc: status === 'APPROVED' ? 'KYC verified and approved by bank' : status === 'REJECTED' ? 'KYC application was rejected' : status === 'UNDER_REVIEW' ? 'Application under review by bank officer' : 'Awaiting review by bank officer', done: status === 'APPROVED' || status === 'REJECTED', time: app.reviewedAt ? fmtDate(app.reviewedAt) : '' }
                         ];
                     }
 
-                    // Render timeline
                     var terminalIndex = -1;
-                    if (status === 'REJECTED') {
-                        terminalIndex = stages.length - 1;
-                    }
+                    if (status === 'REJECTED') terminalIndex = stages.length - 1;
 
                     var renderStages = terminalIndex >= 0 ? stages.slice(0, terminalIndex + 1) : stages.slice();
 
@@ -227,43 +259,46 @@
                     });
                     html += '</div>';
 
-                    // Rejected section
                     if (status === 'REJECTED') {
                         var reason = app.reviewNotes || app.review_notes || 'No specific reason provided. Please contact support for more details.';
-                        localStorage.setItem('reKycData', JSON.stringify({
-                            name: app.ocrName || '',
-                            dob: app.ocrDob || '',
-                            idNumber: app.ocrIdNumber || '',
-                            panNumber: app.ocrPanNumber || '',
-                            address: app.ocrAddress || '',
-                            id: app.id
-                        }));
+                        localStorage.setItem('reKycData', JSON.stringify({ name: app.ocrName || '', dob: app.ocrDob || '', idNumber: app.ocrIdNumber || '', panNumber: app.ocrPanNumber || '', address: app.ocrAddress || '', id: app.id }));
                         var rejectTitle = appType === 'RE_KYC' ? 'Re-KYC Application Rejected' : 'Application Rejected';
-                        html +=
-                            '<div class="kyc-rejected-detail" style="background:var(--danger-bg,rgba(220,38,38,0.05));border:2px solid var(--danger,#dc2626);border-radius:var(--radius-lg,12px);padding:24px;margin-top:24px;text-align:center">' +
-                                '<div style="font-size:40px;margin-bottom:8px">&#10060;</div>' +
-                                '<h3 style="color:var(--danger,#dc2626);margin:0 0 12px">' + rejectTitle + '</h3>' +
-                                '<div style="background:var(--white);border-radius:8px;padding:16px;margin-bottom:16px;text-align:left;max-width:500px;margin-left:auto;margin-right:auto">' +
-                                    '<p style="margin:0;color:var(--gray-700)"><strong>Rejection Reason:</strong></p>' +
-                                    '<p style="margin:8px 0 0;color:var(--gray-600);font-size:14px">' + reason + '</p>' +
-                                '</div>' +
-                                '<div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">' +
-                                    '<a href="rekyc.html" class="btn btn-primary" style="margin-top:8px;display:inline-flex;align-items:center;gap:8px;padding:12px 28px;font-size:16px">' +
-                                        '&#128260; Re-KYC Application' +
-                                    '</a>' +
-                                    '<a href="kyc.html" class="btn btn-outline" style="margin-top:8px;display:inline-flex;align-items:center;gap:8px;padding:12px 28px;font-size:16px">' +
-                                        '&#128221; New Application' +
-                                    '</a>' +
-                                '</div>' +
-                            '</div>';
+                        html += '<div class="kyc-rejected-detail" style="background:rgba(220,38,38,0.05);border:2px solid var(--danger,#dc2626);border-radius:12px;padding:24px;margin-top:24px;text-align:center">' +
+                            '<div style="font-size:40px;margin-bottom:8px">&#10060;</div>' +
+                            '<h3 style="color:var(--danger,#dc2626);margin:0 0 12px">' + rejectTitle + '</h3>' +
+                            '<div style="background:#fff;border-radius:8px;padding:16px;margin-bottom:16px;text-align:left;max-width:500px;margin-left:auto;margin-right:auto">' +
+                            '<p style="margin:0;color:#333"><strong>Rejection Reason:</strong></p>' +
+                            '<p style="margin:8px 0 0;color:#666;font-size:14px">' + reason + '</p></div>' +
+                            '<div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">' +
+                            '<a href="rekyc.html" class="btn btn-primary" style="margin-top:8px;display:inline-flex;align-items:center;gap:8px;padding:12px 28px;font-size:16px">&#128260; Re-KYC Application</a>' +
+                            '<a href="kyc.html" class="btn btn-outline" style="margin-top:8px;display:inline-flex;align-items:center;gap:8px;padding:12px 28px;font-size:16px">&#128221; New Application</a>' +
+                            '</div></div>';
                     }
 
-                    // Application History
+                    html += '<div style="margin-top:32px;border-top:1px solid #e5e7eb;padding-top:24px">';
+                    html += '<h3 style="margin:0 0 16px;font-size:18px">&#128196; Application Details</h3>';
+                    html += '<div style="background:#f8f9fa;border-radius:12px;padding:20px">';
+                    var infoItems = [
+                        ['Application Ref', appRef], ['Status', status], ['Application Type', appType],
+                        ['Submitted', app.submittedAt ? fmtDate(app.submittedAt) : (app.createdAt ? fmtDate(app.createdAt) : 'N/A')],
+                        ['Last Updated', app.updatedAt ? fmtDate(app.updatedAt) : 'N/A']
+                    ];
+                    if (ocrName && ocrName !== 'User') infoItems.push(['Name', ocrName]);
+                    if (gender) infoItems.push(['Gender', gender]);
+                    if (mobile) infoItems.push(['Mobile', mobile]);
+                    if (branchId) infoItems.push(['Branch', branchId]);
+                    if (faceMatchNum > 0) infoItems.push(['Face Match', faceMatchNum.toFixed(1) + '%']);
+                    if (riskScore > 0) infoItems.push(['Risk Score', riskScore + '/100 (' + (riskScore < 30 ? 'Low' : riskScore < 60 ? 'Medium' : 'High') + ')']);
+                    if (app.reviewNotes) infoItems.push(['Review Notes', app.reviewNotes]);
+                    infoItems.forEach(function(item) {
+                        html += '<div class="kyc-info-row"><span class="kyc-info-label">' + item[0] + '</span><span class="kyc-info-value">' + item[1] + '</span></div>';
+                    });
+                    html += '</div></div>';
+
                     if (apps.length > 1) {
-                        var historyHtml =
-                            '<div style="margin-top:32px;border-top:1px solid var(--gray-200);padding-top:24px">' +
-                                '<h3 style="margin:0 0 16px;font-size:18px">Application History</h3>' +
-                                '<div class="kyc-history-list">';
+                        html += '<div style="margin-top:32px;border-top:1px solid #e5e7eb;padding-top:24px">';
+                        html += '<h3 style="margin:0 0 16px;font-size:18px">Application History</h3>';
+                        html += '<div class="kyc-history-list">';
                         apps.forEach(function(h, idx) {
                             var hStatus = (h.status || 'PENDING').toUpperCase();
                             var hBadge = '';
@@ -272,37 +307,33 @@
                             else if (hStatus === 'UNDER_REVIEW') hBadge = '<span class="badge badge-warning">Under Review</span>';
                             else hBadge = '<span class="badge badge-warning">Pending</span>';
                             var hType = (h.applicationType || 'NORMAL').toUpperCase();
-                            var typeLabel = hType === 'RE_KYC' ? '<span style="background:var(--primary,#1a73e8);color:#fff;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600;margin-left:6px">Re-KYC</span>' : '';
-                            var isActive = (idx === 0) ? 'style="border-left:3px solid var(--primary);background:var(--light-bg,rgba(0,71,171,0.03))"' : '';
+                            var typeLabel = hType === 'RE_KYC' ? '<span style="background:#1a73e8;color:#fff;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600;margin-left:6px">Re-KYC</span>' : '';
+                            var isActive = (idx === 0) ? 'style="border-left:3px solid #1a73e8;background:rgba(0,71,171,0.03)"' : '';
                             var activeLabel = (idx === 0) ? '<span class="badge badge-primary" style="margin-left:8px;font-size:10px">Latest</span>' : '';
-                            historyHtml +=
-                                '<div class="kyc-history-item" ' + isActive + ' style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--gray-100);border-radius:8px;margin-bottom:8px;gap:12px;flex-wrap:wrap">' +
-                                    '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
-                                        '<span style="font-weight:600;color:var(--gray-700)">' + (h.applicationRef || 'IOB-KYC-' + String(h.id).padStart(5, '0')) + '</span>' +
-                                        hBadge + typeLabel + activeLabel +
-                                    '</div>' +
-                                    '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
-                                        '<small style="color:var(--gray-500)">' + (h.submittedAt ? new Date(h.submittedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + new Date(h.submittedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : (h.createdAt ? new Date(h.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + new Date(h.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : 'N/A')) + '</small>' +
-                                    '</div>' +
-                                '</div>';
+                            var hTime = h.submittedAt ? fmtDate(h.submittedAt) : (h.createdAt ? fmtDate(h.createdAt) : 'N/A');
+                            html += '<div class="kyc-history-item" ' + isActive + ' style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #f3f4f6;border-radius:8px;margin-bottom:8px;gap:12px;flex-wrap:wrap">' +
+                                '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
+                                '<span style="font-weight:600;color:#374151">' + (h.applicationRef || 'IOB-KYC-' + String(h.id).padStart(5, '0')) + '</span>' +
+                                hBadge + typeLabel + activeLabel + '</div>' +
+                                '<small style="color:#6b7280">' + hTime + '</small></div>';
                         });
-                        historyHtml += '</div></div>';
-                        html += historyHtml;
+                        html += '</div></div>';
                     }
 
                     cachedStatusHtml = html;
                     container.innerHTML = html;
-
                 })
                 .catch(function(e) {
                     console.error('[KYC-Status] Error:', e);
-                    container.innerHTML = '<div style="text-align:center;padding:40px"><p style="color:var(--danger)">Unable to load status. Please try again.</p></div>';
+                    if (!isRefresh) {
+                        container.innerHTML = '<div style="text-align:center;padding:40px"><p style="color:var(--danger)">Unable to load status. Please try again.</p></div>';
+                    }
                 });
         }
 
         var cachedStatusHtml = null;
-        loadStatus();
-        pollTimer = setInterval(loadStatus, 10000);
+        loadStatus(false);
+        pollTimer = setInterval(function() { loadStatus(true); }, 10000);
     })();
     </script>
 </body>

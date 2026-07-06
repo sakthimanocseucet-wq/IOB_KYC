@@ -64,7 +64,7 @@ public class KYCController {
 
     @GetMapping("/branches")
     public ResponseEntity<?> listBranches() {
-        var branches = branchRepository.findByIsActiveTrueOrderByBranchName();
+        var branches = branchRepository.findByActiveTrueOrderByBranchName();
         return ResponseEntity.ok(ApiResponse.success("Branches retrieved", branches));
     }
 

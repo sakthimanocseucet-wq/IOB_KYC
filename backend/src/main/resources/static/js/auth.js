@@ -145,8 +145,7 @@ async function sendRegOTP() {
         const res = await fetch(AUTH_API + '/otp/generate?identifier=' + encodeURIComponent(identifier) + '&purpose=REGISTER', { method: 'POST' });
         const data = await res.json();
         if (data.success) {
-            const otpVal = data.data && data.data.otp ? data.data.otp : null;
-            showToast(otpVal ? 'OTP: ' + otpVal + ' (sent to ' + identifier + ')' : 'OTP sent to ' + identifier, 'success');
+            showToast('OTP sent to ' + identifier, 'success');
         } else {
             showAlert(data.message || 'Failed to send OTP. Please try again.', 'error');
             btn.disabled = false;

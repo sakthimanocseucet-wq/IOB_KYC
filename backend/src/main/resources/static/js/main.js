@@ -207,37 +207,31 @@ function getInitial(name) {
     var idx = pages.indexOf(cur);
     if (idx === -1) return;
 
+    function goNext() { if (idx < pages.length - 1) window.location.href = getBasePath() + pages[idx + 1]; }
+    function goPrev() { if (idx > 0) window.location.href = getBasePath() + pages[idx - 1]; }
+
     var sx = 0, sy = 0, tracking = false;
 
-    function goNext() { if (idx < pages.length-1) window.location.href = getBasePath() + pages[idx+1]; }
-    function goPrev() { if (idx > 0) window.location.href = getBasePath() + pages[idx-1]; }
+    document.addEventListener('pointerdown', function(e) {
+        if (e.pointerType === 'touch' || e.pointerType === 'mouse') {
+            sx = e.clientX;
+            sy = e.clientY;
+            tracking = true;
+        }
+    }, true);
 
-    document.addEventListener('touchstart', function(e) {
-        if (e.touches.length !== 1) return;
-        sx = e.touches[0].clientX;
-        sy = e.touches[0].clientY;
-        tracking = true;
-    }, { passive: true });
-
-    document.addEventListener('touchmove', function(e) {
+    document.addEventListener('pointermove', function(e) {
         if (!tracking) return;
-        var dx = e.touches[0].clientX - sx;
-        var dy = Math.abs(e.touches[0].clientY - sy);
-        if (dy > 40) { tracking = false; return; }
-        if (dx < -THRESHOLD) { tracking = false; goNext(); }
-        else if (dx > THRESHOLD) { tracking = false; goPrev(); }
-    }, { passive: true });
+        var dx = e.clientX - sx;
+        var dy = Math.abs(e.clientY - sy);
+        if (dy > 50) { tracking = false; return; }
+        if (Math.abs(dx) > THRESHOLD) {
+            tracking = false;
+            if (dx < 0) goNext();
+            else goPrev();
+        }
+    }, true);
 
-    document.addEventListener('touchend', function() { tracking = false; }, { passive: true });
-
-    var mouseDown = false, mx = 0;
-    document.addEventListener('mousedown', function(e) { mouseDown = true; mx = e.clientX; });
-    document.addEventListener('mouseup', function(e) {
-        if (!mouseDown) return;
-        mouseDown = false;
-        var dx = e.clientX - mx;
-        if (dx < -THRESHOLD) goNext();
-        else if (dx > THRESHOLD) goPrev();
-    });
-    document.addEventListener('mouseleave', function() { mouseDown = false; });
+    document.addEventListener('pointerup', function() { tracking = false; }, true);
+    document.addEventListener('pointercancel', function() { tracking = false; }, true);
 })();

@@ -159,23 +159,27 @@
 
                     // Build stages based on application type
                     var stages = [];
+                    var fmtDate = function(d) {
+                        if (!d) return '';
+                        try { return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + new Date(d).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }); } catch(e) { return ''; }
+                    };
                     if (appType === 'RE_KYC') {
                         var detailsVerified = !!(app.ocrName && app.ocrName !== 'User');
                         var faceVerified = !!(rekycFaceMatch > 0 || rekycLiveness);
                         stages = [
-                            { title: 'Previous KYC Verified', desc: oldApprovedApp ? 'Previous KYC (' + (oldApprovedApp.applicationRef || 'IOB-KYC-' + String(oldApprovedApp.id).padStart(5, '0')) + ') confirmed as approved' : 'Your existing approved KYC has been verified', done: true },
-                            { title: 'Face Re-Verification', desc: faceVerified ? 'Face re-verified successfully' + (rekycFaceMatch ? ' (Match: ' + rekycFaceMatch + '%)' : '') : 'Awaiting face verification', done: faceVerified },
-                            { title: 'Details Reviewed & Updated', desc: detailsVerified ? 'Personal details reviewed and updated for Re-KYC' : 'Awaiting details review', done: detailsVerified },
-                            { title: 'Documents Submitted', desc: rekycHasDoc ? 'Identity documents submitted for Re-KYC' : 'Documents from previous KYC on file', done: true },
-                            { title: 'Bank Review', desc: status === 'APPROVED' ? 'Re-KYC approved by bank' : status === 'REJECTED' ? 'Re-KYC application was rejected' : 'Awaiting review by bank officer', done: status === 'APPROVED' || status === 'REJECTED' }
+                            { title: 'Previous KYC Verified', desc: oldApprovedApp ? 'Previous KYC (' + (oldApprovedApp.applicationRef || 'IOB-KYC-' + String(oldApprovedApp.id).padStart(5, '0')) + ') confirmed as approved' : 'Your existing approved KYC has been verified', done: true, time: '' },
+                            { title: 'Face Re-Verification', desc: faceVerified ? 'Face re-verified successfully' + (rekycFaceMatch ? ' (Match: ' + rekycFaceMatch + '%)' : '') : 'Awaiting face verification', done: faceVerified, time: '' },
+                            { title: 'Details Reviewed & Updated', desc: detailsVerified ? 'Personal details reviewed and updated for Re-KYC' : 'Awaiting details review', done: detailsVerified, time: '' },
+                            { title: 'Documents Submitted', desc: rekycHasDoc ? 'Identity documents submitted for Re-KYC' : 'Documents from previous KYC on file', done: true, time: '' },
+                            { title: 'Bank Review', desc: status === 'APPROVED' ? 'Re-KYC approved by bank' : status === 'REJECTED' ? 'Re-KYC application was rejected' : 'Awaiting review by bank officer', done: status === 'APPROVED' || status === 'REJECTED', time: app.reviewedAt ? fmtDate(app.reviewedAt) : '' }
                         ];
                     } else {
                         stages = [
-                            { title: 'Document Upload', desc: hasDoc ? 'Document uploaded successfully' : 'Upload your identity document', done: hasDoc },
-                            { title: 'Personal Details & OCR', desc: (app.ocrName && app.ocrName !== 'User') ? 'Details verified and document data extracted' : 'Verify your personal details', done: !!(app.ocrName && app.ocrName !== 'User') },
-                            { title: 'Face Verification', desc: hasSelfie ? 'Live selfie captured and face matched (' + faceMatch + '%)' : 'Live selfie matching', done: hasSelfie },
-                            { title: 'AI Risk Assessment', desc: riskScore > 0 ? 'Risk score: ' + riskScore + '/100 (' + (riskScore < 30 ? 'Low Risk' : riskScore < 60 ? 'Medium Risk' : 'High Risk') + ')' : 'Risk score pending', done: riskScore > 0 },
-                            { title: 'Final Review', desc: status === 'APPROVED' ? 'KYC verified and approved by bank' : status === 'REJECTED' ? 'KYC application was rejected' : 'Awaiting review by bank officer', done: status === 'APPROVED' || status === 'REJECTED' }
+                            { title: 'Document Upload', desc: hasDoc ? 'Document uploaded successfully' : 'Upload your identity document', done: hasDoc, time: app.submittedAt ? fmtDate(app.submittedAt) : '' },
+                            { title: 'Personal Details & OCR', desc: (app.ocrName && app.ocrName !== 'User') ? 'Details verified and document data extracted' : 'Verify your personal details', done: !!(app.ocrName && app.ocrName !== 'User'), time: app.submittedAt ? fmtDate(app.submittedAt) : '' },
+                            { title: 'Face Verification', desc: (faceMatch > 0 || hasSelfie || livenessPassed) ? 'Live selfie captured and face matched (' + faceMatch + '%)' : 'Live selfie matching', done: !!(faceMatch > 0 || hasSelfie || livenessPassed), time: app.submittedAt ? fmtDate(app.submittedAt) : '' },
+                            { title: 'AI Risk Assessment', desc: riskScore > 0 ? 'Risk score: ' + riskScore + '/100 (' + (riskScore < 30 ? 'Low Risk' : riskScore < 60 ? 'Medium Risk' : 'High Risk') + ')' : 'Risk score pending', done: riskScore > 0, time: app.submittedAt ? fmtDate(app.submittedAt) : '' },
+                            { title: 'Bank Review', desc: status === 'APPROVED' ? 'KYC verified and approved by bank' : status === 'REJECTED' ? 'KYC application was rejected' : status === 'UNDER_REVIEW' ? 'Application under review by bank officer' : 'Awaiting review by bank officer', done: status === 'APPROVED' || status === 'REJECTED', time: app.reviewedAt ? fmtDate(app.reviewedAt) : '' }
                         ];
                     }
 
@@ -186,12 +190,6 @@
                     }
 
                     var renderStages = terminalIndex >= 0 ? stages.slice(0, terminalIndex + 1) : stages.slice();
-                    var lastUndone = stages.length;
-                    if (terminalIndex < 0) {
-                        for (var i = 0; i < stages.length; i++) {
-                            if (!stages[i].done) { lastUndone = i; break; }
-                        }
-                    }
 
                     var html = '<div class="kyc-status-timeline">';
                     renderStages.forEach(function(s, i) {
@@ -201,9 +199,10 @@
                             else if (i === terminalIndex) cls = 'rejected';
                         } else if (status === 'APPROVED') {
                             cls = 'completed';
+                        } else if (s.done) {
+                            cls = 'completed';
                         } else {
-                            if (i < lastUndone) cls = 'completed';
-                            else if (i === lastUndone) cls = 'active';
+                            cls = 'active';
                         }
 
                         var statusBadge = '';
@@ -216,13 +215,14 @@
                         }
 
                         var statusLabel = cls === 'completed' ? 'Completed' : cls === 'rejected' ? 'Rejected' : cls === 'active' ? 'In Progress' : 'Pending';
+                        var timeHtml = s.time ? '<br><small style="color:var(--gray-400);font-size:11px">&#128336; ' + s.time + '</small>' : '';
 
                         html += '<div class="timeline-item ' + cls + '">' +
                             '<div class="timeline-dot"></div>' +
                             '<div class="timeline-content">' +
                             '<h4>' + s.title + statusBadge + '</h4>' +
                             '<p>' + s.desc + '</p>' +
-                            '<small>' + statusLabel + '</small>' +
+                            '<small>' + statusLabel + '</small>' + timeHtml +
                             '</div></div>';
                     });
                     html += '</div>';

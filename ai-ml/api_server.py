@@ -95,31 +95,44 @@ def _safe_get(d, key, default=0):
 
 logger.info("Initializing AI/ML modules (production pipeline)...")
 
-from face_verification import FaceVerifier
-from liveness_detection import ChallengeLivenessDetector, CHALLENGE_TYPES, MIN_FRAMES_FOR_CHALLENGE
-from minifasnet_detector import MiniFASNetDetector
-from deepfake_detector import DeepfakeDetector
+face_verifier = None
+challenge_liveness = None
+spoof_detector = None
+deepfake_detector = None
 
-face_verifier = FaceVerifier()
+try:
+    from face_verification import FaceVerifier
+    face_verifier = FaceVerifier()
+    if getattr(face_verifier, 'insightface_app', None) is None:
+        logger.error("FATAL: InsightFace ArcFace model is not loaded.")
+    else:
+        logger.info("InsightFace ArcFace model loaded successfully")
+except Exception as e:
+    logger.warning("Face verification unavailable: %s", e)
 
-if getattr(face_verifier, 'insightface_app', None) is None:
-    logger.error("FATAL: InsightFace ArcFace model is not loaded.")
-else:
-    logger.info("InsightFace ArcFace model loaded successfully")
+try:
+    from liveness_detection import ChallengeLivenessDetector, CHALLENGE_TYPES, MIN_FRAMES_FOR_CHALLENGE
+    challenge_liveness = ChallengeLivenessDetector()
+except Exception as e:
+    logger.warning("Liveness detection unavailable: %s", e)
 
-challenge_liveness = ChallengeLivenessDetector()
-spoof_detector = MiniFASNetDetector()
-deepfake_detector = DeepfakeDetector()
+try:
+    from minifasnet_detector import MiniFASNetDetector
+    spoof_detector = MiniFASNetDetector()
+except Exception as e:
+    logger.warning("Anti-spoofing unavailable: %s", e)
 
-logger.info("All detectors initialized:")
-logger.info("  Face verification: InsightFace ArcFace (%s)",
-            "OK" if face_verifier.insightface_app else "FAILED")
-logger.info("  Liveness: MediaPipe FaceLandmarker (%s)",
-            "OK" if not challenge_liveness.FALLBACK_MODE else "FALLBACK")
-logger.info("  Anti-spoofing: MiniFASNet V2 (%s)",
-            "OK" if spoof_detector.available else "UNAVAILABLE")
-logger.info("  Deepfake: EfficientNet-B2 (%s)",
-            "OK" if deepfake_detector.available else "UNAVAILABLE")
+try:
+    from deepfake_detector import DeepfakeDetector
+    deepfake_detector = DeepfakeDetector()
+except Exception as e:
+    logger.warning("Deepfake detection unavailable: %s", e)
+
+logger.info("Detectors initialized (some may be unavailable):")
+logger.info("  Face verification: %s", "OK" if face_verifier else "UNAVAILABLE")
+logger.info("  Liveness: %s", "OK" if challenge_liveness else "UNAVAILABLE")
+logger.info("  Anti-spoofing: %s", "OK" if spoof_detector else "UNAVAILABLE")
+logger.info("  Deepfake: %s", "OK" if deepfake_detector else "UNAVAILABLE")
 
 # ============================================================
 # CHALLENGE SESSION STORE (thread-safe)
@@ -153,20 +166,20 @@ def health():
         'status': 'healthy',
         'modules': {
             'face_verification': {
-                'available': face_verifier.insightface_app is not None,
+                'available': face_verifier is not None and getattr(face_verifier, 'insightface_app', None) is not None,
                 'model': 'InsightFace ArcFace (buffalo_l)',
             },
             'liveness': {
-                'available': not challenge_liveness.FALLBACK_MODE,
+                'available': challenge_liveness is not None and not getattr(challenge_liveness, 'FALLBACK_MODE', True),
                 'model': 'MediaPipe FaceLandmarker',
-                'fallback_mode': challenge_liveness.FALLBACK_MODE,
+                'fallback_mode': getattr(challenge_liveness, 'FALLBACK_MODE', True),
             },
             'anti_spoofing': {
-                'available': spoof_detector.available,
-                'model': 'EfficientNet-B0/CASIA-FASD' if spoof_detector.model_type == 'efficientnet_b0' else 'MiniFASNet V2',
+                'available': spoof_detector is not None and getattr(spoof_detector, 'available', False),
+                'model': 'EfficientNet-B0/CASIA-FASD' if spoof_detector and getattr(spoof_detector, 'model_type', '') == 'efficientnet_b0' else 'MiniFASNet V2',
             },
             'deepfake': {
-                'available': deepfake_detector.available,
+                'available': deepfake_detector is not None and getattr(deepfake_detector, 'available', False),
                 'model': 'EfficientNet-B2',
             },
         },
@@ -630,6 +643,8 @@ def api_face_verify():
     if not data or 'id_face' not in data or 'selfie' not in data:
         return jsonify({'success': False, 'error': 'id_face and selfie required'}), 400
     try:
+        if face_verifier is None:
+            return jsonify({'success': True, 'data': {'verified': False, 'reason': 'Face verification module not available'}})
         result = _safe_detect(
             lambda: face_verifier.verify(data['id_face'], data['selfie']),
             'face_verify',

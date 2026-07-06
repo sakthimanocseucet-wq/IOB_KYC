@@ -181,60 +181,56 @@ function getInitial(name) {
 (function() {
     var userPages = ['dashboard.html', 'kyc.html', 'kyc-status.html'];
     var adminPages = ['dashboard.html', 'kyc-review.html', 'account-details.html'];
-    var SWIPE_THRESHOLD = 80;
-    var SWIPE_MAX_Y = 60;
-    var startX = 0, startY = 0, swiping = false;
+    var THRESHOLD = 60;
 
     function getPageList() {
-        var path = window.location.pathname;
-        if (path.includes('/admin/')) return adminPages;
-        if (path.includes('/user/')) return userPages;
+        var p = window.location.pathname;
+        if (p.indexOf('/admin/') !== -1) return adminPages;
+        if (p.indexOf('/user/') !== -1) return userPages;
         return null;
     }
 
     function getCurrentPage() {
-        var path = window.location.pathname;
-        return path.split('/').pop() || 'index.html';
+        return window.location.pathname.split('/').pop() || 'index.html';
     }
 
     function getBasePath() {
-        var path = window.location.pathname;
-        if (path.includes('/admin/')) return path.substring(0, path.indexOf('/admin/') + 7);
-        if (path.includes('/user/')) return path.substring(0, path.indexOf('/user/') + 6);
-        return path.substring(0, path.lastIndexOf('/') + 1);
+        var p = window.location.pathname;
+        if (p.indexOf('/admin/') !== -1) return p.substring(0, p.indexOf('/admin/') + 7);
+        if (p.indexOf('/user/') !== -1) return p.substring(0, p.indexOf('/user/') + 6);
+        return p.substring(0, p.lastIndexOf('/') + 1);
     }
 
-    function navigateTo(page) {
-        var base = getBasePath();
-        window.location.href = base + page;
-    }
+    var sx = 0, sy = 0, tracking = false, decided = false;
 
     document.addEventListener('touchstart', function(e) {
         if (e.touches.length !== 1) return;
-        startX = e.touches[0].clientX;
-        startY = e.touches[0].clientY;
-        swiping = true;
+        sx = e.touches[0].clientX;
+        sy = e.touches[0].clientY;
+        tracking = true;
+        decided = false;
     }, { passive: true });
 
-    document.addEventListener('touchend', function(e) {
-        if (!swiping) return;
-        swiping = false;
-        var endX = e.changedTouches[0].clientX;
-        var endY = e.changedTouches[0].clientY;
-        var diffX = endX - startX;
-        var diffY = Math.abs(endY - startY);
-        if (Math.abs(diffX) < SWIPE_THRESHOLD || diffY > SWIPE_MAX_Y) return;
-
-        var pages = getPageList();
-        if (!pages) return;
-        var current = getCurrentPage();
-        var idx = pages.indexOf(current);
-        if (idx === -1) return;
-
-        if (diffX < 0 && idx < pages.length - 1) {
-            navigateTo(pages[idx + 1]);
-        } else if (diffX > 0 && idx > 0) {
-            navigateTo(pages[idx - 1]);
+    document.addEventListener('touchmove', function(e) {
+        if (!tracking || decided) return;
+        var dx = e.touches[0].clientX - sx;
+        var dy = Math.abs(e.touches[0].clientY - sy);
+        if (dy > 40) { tracking = false; return; }
+        if (Math.abs(dx) > THRESHOLD) {
+            decided = true;
+            tracking = false;
+            var pages = getPageList();
+            if (!pages) return;
+            var cur = getCurrentPage();
+            var idx = pages.indexOf(cur);
+            if (idx === -1) return;
+            if (dx < 0 && idx < pages.length - 1) {
+                window.location.href = getBasePath() + pages[idx + 1];
+            } else if (dx > 0 && idx > 0) {
+                window.location.href = getBasePath() + pages[idx - 1];
+            }
         }
     }, { passive: true });
+
+    document.addEventListener('touchend', function() { tracking = false; }, { passive: true });
 })();

@@ -207,14 +207,6 @@ function getInitial(name) {
     var idx = pages.indexOf(cur);
     if (idx === -1) return;
 
-    var bar = document.createElement('div');
-    bar.id = 'swipeIndicator';
-    bar.style.cssText = 'position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:8px 16px;background:rgba(0,0,0,0.7);color:#fff;font-size:12px;z-index:9999;user-select:none;-webkit-user-select:none;touch-action:manipulation;';
-    var left = idx > 0 ? '<span style="cursor:pointer;padding:4px 12px">&#9664; ' + pages[idx-1].replace('.html','') + '</span>' : '<span></span>';
-    var right = idx < pages.length-1 ? '<span style="cursor:pointer;padding:4px 12px">' + pages[idx+1].replace('.html','') + ' &#9654;</span>' : '<span></span>';
-    bar.innerHTML = left + '<span style="font-weight:600;opacity:0.7">' + cur.replace('.html','') + '</span>' + right;
-    document.body.appendChild(bar);
-
     var sx = 0, sy = 0, tracking = false;
 
     function goNext() { if (idx < pages.length-1) window.location.href = getBasePath() + pages[idx+1]; }
@@ -248,8 +240,4 @@ function getInitial(name) {
         else if (dx > THRESHOLD) goPrev();
     });
     document.addEventListener('mouseleave', function() { mouseDown = false; });
-
-    bar.querySelectorAll('span[onclick]').forEach(function(el) { /* already handled */ });
-    if (idx > 0) bar.children[0].onclick = goPrev;
-    if (idx < pages.length-1) bar.children[2].onclick = goNext;
 })();

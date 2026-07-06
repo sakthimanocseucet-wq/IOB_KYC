@@ -16,10 +16,9 @@ insightface>=0.7.3
 # Liveness Detection
 mediapipe>=0.10.0
 
-# Deepfake Detection (CPU only)
---extra-index-url https://download.pytorch.org/whl/cpu
-torch
-torchvision
+# Deepfake Detection
+torch>=2.0.0
+torchvision>=0.15.0
 
 # Anti-Spoofing (MiniFASNet V2 ONNX)
 onnxruntime>=1.16.0

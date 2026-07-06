@@ -29,7 +29,7 @@
             sy = e.touches[0].clientY;
             tracking = true;
         }
-    }, { passive: true });
+    }, { passive: false });
 
     document.addEventListener('touchmove', function(e) {
         if (!tracking || e.touches.length !== 1) return;
@@ -37,12 +37,13 @@
         var dy = Math.abs(e.touches[0].clientY - sy);
         if (dy > 80) { tracking = false; return; }
         if (Math.abs(dx) > THRESHOLD) {
+            e.preventDefault();
             tracking = false;
             if (dx < 0) goNext(); else goPrev();
         }
-    }, { passive: true });
+    }, { passive: false });
 
-    document.addEventListener('touchend', function() { tracking = false; }, { passive: true });
+    document.addEventListener('touchend', function() { tracking = false; }, { passive: false });
 
     document.addEventListener('mousedown', function(e) {
         if (e.button !== 0) return;
@@ -58,6 +59,7 @@
         var dy = Math.abs(e.clientY - sy);
         if (dy > 80) { tracking = false; return; }
         if (Math.abs(dx) > THRESHOLD) {
+            e.preventDefault();
             tracking = false;
             if (dx < 0) goNext(); else goPrev();
         }

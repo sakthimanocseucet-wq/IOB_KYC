@@ -10,7 +10,7 @@ RUN cd backend && mvn clean package -DskipTests -q
 FROM eclipse-temurin:17-jre
 
 RUN apt-get update && \
-    apt-get install -y python3 python3-pip libgl1 libglib2.0-0 && \
+    apt-get install -y python3 python3-pip libgl1 libglib2.0-0 libzbar0 && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -27,4 +27,4 @@ ENV FILE_UPLOAD_DIR=./uploads
 ENV SERVER_PORT=8080
 EXPOSE 8080 5001
 
-CMD ["sh", "-c", "python3 /app/ai-ml/api_server.py & sleep 5 && java $JAVA_OPTS -jar /app/app.jar"]
+CMD ["sh", "-c", "python3 /app/ai-ml/api_server.py > /tmp/flask.log 2>&1 & sleep 5 && java $JAVA_OPTS -jar /app/app.jar"]

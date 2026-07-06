@@ -176,3 +176,65 @@ function formatDate(date) {
 function getInitial(name) {
     return name ? name.charAt(0).toUpperCase() : '?';
 }
+
+// ====================== SWIPE NAVIGATION ======================
+(function() {
+    var userPages = ['dashboard.html', 'kyc.html', 'kyc-status.html'];
+    var adminPages = ['dashboard.html', 'kyc-review.html', 'account-details.html'];
+    var SWIPE_THRESHOLD = 80;
+    var SWIPE_MAX_Y = 60;
+    var startX = 0, startY = 0, swiping = false;
+
+    function getPageList() {
+        var path = window.location.pathname;
+        if (path.includes('/admin/')) return adminPages;
+        if (path.includes('/user/')) return userPages;
+        return null;
+    }
+
+    function getCurrentPage() {
+        var path = window.location.pathname;
+        return path.split('/').pop() || 'index.html';
+    }
+
+    function getBasePath() {
+        var path = window.location.pathname;
+        if (path.includes('/admin/')) return path.substring(0, path.indexOf('/admin/') + 7);
+        if (path.includes('/user/')) return path.substring(0, path.indexOf('/user/') + 6);
+        return path.substring(0, path.lastIndexOf('/') + 1);
+    }
+
+    function navigateTo(page) {
+        var base = getBasePath();
+        window.location.href = base + page;
+    }
+
+    document.addEventListener('touchstart', function(e) {
+        if (e.touches.length !== 1) return;
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        swiping = true;
+    }, { passive: true });
+
+    document.addEventListener('touchend', function(e) {
+        if (!swiping) return;
+        swiping = false;
+        var endX = e.changedTouches[0].clientX;
+        var endY = e.changedTouches[0].clientY;
+        var diffX = endX - startX;
+        var diffY = Math.abs(endY - startY);
+        if (Math.abs(diffX) < SWIPE_THRESHOLD || diffY > SWIPE_MAX_Y) return;
+
+        var pages = getPageList();
+        if (!pages) return;
+        var current = getCurrentPage();
+        var idx = pages.indexOf(current);
+        if (idx === -1) return;
+
+        if (diffX < 0 && idx < pages.length - 1) {
+            navigateTo(pages[idx + 1]);
+        } else if (diffX > 0 && idx > 0) {
+            navigateTo(pages[idx - 1]);
+        }
+    }, { passive: true });
+})();

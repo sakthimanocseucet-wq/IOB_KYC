@@ -148,7 +148,6 @@ async function handleSendResetOtp(event) {
         var purpose = isEmployeePage ? 'PASSWORD_RESET' : 'PASSWORD_RESET';
         var fpRes = await fetch(otpUrl + '?identifier=' + encodeURIComponent(identifier) + '&purpose=' + purpose, { method: 'POST' });
         var fpData = await fpRes.json();
-        var fpOtp = fpData.data && fpData.data.otp ? fpData.data.otp : null;
     } catch (e) {}
 
     resetOtp = null;
@@ -156,7 +155,7 @@ async function handleSendResetOtp(event) {
 
     fpSetLoading('forgotForm', false);
     goToStep(2);
-    fpShowToast(fpOtp ? 'Your OTP: ' + fpOtp : 'OTP sent to ' + identifier, 'success');
+    fpShowToast('OTP sent to ' + identifier, 'success');
     startOtpTimer();
     document.getElementById('resetOtp').focus();
 }

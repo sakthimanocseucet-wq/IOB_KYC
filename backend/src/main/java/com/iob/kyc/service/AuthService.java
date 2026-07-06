@@ -245,9 +245,7 @@ public class AuthService {
             otpService.sendOtpEmail(identifier, otpCode);
         }
 
-        java.util.Map<String, Object> otpData = new java.util.HashMap<>();
-        otpData.put("otp", otpCode);
-        return ApiResponse.success("OTP sent successfully", otpData);
+        return ApiResponse.success("OTP sent successfully", null);
     }
 
     @Transactional

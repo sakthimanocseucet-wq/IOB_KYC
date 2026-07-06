@@ -32,7 +32,7 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
-html { width: 100%; overscroll-behavior-x: none; touch-action: pan-y; }
+html { width: 100%; overscroll-behavior-x: none; touch-action: manipulation; }
 
 body {
     font-family: var(--font);
@@ -44,7 +44,7 @@ body {
     position: relative;
     overflow-x: hidden;
     overscroll-behavior-x: none;
-    touch-action: pan-y;
+    touch-action: manipulation;
 }
 
 a { text-decoration: none; color: var(--secondary); }

@@ -181,7 +181,7 @@ function getInitial(name) {
 (function() {
     var userPages = ['dashboard.html', 'kyc.html', 'kyc-status.html'];
     var adminPages = ['dashboard.html', 'kyc-review.html', 'account-details.html'];
-    var THRESHOLD = 60;
+    var THRESHOLD = 50;
 
     function getPageList() {
         var p = window.location.pathname;
@@ -201,36 +201,55 @@ function getInitial(name) {
         return p.substring(0, p.lastIndexOf('/') + 1);
     }
 
-    var sx = 0, sy = 0, tracking = false, decided = false;
+    var pages = getPageList();
+    if (!pages) return;
+    var cur = getCurrentPage();
+    var idx = pages.indexOf(cur);
+    if (idx === -1) return;
+
+    var bar = document.createElement('div');
+    bar.id = 'swipeIndicator';
+    bar.style.cssText = 'position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:8px 16px;background:rgba(0,0,0,0.7);color:#fff;font-size:12px;z-index:9999;user-select:none;-webkit-user-select:none;touch-action:manipulation;';
+    var left = idx > 0 ? '<span style="cursor:pointer;padding:4px 12px">&#9664; ' + pages[idx-1].replace('.html','') + '</span>' : '<span></span>';
+    var right = idx < pages.length-1 ? '<span style="cursor:pointer;padding:4px 12px">' + pages[idx+1].replace('.html','') + ' &#9654;</span>' : '<span></span>';
+    bar.innerHTML = left + '<span style="font-weight:600;opacity:0.7">' + cur.replace('.html','') + '</span>' + right;
+    document.body.appendChild(bar);
+
+    var sx = 0, sy = 0, tracking = false;
+
+    function goNext() { if (idx < pages.length-1) window.location.href = getBasePath() + pages[idx+1]; }
+    function goPrev() { if (idx > 0) window.location.href = getBasePath() + pages[idx-1]; }
 
     document.addEventListener('touchstart', function(e) {
         if (e.touches.length !== 1) return;
         sx = e.touches[0].clientX;
         sy = e.touches[0].clientY;
         tracking = true;
-        decided = false;
     }, { passive: true });
 
     document.addEventListener('touchmove', function(e) {
-        if (!tracking || decided) return;
+        if (!tracking) return;
         var dx = e.touches[0].clientX - sx;
         var dy = Math.abs(e.touches[0].clientY - sy);
         if (dy > 40) { tracking = false; return; }
-        if (Math.abs(dx) > THRESHOLD) {
-            decided = true;
-            tracking = false;
-            var pages = getPageList();
-            if (!pages) return;
-            var cur = getCurrentPage();
-            var idx = pages.indexOf(cur);
-            if (idx === -1) return;
-            if (dx < 0 && idx < pages.length - 1) {
-                window.location.href = getBasePath() + pages[idx + 1];
-            } else if (dx > 0 && idx > 0) {
-                window.location.href = getBasePath() + pages[idx - 1];
-            }
-        }
+        if (dx < -THRESHOLD) { tracking = false; goNext(); }
+        else if (dx > THRESHOLD) { tracking = false; goPrev(); }
     }, { passive: true });
 
     document.addEventListener('touchend', function() { tracking = false; }, { passive: true });
+
+    var mouseDown = false, mx = 0;
+    document.addEventListener('mousedown', function(e) { mouseDown = true; mx = e.clientX; });
+    document.addEventListener('mouseup', function(e) {
+        if (!mouseDown) return;
+        mouseDown = false;
+        var dx = e.clientX - mx;
+        if (dx < -THRESHOLD) goNext();
+        else if (dx > THRESHOLD) goPrev();
+    });
+    document.addEventListener('mouseleave', function() { mouseDown = false; });
+
+    bar.querySelectorAll('span[onclick]').forEach(function(el) { /* already handled */ });
+    if (idx > 0) bar.children[0].onclick = goPrev;
+    if (idx < pages.length-1) bar.children[2].onclick = goNext;
 })();

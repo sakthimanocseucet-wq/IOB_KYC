@@ -44,7 +44,7 @@ body {
     position: relative;
     overflow-x: hidden;
     overscroll-behavior-x: none;
-    touch-action: manipulation;
+    touch-action: auto;
 }
 
 a { text-decoration: none; color: var(--secondary); }

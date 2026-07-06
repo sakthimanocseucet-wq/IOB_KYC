@@ -19,10 +19,8 @@ ai-ml/debug_blocks/
 ai-ml/*.jpg
 ai-ml/_diag_capture.jpg
 ai-ml/data/
-ai-ml/models/
+ai-ml/models/trained/
+ai-ml/models/debug*/
 ai-ml/venv/
 .agents/
 *.zip
-*.pth
-*.onnx
-*.task

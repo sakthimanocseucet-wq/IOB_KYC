@@ -1,6 +1,5 @@
 # Core ML dependencies
-opencv-python>=4.9.0
-opencv-contrib-python-headless>=4.9.0
+opencv-python-headless>=4.9.0
 Pillow>=10.0.0
 numpy>=1.26.0
 
@@ -17,9 +16,10 @@ insightface>=0.7.3
 # Liveness Detection
 mediapipe>=0.10.0
 
-# Deepfake Detection (training + inference)
-torch>=2.0.0
-torchvision>=0.15.0
+# Deepfake Detection (CPU only)
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+torchvision
 
 # Anti-Spoofing (MiniFASNet V2 ONNX)
 onnxruntime>=1.16.0

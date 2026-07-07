@@ -22,7 +22,7 @@
     function goNext() { if (idx < pages.length - 1) window.location.href = base + pages[idx + 1]; }
     function goPrev() { if (idx > 0) window.location.href = base + pages[idx - 1]; }
 
-    var sx = 0, sy = 0, startTime = 0, tracking = false, moved = false;
+    var sx = 0, sy = 0, startTime = 0, tracking = false;
 
     function isInteractive(el) {
         while (el && el !== document.body) {
@@ -30,11 +30,18 @@
             if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON' ||
                 tag === 'A' || tag === 'LABEL' || tag === 'VIDEO' || tag === 'AUDIO' ||
                 tag === 'CANVAS' || tag === 'SVG' || tag === 'IFRAME' ||
-                tag === 'PRE' || tag === 'CODE' ||
+                tag === 'PRE' || tag === 'CODE' || tag === 'SPAN' ||
                 el.contentEditable === 'true' || el.getAttribute('role') === 'textbox' ||
+                el.hasAttribute('onclick') || el.hasAttribute('onchange') ||
+                el.classList.contains('btn') || el.classList.contains('card') ||
+                el.classList.contains('form-control') || el.classList.contains('form-select') ||
+                el.classList.contains('upload-box') || el.classList.contains('file-upload') ||
+                el.classList.contains('dropdown-item') || el.classList.contains('nav-link') ||
+                el.classList.contains('badge') || el.classList.contains('table') ||
                 el.closest && (el.closest('.modal-overlay') || el.closest('.navbar') ||
                 el.closest('.table-container') || el.closest('.chatbot-widget') ||
-                el.closest('.nav-links') || el.closest('.hamburger'))) {
+                el.closest('.nav-links') || el.closest('.hamburger') ||
+                el.closest('.kyc-step') || el.closest('.otp-row') || el.closest('.otp-input'))) {
                 return true;
             }
             el = el.parentElement;
@@ -50,7 +57,6 @@
         sy = e.touches[0].clientY;
         startTime = Date.now();
         tracking = true;
-        moved = false;
     }, { passive: true });
 
     document.addEventListener('touchmove', function(e) {
@@ -61,7 +67,6 @@
         var dy = Math.abs(e.touches[0].clientY - sy);
         if (dy > 50) { tracking = false; return; }
         if (Math.abs(dx) > THRESHOLD) {
-            moved = true;
             e.preventDefault();
             tracking = false;
             if (dx < 0) goNext(); else goPrev();
@@ -77,7 +82,6 @@
         sy = e.clientY;
         startTime = Date.now();
         tracking = true;
-        moved = false;
     });
 
     document.addEventListener('mousemove', function(e) {
@@ -88,7 +92,6 @@
         var dy = Math.abs(e.clientY - sy);
         if (dy > 50) { tracking = false; return; }
         if (Math.abs(dx) > THRESHOLD) {
-            moved = true;
             e.preventDefault();
             tracking = false;
             if (dx < 0) goNext(); else goPrev();

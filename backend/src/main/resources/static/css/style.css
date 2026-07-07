@@ -617,7 +617,6 @@ table tr:hover td { background: var(--gray-100); }
     border-color: var(--primary);
     background: rgba(0, 71, 171, 0.05);
 }
-.file-upload input { display: none; }
 .file-upload .upload-icon { font-size: 48px; color: var(--primary); margin-bottom: 12px; }
 .file-upload p { color: var(--gray-600); }
 .file-upload .file-name { color: var(--primary); font-weight: 600; margin-top: 8px; }

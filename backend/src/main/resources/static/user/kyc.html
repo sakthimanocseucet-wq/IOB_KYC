@@ -51,39 +51,39 @@
                         <!-- Aadhaar Card -->
                         <div class="upload-box" id="aadhaarBox">
                             <label class="upload-box-label">&#128196; Aadhaar Card</label>
-                            <div class="file-upload" id="aadhaarUpload" onclick="document.getElementById('aadhaarFile').click()">
+                            <div class="file-upload" id="aadhaarUpload">
+                                <input type="file" id="aadhaarFile" accept=".jpg,.jpeg,.png,.pdf" onchange="handleDocSelect(this, 'aadhaar')">
                                 <div class="upload-icon">&#128196;</div>
                                 <p>Click to upload</p>
                                 <small style="color:var(--gray-500)">JPG, PNG, PDF (Max 5MB)</small>
                                 <div class="file-name" id="aadhaarFileName"></div>
                             </div>
-                            <input type="file" id="aadhaarFile" accept=".jpg,.jpeg,.png,.pdf" style="position:absolute;left:-9999px;opacity:0;width:0;height:0" onchange="handleDocSelect(this, 'aadhaar')">
                             <button type="button" class="btn-remove" id="aadhaarRemove" style="display:none" onclick="removeFile('aadhaar')">&#10005; Remove</button>
                         </div>
 
                         <!-- PAN Card -->
                         <div class="upload-box" id="panBox">
                             <label class="upload-box-label">&#128196; PAN Card</label>
-                            <div class="file-upload" id="panUpload" onclick="document.getElementById('panFile').click()">
+                            <div class="file-upload" id="panUpload">
+                                <input type="file" id="panFile" accept=".jpg,.jpeg,.png,.pdf" onchange="handleDocSelect(this, 'pan')">
                                 <div class="upload-icon">&#128196;</div>
                                 <p>Click to upload</p>
                                 <small style="color:var(--gray-500)">JPG, PNG, PDF (Max 5MB)</small>
                                 <div class="file-name" id="panFileName"></div>
                             </div>
-                            <input type="file" id="panFile" accept=".jpg,.jpeg,.png,.pdf" style="position:absolute;left:-9999px;opacity:0;width:0;height:0" onchange="handleDocSelect(this, 'pan')">
                             <button type="button" class="btn-remove" id="panRemove" style="display:none" onclick="removeFile('pan')">&#10005; Remove</button>
                         </div>
 
                         <!-- Photo -->
                         <div class="upload-box" id="photoBox">
                             <label class="upload-box-label">&#128247; Photo</label>
-                            <div class="file-upload" id="photoUpload" onclick="document.getElementById('profilePhoto').click()">
+                            <div class="file-upload" id="photoUpload">
+                                <input type="file" id="profilePhoto" accept="image/*" onchange="handleDocSelect(this, 'photo')">
                                 <div class="upload-icon">&#128247;</div>
                                 <p>Click to upload</p>
                                 <small style="color:var(--gray-500)">JPG, PNG (Max 5MB)</small>
                                 <div class="file-name" id="photoFileName"></div>
                             </div>
-                            <input type="file" id="profilePhoto" accept="image/*" style="position:absolute;left:-9999px;opacity:0;width:0;height:0" onchange="handleDocSelect(this, 'photo')">
                             <button type="button" class="btn-remove" id="photoRemove" style="display:none" onclick="removeFile('photo')">&#10005; Remove</button>
                         </div>
                     </div>

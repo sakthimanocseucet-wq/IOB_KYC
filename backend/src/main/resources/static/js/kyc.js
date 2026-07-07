@@ -1789,18 +1789,4 @@ async function handleFinalSubmit() {
                     }
                 });
             }
-
-            var uploadBoxes = [
-                { el: document.getElementById('aadhaarUpload'), inputId: 'aadhaarFile' },
-                { el: document.getElementById('panUpload'), inputId: 'panFile' },
-                { el: document.getElementById('photoUpload'), inputId: 'profilePhoto' }
-            ];
-            uploadBoxes.forEach(function(box) {
-                if (!box.el) return;
-                box.el.addEventListener('touchend', function(e) {
-                    e.preventDefault();
-                    var input = document.getElementById(box.inputId);
-                    if (input) input.click();
-                });
-            });
         });

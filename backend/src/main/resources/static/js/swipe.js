@@ -21,7 +21,7 @@
     function goNext() { if (idx < pages.length - 1) window.location.href = base + pages[idx + 1]; }
     function goPrev() { if (idx > 0) window.location.href = base + pages[idx - 1]; }
 
-    var sx1 = 0, sx2 = 0, sy1 = 0, sy2 = 0, tracking = false;
+    var sx1 = 0, sy1 = 0, sx2 = 0, sy2 = 0, tracking = false;
 
     document.addEventListener('touchstart', function(e) {
         if (e.touches.length === 2) {
@@ -51,25 +51,7 @@
         }
     }, { passive: false });
 
-    document.addEventListener('touchend', function() { tracking = false; }, { passive: true });
-
-    var mx = 0, my = 0, mtracking = false;
-    document.addEventListener('mousedown', function(e) {
-        if (e.button !== 0) return;
-        mx = e.clientX;
-        my = e.clientY;
-        mtracking = true;
-    });
-    document.addEventListener('mousemove', function(e) {
-        if (!mtracking) return;
-        var dx = e.clientX - mx;
-        var dy = Math.abs(e.clientY - my);
-        if (dy > 60) { mtracking = false; return; }
-        if (Math.abs(dx) > THRESHOLD) {
-            e.preventDefault();
-            mtracking = false;
-            if (dx < 0) goNext(); else goPrev();
-        }
-    });
-    document.addEventListener('mouseup', function() { mtracking = false; });
+    document.addEventListener('touchend', function(e) {
+        if (e.touches.length < 2) tracking = false;
+    }, { passive: true });
 })();

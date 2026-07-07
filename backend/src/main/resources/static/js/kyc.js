@@ -208,22 +208,20 @@ function handleDocSelect(input, type) {
         return;
     }
 
-    var uploadEl, fileNameEl, removeEl;
+    var uploadEl = input.closest('.file-upload') || input.parentElement;
+    var fileNameEl, removeEl;
     if (type === 'aadhaar') {
         kycData.aadhaarFile = file;
         kycData.ocrData = null;
-        uploadEl = document.getElementById('aadhaarUpload');
         fileNameEl = document.getElementById('aadhaarFileName');
         removeEl = document.getElementById('aadhaarRemove');
     } else if (type === 'pan') {
         kycData.panFile = file;
         kycData.ocrData = null;
-        uploadEl = document.getElementById('panUpload');
         fileNameEl = document.getElementById('panFileName');
         removeEl = document.getElementById('panRemove');
     } else if (type === 'photo') {
         kycData.profilePhoto = file;
-        uploadEl = document.getElementById('photoUpload');
         fileNameEl = document.getElementById('photoFileName');
         removeEl = document.getElementById('photoRemove');
     }
@@ -231,24 +229,21 @@ function handleDocSelect(input, type) {
     if (fileNameEl) {
         fileNameEl.textContent = '\u2705 ' + file.name;
         fileNameEl.style.display = 'block';
-        fileNameEl.style.color = '#16a34a';
-        fileNameEl.style.fontWeight = '600';
-        fileNameEl.style.fontSize = '13px';
-        fileNameEl.style.marginTop = '8px';
     }
     if (removeEl) removeEl.style.display = 'inline-block';
     if (uploadEl) {
         uploadEl.classList.add('uploaded');
         uploadEl.style.borderColor = '#22c55e';
         uploadEl.style.background = 'rgba(34, 197, 94, 0.06)';
-        var icon = uploadEl.querySelector('.upload-icon');
-        var p = uploadEl.querySelector('p');
-        var sm = uploadEl.querySelector('small');
-        if (icon) icon.style.display = 'none';
-        if (p) p.style.display = 'none';
-        if (sm) sm.style.display = 'none';
+        var children = uploadEl.children;
+        for (var i = 0; i < children.length; i++) {
+            var child = children[i];
+            if (child === input || child === fileNameEl) continue;
+            child.style.display = 'none';
+        }
     }
 
+    input.style.display = 'none';
     checkUploadReady();
     showToast(file.name + ' selected', 'success');
 }

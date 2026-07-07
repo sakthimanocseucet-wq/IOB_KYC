@@ -1,8 +1,7 @@
 (function() {
     var userPages = ['dashboard.html', 'kyc.html', 'kyc-status.html'];
     var adminPages = ['dashboard.html', 'kyc-review.html', 'account-details.html'];
-    var THRESHOLD = 100;
-    var MAX_TIME = 400;
+    var THRESHOLD = 80;
 
     var p = window.location.pathname;
     var pages = null;
@@ -22,81 +21,55 @@
     function goNext() { if (idx < pages.length - 1) window.location.href = base + pages[idx + 1]; }
     function goPrev() { if (idx > 0) window.location.href = base + pages[idx - 1]; }
 
-    var sx = 0, sy = 0, startTime = 0, tracking = false;
-
-    function isInteractive(el) {
-        while (el && el !== document.body) {
-            var tag = el.tagName;
-            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON' ||
-                tag === 'A' || tag === 'LABEL' || tag === 'VIDEO' || tag === 'AUDIO' ||
-                tag === 'CANVAS' || tag === 'SVG' || tag === 'IFRAME' ||
-                tag === 'PRE' || tag === 'CODE' || tag === 'SPAN' ||
-                el.contentEditable === 'true' || el.getAttribute('role') === 'textbox' ||
-                el.hasAttribute('onclick') || el.hasAttribute('onchange') ||
-                el.classList.contains('btn') || el.classList.contains('card') ||
-                el.classList.contains('form-control') || el.classList.contains('form-select') ||
-                el.classList.contains('upload-box') || el.classList.contains('file-upload') ||
-                el.classList.contains('dropdown-item') || el.classList.contains('nav-link') ||
-                el.classList.contains('badge') || el.classList.contains('table') ||
-                el.closest && (el.closest('.modal-overlay') || el.closest('.navbar') ||
-                el.closest('.table-container') || el.closest('.chatbot-widget') ||
-                el.closest('.nav-links') || el.closest('.hamburger') ||
-                el.closest('.kyc-step') || el.closest('.otp-row') || el.closest('.otp-input'))) {
-                return true;
-            }
-            el = el.parentElement;
-        }
-        return false;
-    }
+    var sx1 = 0, sx2 = 0, sy1 = 0, sy2 = 0, tracking = false;
 
     document.addEventListener('touchstart', function(e) {
-        if (e.touches.length !== 1) return;
-        var el = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
-        if (isInteractive(el)) { tracking = false; return; }
-        sx = e.touches[0].clientX;
-        sy = e.touches[0].clientY;
-        startTime = Date.now();
-        tracking = true;
+        if (e.touches.length === 2) {
+            sx1 = e.touches[0].clientX;
+            sy1 = e.touches[0].clientY;
+            sx2 = e.touches[1].clientX;
+            sy2 = e.touches[1].clientY;
+            tracking = true;
+        } else {
+            tracking = false;
+        }
     }, { passive: true });
 
     document.addEventListener('touchmove', function(e) {
-        if (!tracking || e.touches.length !== 1) return;
-        var elapsed = Date.now() - startTime;
-        if (elapsed > MAX_TIME) { tracking = false; return; }
-        var dx = e.touches[0].clientX - sx;
-        var dy = Math.abs(e.touches[0].clientY - sy);
-        if (dy > 50) { tracking = false; return; }
-        if (Math.abs(dx) > THRESHOLD) {
+        if (!tracking || e.touches.length !== 2) return;
+        var mx1 = e.touches[0].clientX - sx1;
+        var my1 = Math.abs(e.touches[0].clientY - sy1);
+        var mx2 = e.touches[1].clientX - sx2;
+        var my2 = Math.abs(e.touches[1].clientY - sy2);
+        var avgDx = (mx1 + mx2) / 2;
+        var avgDy = (my1 + my2) / 2;
+        if (avgDy > 60) { tracking = false; return; }
+        if (Math.abs(avgDx) > THRESHOLD) {
             e.preventDefault();
             tracking = false;
-            if (dx < 0) goNext(); else goPrev();
+            if (avgDx < 0) goNext(); else goPrev();
         }
     }, { passive: false });
 
     document.addEventListener('touchend', function() { tracking = false; }, { passive: true });
 
+    var mx = 0, my = 0, mtracking = false;
     document.addEventListener('mousedown', function(e) {
         if (e.button !== 0) return;
-        if (isInteractive(e.target)) { tracking = false; return; }
-        sx = e.clientX;
-        sy = e.clientY;
-        startTime = Date.now();
-        tracking = true;
+        mx = e.clientX;
+        my = e.clientY;
+        mtracking = true;
     });
-
     document.addEventListener('mousemove', function(e) {
-        if (!tracking) return;
-        var elapsed = Date.now() - startTime;
-        if (elapsed > MAX_TIME) { tracking = false; return; }
-        var dx = e.clientX - sx;
-        var dy = Math.abs(e.clientY - sy);
-        if (dy > 50) { tracking = false; return; }
+        if (!mtracking) return;
+        var dx = e.clientX - mx;
+        var dy = Math.abs(e.clientY - my);
+        if (dy > 60) { mtracking = false; return; }
         if (Math.abs(dx) > THRESHOLD) {
             e.preventDefault();
-            tracking = false;
+            mtracking = false;
             if (dx < 0) goNext(); else goPrev();
         }
     });
-
-    document.addEventListener('mouseup', function() { tracking = false; });
+    document.addEventListener('mouseup', function() { mtracking = false; });
 })();

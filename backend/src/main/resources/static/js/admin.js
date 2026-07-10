@@ -151,7 +151,7 @@ function mapBackendApp(app) {
         device: app.device || 'Unknown Device',
         ip: app.ipAddress || 'N/A',
         location: 'India',
-        mobile: ((app.mobile) || (app.user && app.user.phone) || 'N/A').replace(/^\+\d{1,4}/, '').trim() || 'N/A',
+        mobile: (app.mobile) || (app.user && app.user.phone) || 'N/A',
         email: (app.email) || (app.user && app.user.email) || 'N/A',
         accountType: (app.accountType || 'SAVINGS').toLowerCase(),
         accountNumber: app.accountNumber || 'N/A',

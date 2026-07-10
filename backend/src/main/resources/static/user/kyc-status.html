@@ -106,7 +106,7 @@
                     var ocrName = app.ocrName || 'User';
                     var livenessPassed = !!(app.livenessPassed);
                     var gender = app.gender || '';
-                    var mobile = (app.mobile || '').replace(/^\+\d{1,4}/, '').trim();
+                    var mobile = app.mobile || '';
                     var branchId = app.branchId || '';
 
                     var rekycFaceMatch = faceMatchNum;
@@ -303,7 +303,7 @@
             { label: 'PAN Number', old: o.ocrPanNumber, new: n.ocrPanNumber },
             { label: 'Address', old: o.ocrAddress, new: n.ocrAddress },
             { label: 'Gender', old: o.gender, new: n.gender },
-            { label: 'Mobile', old: (o.mobile || '').replace(/^\+\d{1,4}/, '').trim(), new: (n.mobile || '').replace(/^\+\d{1,4}/, '').trim() },
+            { label: 'Mobile', old: o.mobile, new: n.mobile },
             { label: 'Email', old: o.email, new: n.email },
             { label: 'Face Match %', old: o.faceMatchPercentage ? parseFloat(String(o.faceMatchPercentage)).toFixed(1) + '%' : 'N/A', new: n.faceMatchPercentage ? parseFloat(String(n.faceMatchPercentage)).toFixed(1) + '%' : 'N/A' },
             { label: 'Liveness', old: o.livenessPassed ? 'Passed' : 'Not Passed', new: n.livenessPassed ? 'Passed' : 'Not Passed' },

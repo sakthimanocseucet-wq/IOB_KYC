@@ -208,7 +208,6 @@ function handleDocSelect(input, type) {
         return;
     }
 
-    var uploadEl = input.closest('.file-upload') || input.parentElement;
     var fileNameEl, removeEl;
     if (type === 'aadhaar') {
         kycData.aadhaarFile = file;
@@ -231,16 +230,17 @@ function handleDocSelect(input, type) {
         fileNameEl.style.display = 'block';
     }
     if (removeEl) removeEl.style.display = 'inline-block';
-    if (uploadEl) {
-        uploadEl.classList.add('uploaded');
-        uploadEl.style.borderColor = '#22c55e';
-        uploadEl.style.background = 'rgba(34, 197, 94, 0.06)';
-        var children = uploadEl.children;
-        for (var i = 0; i < children.length; i++) {
-            var child = children[i];
-            if (child === input || child === fileNameEl) continue;
-            child.style.display = 'none';
-        }
+
+    var uploadDiv = input.parentElement;
+    if (uploadDiv) {
+        uploadDiv.style.borderColor = '#22c55e';
+        uploadDiv.style.background = 'rgba(34, 197, 94, 0.06)';
+        var icon = uploadDiv.querySelector('.upload-icon');
+        var p = uploadDiv.querySelector('p');
+        var sm = uploadDiv.querySelector('small');
+        if (icon) icon.style.display = 'none';
+        if (p) p.style.display = 'none';
+        if (sm) sm.style.display = 'none';
     }
 
     input.style.display = 'none';

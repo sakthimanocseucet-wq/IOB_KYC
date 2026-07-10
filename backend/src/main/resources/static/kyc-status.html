@@ -124,6 +124,7 @@
                             if (!rekycHasDoc && (prev.aadhaarFrontPath || prev.panCardPath || prev.docFilePath)) rekycHasDoc = true;
                             if (!oldApprovedApp && prev.status === 'APPROVED') oldApprovedApp = prev;
                         }
+                        window._compareData = { oldApp: oldApprovedApp, newApp: app };
                     }
 
                     document.getElementById('appRef').textContent = 'Ref: ' + appRef;
@@ -224,6 +225,12 @@
                     });
                     html += '</div>';
 
+                    if (appType === 'RE_KYC' && oldApprovedApp) {
+                        html += '<div style="text-align:center;margin-top:20px">' +
+                            '<button class="btn btn-primary" onclick="showCompareModal()" style="padding:10px 24px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">' +
+                            '&#128269; Compare KYC vs Re-KYC</button></div>';
+                    }
+
                     if (status === 'REJECTED') {
                         var reason = app.reviewNotes || app.review_notes || 'No specific reason provided. Please contact support for more details.';
                         localStorage.setItem('reKycData', JSON.stringify({ name: app.ocrName || '', dob: app.ocrDob || '', idNumber: app.ocrIdNumber || '', panNumber: app.ocrPanNumber || '', address: app.ocrAddress || '', id: app.id }));
@@ -275,8 +282,59 @@
         }
 
         var cachedStatusHtml = null;
+        window._compareData = null;
         loadStatus();
     })();
+
+    function showCompareModal() {
+        var d = window._compareData;
+        if (!d || !d.oldApp || !d.newApp) return;
+        var o = d.oldApp, n = d.newApp;
+        var fields = [
+            { label: 'Name', old: o.ocrName, new: n.ocrName },
+            { label: 'Date of Birth', old: o.ocrDob, new: n.ocrDob },
+            { label: 'ID Number (Aadhaar)', old: o.ocrIdNumber, new: n.ocrIdNumber },
+            { label: 'PAN Number', old: o.ocrPanNumber, new: n.ocrPanNumber },
+            { label: 'Address', old: o.ocrAddress, new: n.ocrAddress },
+            { label: 'Gender', old: o.gender, new: n.gender },
+            { label: 'Mobile', old: (o.mobile || '').replace(/^\+\d{1,4}/, '').trim(), new: (n.mobile || '').replace(/^\+\d{1,4}/, '').trim() },
+            { label: 'Email', old: o.email, new: n.email },
+            { label: 'Face Match %', old: o.faceMatchPercentage ? parseFloat(String(o.faceMatchPercentage)).toFixed(1) + '%' : 'N/A', new: n.faceMatchPercentage ? parseFloat(String(n.faceMatchPercentage)).toFixed(1) + '%' : 'N/A' },
+            { label: 'Liveness', old: o.livenessPassed ? 'Passed' : 'Not Passed', new: n.livenessPassed ? 'Passed' : 'Not Passed' },
+            { label: 'Risk Score', old: o.riskScore != null ? o.riskScore + '/100' : 'N/A', new: n.riskScore != null ? n.riskScore + '/100' : 'N/A' }
+        ];
+        var rows = '';
+        fields.forEach(function(f) {
+            var changed = (f.old || '') !== (f.new || '');
+            var bg = changed ? 'rgba(59,130,246,0.06)' : '';
+            var icon = changed ? '<span style="color:var(--primary,#1a73e8);font-weight:700;font-size:11px;margin-left:4px" title="Changed">&#9881;</span>' : '<span style="color:#9ca3af;font-size:11px;margin-left:4px">&#10003;</span>';
+            rows += '<tr style="background:' + bg + '">' +
+                '<td style="padding:10px 14px;font-weight:600;color:#374151;border-bottom:1px solid #f3f4f6;font-size:13px;white-space:nowrap">' + f.label + icon + '</td>' +
+                '<td style="padding:10px 14px;border-bottom:1px solid #f3f4f6;font-size:13px;color:#555">' + (f.old || 'N/A') + '</td>' +
+                '<td style="padding:10px 14px;border-bottom:1px solid #f3f4f6;font-size:13px;color:#555">' + (f['new'] || 'N/A') + '</td></tr>';
+        });
+        var html = '<div id="compareModalOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px" onclick="closeCompareModal(event)">' +
+            '<div style="background:#fff;border-radius:16px;max-width:720px;width:100%;max-height:85vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3)" onclick="event.stopPropagation()">' +
+            '<div style="padding:24px 24px 0;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e5e7eb;padding-bottom:16px">' +
+            '<h2 style="margin:0;font-size:20px;color:#1f2937">&#128269; KYC vs Re-KYC Comparison</h2>' +
+            '<button onclick="closeCompareModal()" style="background:none;border:none;font-size:24px;cursor:pointer;color:#9ca3af;padding:4px 8px;border-radius:6px" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'none\'">&times;</button></div>' +
+            '<div style="padding:16px 24px 24px">' +
+            '<p style="font-size:12px;color:#6b7280;margin:0 0 16px">&#9881; = Changed from original KYC &nbsp;&nbsp; &#10003; = Unchanged</p>' +
+            '<table style="width:100%;border-collapse:collapse">' +
+            '<thead><tr style="background:#f9fafb">' +
+            '<th style="padding:10px 14px;text-align:left;font-size:12px;color:#6b7280;border-bottom:2px solid #e5e7eb;font-weight:600">Field</th>' +
+            '<th style="padding:10px 14px;text-align:left;font-size:12px;color:#6b7280;border-bottom:2px solid #e5e7eb;font-weight:600">Original KYC</th>' +
+            '<th style="padding:10px 14px;text-align:left;font-size:12px;color:#6b7280;border-bottom:2px solid #e5e7eb;font-weight:600">Re-KYC</th>' +
+            '</tr></thead><tbody>' + rows + '</tbody></table>' +
+            '</div></div></div>';
+        document.body.insertAdjacentHTML('beforeend', html);
+    }
+
+    function closeCompareModal(e) {
+        if (e && e.target && e.target.id !== 'compareModalOverlay') return;
+        var el = document.getElementById('compareModalOverlay');
+        if (el) el.remove();
+    }
     </script>
 </body>
 </html>

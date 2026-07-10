@@ -238,10 +238,12 @@
                     document.getElementById('editAadhaar').value = app.ocrIdNumber || '';
                     document.getElementById('editPan').value = app.ocrPanNumber || '';
                     document.getElementById('editAddress').value = app.ocrAddress || '';
-                    var apiMobile = (app.user && app.user.phone) || app.mobile || '';
-                    var apiEmail = (app.user && app.user.email) || app.email || '';
+                    var apiMobile = app.mobile || (app.user && app.user.phone) || '';
+                    var apiEmail = app.email || (app.user && app.user.email) || '';
                     if (apiMobile) document.getElementById('editMobile').value = apiMobile;
                     if (apiEmail) document.getElementById('editEmail').value = apiEmail;
+                    if (app.branchId) document.getElementById('editBranch').value = app.branchId;
+                    if (app.accountType) document.getElementById('editAccountType').value = app.accountType.charAt(0) + app.accountType.slice(1).toLowerCase();
 
                     document.getElementById('reviewLoading').style.display = 'none';
                     document.getElementById('reviewContent').style.display = 'block';
@@ -288,10 +290,12 @@
                         document.getElementById('editAadhaar').value = app.ocrIdNumber || '';
                         document.getElementById('editPan').value = app.ocrPanNumber || '';
                         document.getElementById('editAddress').value = app.ocrAddress || '';
-                        var apiMobile = (app.user && app.user.phone) || app.mobile || '';
-                        var apiEmail = (app.user && app.user.email) || app.email || '';
+                        var apiMobile = app.mobile || (app.user && app.user.phone) || '';
+                        var apiEmail = app.email || (app.user && app.user.email) || '';
                         if (apiMobile) document.getElementById('editMobile').value = apiMobile;
                         if (apiEmail) document.getElementById('editEmail').value = apiEmail;
+                        if (app.branchId) document.getElementById('editBranch').value = app.branchId;
+                        if (app.accountType) document.getElementById('editAccountType').value = app.accountType.charAt(0) + app.accountType.slice(1).toLowerCase();
 
                         document.getElementById('reviewLoading').style.display = 'none';
                         document.getElementById('reviewContent').style.display = 'block';

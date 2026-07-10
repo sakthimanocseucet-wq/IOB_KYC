@@ -135,7 +135,7 @@
                 if (kd.ocrName) document.getElementById('accountHolder').textContent = kd.ocrName;
                 if (kd.accountNumber) document.getElementById('accountNumber').textContent = kd.accountNumber;
                 if (kd.email) document.getElementById('bankEmail').textContent = kd.email;
-                if (kd.mobile) document.getElementById('bankMobile').textContent = kd.mobile;
+                if (kd.mobile) document.getElementById('bankMobile').textContent = kd.mobile.replace(/^\+\d{1,4}/, '').trim();
                 if (kd.ocrAddress) document.getElementById('bankAddress').textContent = kd.ocrAddress;
                 if (kd.ocrIdNumber) document.getElementById('bankAadhaar').textContent = kd.ocrIdNumber;
                 if (kd.ocrPanNumber) document.getElementById('bankPan').textContent = kd.ocrPanNumber;
@@ -235,7 +235,7 @@
             loadProfileImage(document.getElementById('profilePhotoImg'), app.id);
 
             document.getElementById('bankEmail').textContent = (app.user && app.user.email) || app.email || '';
-            document.getElementById('bankMobile').textContent = (app.user && app.user.phone) || app.mobile || '';
+            document.getElementById('bankMobile').textContent = ((app.user && app.user.phone) || app.mobile || '').replace(/^\+\d{1,4}/, '').trim();
             document.getElementById('bankAddress').textContent = app.ocrAddress || (app.ocr_data && app.ocr_data.address) || '';
             document.getElementById('bankAadhaar').textContent = app.ocrIdNumber || (app.ocr_data && app.ocr_data.id_number) || '--';
             document.getElementById('bankPan').textContent = app.ocrPanNumber || (app.ocr_data && app.ocr_data.pan_number) || '--';

@@ -106,7 +106,7 @@
                     var ocrName = app.ocrName || 'User';
                     var livenessPassed = !!(app.livenessPassed);
                     var gender = app.gender || '';
-                    var mobile = app.mobile || '';
+                    var mobile = (app.mobile || '').replace(/^\+\d{1,4}/, '').trim();
                     var branchId = app.branchId || '';
 
                     var rekycFaceMatch = faceMatchNum;

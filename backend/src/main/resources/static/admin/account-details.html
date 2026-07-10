@@ -184,7 +184,7 @@
                         '<div style="display:flex;justify-content:space-between;align-items:center">' +
                         '<div>' +
                         '<div style="font-weight:700;font-size:14px">' + (app.ocrName || 'N/A') + '</div>' +
-                        '<div style="font-size:12px;color:var(--gray-500)">' + (app.applicationRef || '') + ' &bull; ' + (app.mobile || '') + '</div>' +
+                        '<div style="font-size:12px;color:var(--gray-500)">' + (app.applicationRef || '') + ' &bull; ' + ((app.mobile || '').replace(/^\+\d{1,4}/, '').trim()) + '</div>' +
                         '</div>' +
                         '<div style="text-align:right">' +
                         '<span class="status-badge ' + statusClass + '">' + (app.status || 'N/A') + '</span>' +
@@ -268,7 +268,7 @@
                 { label: 'Full Name', value: c.fullName || 'N/A' },
                 { label: 'Date of Birth', value: dobDisplay },
                 { label: 'Gender', value: c.gender || 'N/A' },
-                { label: 'Mobile', value: c.mobile || 'N/A' },
+                { label: 'Mobile', value: (c.mobile || 'N/A').replace(/^\+\d{1,4}/, '').trim() || 'N/A' },
                 { label: 'Email', value: c.email || 'N/A', fullWidth: true },
                 { label: 'Address', value: c.address || 'N/A', fullWidth: true }
             ]);

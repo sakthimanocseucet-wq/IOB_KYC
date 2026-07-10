@@ -197,7 +197,6 @@ function handleDocSelect(input, type) {
     try {
         var file = input.files[0];
         if (!file) return;
-        console.log('[KYC] File selected:', file.name);
         if (file.size > 5 * 1024 * 1024) {
             alert('File size must be under 5MB');
             input.value = '';
@@ -228,36 +227,9 @@ function handleDocSelect(input, type) {
         var fileNameEl = document.getElementById(fileNameId);
         var removeEl = document.getElementById(removeId);
 
-        if (fileNameEl) {
-            fileNameEl.textContent = '\u2705 ' + file.name;
-            fileNameEl.style.display = 'block';
-        }
+        if (fileNameEl) fileNameEl.textContent = '\u2705 ' + file.name;
         if (removeEl) removeEl.style.display = 'inline-block';
-
-        if (uploadEl) {
-            uploadEl.style.borderColor = '#22c55e';
-            uploadEl.style.background = 'rgba(34, 197, 94, 0.06)';
-            var allChildren = uploadEl.children;
-            for (var i = 0; i < allChildren.length; i++) {
-                var child = allChildren[i];
-                if (child === input || child === fileNameEl) continue;
-                child.style.display = 'none';
-            }
-
-            if (file.type && file.type.startsWith('image/')) {
-                var oldImg = uploadEl.querySelector('.file-preview');
-                if (oldImg) oldImg.remove();
-                var reader = new FileReader();
-                reader.onload = function(e) {
-                    var img = document.createElement('img');
-                    img.src = e.target.result;
-                    img.className = 'file-preview';
-                    img.style.cssText = 'max-width:100%;max-height:120px;border-radius:8px;margin-top:8px;object-fit:contain;display:block;margin:8px auto 0';
-                    uploadEl.appendChild(img);
-                };
-                reader.readAsDataURL(file);
-            }
-        }
+        if (uploadEl) uploadEl.classList.add('uploaded');
 
         input.style.display = 'none';
         checkUploadReady();

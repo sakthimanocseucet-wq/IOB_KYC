@@ -440,7 +440,7 @@ async function startOCR() {
         panNumber: data.pan_number || '',
         address: data.address || '',
         addressComponents: data.address_components || null,
-        branch: data.branch || ''
+        branch: data.branch || kycData.ocrData.branch || ''
     };
     document.getElementById('ocrName').value = kycData.ocrData.name;
     document.getElementById('ocrDob').value = kycData.ocrData.dob;
@@ -452,8 +452,8 @@ async function startOCR() {
 
     const user = getUser();
     if (user) {
-        if (user.phone) document.getElementById('kycMobile').value = user.phone;
-        if (user.email) document.getElementById('kycEmail').value = user.email;
+        if (!document.getElementById('kycMobile').value && user.phone) document.getElementById('kycMobile').value = user.phone;
+        if (!document.getElementById('kycEmail').value && user.email) document.getElementById('kycEmail').value = user.email;
     }
 
     if (kycData.ocrData.name || kycData.ocrData.idNumber) {

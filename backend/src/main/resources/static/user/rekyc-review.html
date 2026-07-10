@@ -115,7 +115,9 @@
                 </div>
                 <div class="editable-field">
                     <label>Branch</label>
-                    <input type="text" id="editBranch" value="Chennai Main Branch" readonly style="background:#f9fafb;cursor:default">
+                    <select id="editBranch" style="width:100%;padding:10px 12px;border:1px solid var(--gray-300,#d1d5db);border-radius:8px;font-size:14px;background:var(--white,#fff);">
+                        <option value="">Select your branch</option>
+                    </select>
                 </div>
             </div>
         </div>
@@ -204,16 +206,52 @@
         })();
     </script>
 
-        <script src="../js/main.js?v=swipe2"></script>
-    <script src="../js/auth.js?v=10"></script>
-    <script src="../js/kyc.js?v=15"></script>
+        <script src="../js/main.js?v=swipe3"></script>
+    <script src="../js/auth.js?v=11"></script>
+    <script src="../js/kyc.js?v=16"></script>
     <script>
         var newDocs = { aadhaar: null, pan: null, photo: null };
         var existingAppId = '';
+        var branchMap = {};
 
         document.addEventListener('DOMContentLoaded', function() {
+            loadBranches();
             loadReKycData();
         });
+
+        function loadBranches() {
+            var token = getAuthToken();
+            fetch('/api/kyc/branches', { headers: { 'Authorization': 'Bearer ' + token } })
+                .then(function(r) { return r.json(); })
+                .then(function(resp) {
+                    var branches = resp.data || resp || [];
+                    var sel = document.getElementById('editBranch');
+                    sel.innerHTML = '<option value="">Select your branch</option>';
+                    var grouped = {};
+                    branches.forEach(function(b) {
+                        var state = b.branchState || 'Other';
+                        if (!grouped[state]) grouped[state] = [];
+                        grouped[state].push(b);
+                    });
+                    Object.keys(grouped).sort().forEach(function(state) {
+                        var grp = document.createElement('optgroup');
+                        grp.label = state;
+                        grouped[state].forEach(function(b) {
+                            var opt = document.createElement('option');
+                            opt.value = b.branchName;
+                            opt.textContent = b.branchName + ' (' + b.branchId + ')';
+                            branchMap[b.branchName] = b;
+                            grp.appendChild(opt);
+                        });
+                        sel.appendChild(grp);
+                    });
+                    if (window._pendingBranchValue) {
+                        sel.value = window._pendingBranchValue;
+                        window._pendingBranchValue = null;
+                    }
+                })
+                .catch(function() {});
+        }
 
         async function loadReKycData() {
             var token = getAuthToken();
@@ -242,7 +280,21 @@
                     var apiEmail = app.email || (app.user && app.user.email) || '';
                     if (apiMobile) document.getElementById('editMobile').value = apiMobile;
                     if (apiEmail) document.getElementById('editEmail').value = apiEmail;
-                    if (app.branchId) document.getElementById('editBranch').value = app.branchId;
+                    if (app.branchId) {
+                        var setBranchVal = function() {
+                            var sel = document.getElementById('editBranch');
+                            for (var i = 0; i < sel.options.length; i++) {
+                                if (sel.options[i].value === app.branchId) { sel.value = app.branchId; return; }
+                            }
+                            var opt = document.createElement('option');
+                            opt.value = app.branchId;
+                            opt.textContent = app.branchId;
+                            sel.appendChild(opt);
+                            sel.value = app.branchId;
+                        };
+                        if (document.getElementById('editBranch').options.length > 1) setBranchVal();
+                        else { window._pendingBranchValue = app.branchId; }
+                    }
                     if (app.accountType) document.getElementById('editAccountType').value = app.accountType.charAt(0) + app.accountType.slice(1).toLowerCase();
 
                     document.getElementById('reviewLoading').style.display = 'none';
@@ -294,7 +346,21 @@
                         var apiEmail = app.email || (app.user && app.user.email) || '';
                         if (apiMobile) document.getElementById('editMobile').value = apiMobile;
                         if (apiEmail) document.getElementById('editEmail').value = apiEmail;
-                        if (app.branchId) document.getElementById('editBranch').value = app.branchId;
+                        if (app.branchId) {
+                            var setBranchVal2 = function() {
+                                var sel = document.getElementById('editBranch');
+                                for (var i = 0; i < sel.options.length; i++) {
+                                    if (sel.options[i].value === app.branchId) { sel.value = app.branchId; return; }
+                                }
+                                var opt = document.createElement('option');
+                                opt.value = app.branchId;
+                                opt.textContent = app.branchId;
+                                sel.appendChild(opt);
+                                sel.value = app.branchId;
+                            };
+                            if (document.getElementById('editBranch').options.length > 1) setBranchVal2();
+                            else { window._pendingBranchValue = app.branchId; }
+                        }
                         if (app.accountType) document.getElementById('editAccountType').value = app.accountType.charAt(0) + app.accountType.slice(1).toLowerCase();
 
                         document.getElementById('reviewLoading').style.display = 'none';
@@ -504,6 +570,7 @@
                     mobile: details.mobile,
                     email: details.email,
                     accountType: details.accountType,
+                    branch: details.branch,
                     applicationType: 'RE_KYC'
                 };
                 if (submitExistingAppId) payload.existingAppId = submitExistingAppId;

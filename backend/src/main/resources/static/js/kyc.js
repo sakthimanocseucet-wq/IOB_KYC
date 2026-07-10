@@ -241,6 +241,21 @@ function handleDocSelect(input, type) {
         if (icon) icon.style.display = 'none';
         if (p) p.style.display = 'none';
         if (sm) sm.style.display = 'none';
+
+        var oldPreview = uploadDiv.querySelector('.file-preview');
+        if (oldPreview) oldPreview.remove();
+
+        if (file.type && file.type.startsWith('image/')) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                var img = document.createElement('img');
+                img.src = e.target.result;
+                img.className = 'file-preview';
+                img.style.cssText = 'max-width:100%;max-height:120px;border-radius:8px;margin-top:8px;object-fit:contain';
+                uploadDiv.appendChild(img);
+            };
+            reader.readAsDataURL(file);
+        }
     }
 
     input.style.display = 'none';
@@ -284,10 +299,14 @@ function removeFile(type) {
         fileNameEl = document.getElementById('photoFileName');
         removeEl = document.getElementById('photoRemove');
     }
-    if (inputEl) inputEl.value = '';
-    if (fileNameEl) { fileNameEl.textContent = ''; fileNameEl.innerHTML = ''; }
+    if (inputEl) { inputEl.value = ''; inputEl.style.display = ''; }
+    if (fileNameEl) { fileNameEl.textContent = ''; fileNameEl.innerHTML = ''; fileNameEl.style.display = 'none'; }
     if (removeEl) removeEl.style.display = 'none';
     resetUploadEl(uploadEl);
+    if (uploadEl) {
+        var preview = uploadEl.querySelector('.file-preview');
+        if (preview) preview.remove();
+    }
     checkUploadReady();
     showToast('File removed', 'info');
 }

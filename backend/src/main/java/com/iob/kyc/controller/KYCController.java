@@ -664,7 +664,15 @@ public class KYCController {
 
         java.util.Optional<QRVerificationResult> qrResult = qrVerificationRepository.findFirstByApplicationIdOrderByVerifiedAtDesc(id);
         if (qrResult.isPresent()) {
-            return ResponseEntity.ok(ApiResponse.success("QR verification result", qrResult.get()));
+            QRVerificationResult qr = qrResult.get();
+            Map<String, Object> result = new java.util.HashMap<>();
+            result.put("qrDetected", qr.isQrDetected());
+            result.put("verificationStatus", qr.getVerificationStatus() != null ? qr.getVerificationStatus().name() : "SKIPPED");
+            result.put("matchPercentage", qr.getMatchPercentage());
+            result.put("documentType", qr.getDocumentType());
+            result.put("verifiedAt", qr.getVerifiedAt());
+            result.put("results", qr.getResults());
+            return ResponseEntity.ok(ApiResponse.success("QR verification result", result));
         } else {
             return ResponseEntity.ok(ApiResponse.success("No QR verification performed", null));
         }

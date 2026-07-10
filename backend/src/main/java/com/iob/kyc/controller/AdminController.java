@@ -842,6 +842,31 @@ public class AdminController {
             result.put("documentType", qr.getDocumentType());
             result.put("verifiedAt", qr.getVerifiedAt());
             result.put("results", qr.getResults());
+
+            Map<String, Map<String, Object>> results = qr.getResults();
+            boolean ocrEmpty = true;
+            for (Map<String, Object> field : results.values()) {
+                if (field.get("ocr") != null && !field.get("ocr").toString().isEmpty()) { ocrEmpty = false; break; }
+            }
+            if (ocrEmpty) {
+                KYCApplication app = qr.getApplication();
+                if (app != null) {
+                    Map<String, Map<String, Object>> enriched = new java.util.LinkedHashMap<>();
+                    Map<String, Object> nm = results.getOrDefault("name", new java.util.HashMap<>());
+                    if (nm.get("ocr") == null || nm.get("ocr").toString().isEmpty()) nm.put("ocr", app.getOcrName() != null ? app.getOcrName() : "");
+                    enriched.put("name", nm);
+                    Map<String, Object> dm = results.getOrDefault("dob", new java.util.HashMap<>());
+                    if (dm.get("ocr") == null || dm.get("ocr").toString().isEmpty()) dm.put("ocr", app.getOcrDob() != null ? app.getOcrDob().toString() : "");
+                    enriched.put("dob", dm);
+                    Map<String, Object> am = results.getOrDefault("aadhaar_number", new java.util.HashMap<>());
+                    if (am.get("ocr") == null || am.get("ocr").toString().isEmpty()) am.put("ocr", app.getOcrIdNumber() != null ? app.getOcrIdNumber() : "");
+                    enriched.put("aadhaar_number", am);
+                    Map<String, Object> pm = results.getOrDefault("pan_number", new java.util.HashMap<>());
+                    if (pm.get("ocr") == null || pm.get("ocr").toString().isEmpty()) pm.put("ocr", app.getOcrPanNumber() != null ? app.getOcrPanNumber() : "");
+                    enriched.put("pan_number", pm);
+                    result.put("results", enriched);
+                }
+            }
             return ResponseEntity.ok(result);
         } else {
             return ResponseEntity.ok(java.util.Map.of(

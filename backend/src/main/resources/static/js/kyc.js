@@ -194,73 +194,77 @@ function prevStep(current) {
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
 
 function handleDocSelect(input, type) {
-    var file = input.files[0];
-    if (!file) { console.warn('[KYC] No file in input for', type); return; }
-    console.log('[KYC] File selected:', file.name, 'type:', file.type, 'size:', file.size);
-    if (file.size > 5 * 1024 * 1024) {
-        showAlert('File size must be under 5MB', 'error');
-        input.value = '';
-        return;
-    }
-    if (file.type && !ALLOWED_TYPES.includes(file.type)) {
-        showAlert('Only JPG, PNG or PDF files are accepted', 'error');
-        input.value = '';
-        return;
-    }
-
-    var fileNameEl, removeEl;
-    if (type === 'aadhaar') {
-        kycData.aadhaarFile = file;
-        kycData.ocrData = null;
-        fileNameEl = document.getElementById('aadhaarFileName');
-        removeEl = document.getElementById('aadhaarRemove');
-    } else if (type === 'pan') {
-        kycData.panFile = file;
-        kycData.ocrData = null;
-        fileNameEl = document.getElementById('panFileName');
-        removeEl = document.getElementById('panRemove');
-    } else if (type === 'photo') {
-        kycData.profilePhoto = file;
-        fileNameEl = document.getElementById('photoFileName');
-        removeEl = document.getElementById('photoRemove');
-    }
-
-    if (fileNameEl) {
-        fileNameEl.textContent = '\u2705 ' + file.name;
-        fileNameEl.style.display = 'block';
-    }
-    if (removeEl) removeEl.style.display = 'inline-block';
-
-    var uploadDiv = input.parentElement;
-    if (uploadDiv) {
-        uploadDiv.style.borderColor = '#22c55e';
-        uploadDiv.style.background = 'rgba(34, 197, 94, 0.06)';
-        var icon = uploadDiv.querySelector('.upload-icon');
-        var p = uploadDiv.querySelector('p');
-        var sm = uploadDiv.querySelector('small');
-        if (icon) icon.style.display = 'none';
-        if (p) p.style.display = 'none';
-        if (sm) sm.style.display = 'none';
-
-        var oldPreview = uploadDiv.querySelector('.file-preview');
-        if (oldPreview) oldPreview.remove();
-
-        if (file.type && file.type.startsWith('image/')) {
-            var reader = new FileReader();
-            reader.onload = function(e) {
-                var img = document.createElement('img');
-                img.src = e.target.result;
-                img.className = 'file-preview';
-                img.style.cssText = 'max-width:100%;max-height:120px;border-radius:8px;margin-top:8px;object-fit:contain';
-                uploadDiv.appendChild(img);
-            };
-            reader.readAsDataURL(file);
+    try {
+        var file = input.files[0];
+        if (!file) return;
+        console.log('[KYC] File selected:', file.name);
+        if (file.size > 5 * 1024 * 1024) {
+            alert('File size must be under 5MB');
+            input.value = '';
+            return;
         }
-    }
 
-    input.style.display = 'none';
-    checkUploadReady();
-    showToast(file.name + ' selected', 'success');
+        var uploadId, fileNameId, removeId;
+        if (type === 'aadhaar') {
+            kycData.aadhaarFile = file;
+            kycData.ocrData = null;
+            uploadId = 'aadhaarUpload';
+            fileNameId = 'aadhaarFileName';
+            removeId = 'aadhaarRemove';
+        } else if (type === 'pan') {
+            kycData.panFile = file;
+            kycData.ocrData = null;
+            uploadId = 'panUpload';
+            fileNameId = 'panFileName';
+            removeId = 'panRemove';
+        } else if (type === 'photo') {
+            kycData.profilePhoto = file;
+            uploadId = 'photoUpload';
+            fileNameId = 'photoFileName';
+            removeId = 'photoRemove';
+        }
+
+        var uploadEl = document.getElementById(uploadId);
+        var fileNameEl = document.getElementById(fileNameId);
+        var removeEl = document.getElementById(removeId);
+
+        if (fileNameEl) {
+            fileNameEl.textContent = '\u2705 ' + file.name;
+            fileNameEl.style.display = 'block';
+        }
+        if (removeEl) removeEl.style.display = 'inline-block';
+
+        if (uploadEl) {
+            uploadEl.style.borderColor = '#22c55e';
+            uploadEl.style.background = 'rgba(34, 197, 94, 0.06)';
+            var allChildren = uploadEl.children;
+            for (var i = 0; i < allChildren.length; i++) {
+                var child = allChildren[i];
+                if (child === input || child === fileNameEl) continue;
+                child.style.display = 'none';
+            }
+
+            if (file.type && file.type.startsWith('image/')) {
+                var oldImg = uploadEl.querySelector('.file-preview');
+                if (oldImg) oldImg.remove();
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    var img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.className = 'file-preview';
+                    img.style.cssText = 'max-width:100%;max-height:120px;border-radius:8px;margin-top:8px;object-fit:contain;display:block;margin:8px auto 0';
+                    uploadEl.appendChild(img);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        input.style.display = 'none';
+        checkUploadReady();
+        if (typeof showToast === 'function') showToast(file.name + ' selected', 'success');
+    } catch (e) {
+        console.error('[KYC] handleDocSelect error:', e);
+    }
 }
 
 function resetUploadEl(el) {

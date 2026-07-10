@@ -235,7 +235,7 @@
             loadProfileImage(document.getElementById('profilePhotoImg'), app.id);
 
             document.getElementById('bankEmail').textContent = (app.user && app.user.email) || app.email || '';
-            document.getElementById('bankMobile').textContent = (app.user && app.user.phone) || app.mobile || '';
+            document.getElementById('bankMobile').textContent = app.mobile || (app.user && app.user.phone) || '';
             document.getElementById('bankAddress').textContent = app.ocrAddress || (app.ocr_data && app.ocr_data.address) || '';
             document.getElementById('bankAadhaar').textContent = app.ocrIdNumber || (app.ocr_data && app.ocr_data.id_number) || '--';
             document.getElementById('bankPan').textContent = app.ocrPanNumber || (app.ocr_data && app.ocr_data.pan_number) || '--';

@@ -1189,7 +1189,9 @@ async function loadQrVerification(appId) {
         }
 
         var data = await res.json();
-        if (data.results && data.verificationStatus && data.verificationStatus !== 'SKIPPED') {
+        if (data.results && data.verificationStatus) {
+            container.innerHTML = renderQrResult(data, appId);
+        } else if (data.verificationStatus === 'SKIPPED') {
             container.innerHTML = renderQrResult(data, appId);
         } else {
             container.innerHTML = '<div style="text-align:center;padding:16px"><div class="spinner" style="margin:0 auto 8px"></div><p style="font-size:13px;color:var(--gray-500)">Scanning QR code and comparing fields...</p></div>';

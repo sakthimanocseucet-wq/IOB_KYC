@@ -225,10 +225,10 @@ class ChallengeLivenessDetector:
         ]
         if all_passed:
             liveness_score = round(avg_confidence * 0.7 + 1.0 * 0.3, 4)
-        elif completed >= 3:
-            liveness_score = round(avg_passed_confidence * 0.7 + 0.75 * 0.3, 4)
+        elif passed_results:
+            liveness_score = round(avg_passed_confidence * 0.7 + 0.0 * 0.3, 4)
         else:
-            liveness_score = round(avg_confidence * 0.7 + 0.0 * 0.3, 4)
+            liveness_score = 0.0
         return {
             'passed': bool(all_passed),
             'challengeCount': total,

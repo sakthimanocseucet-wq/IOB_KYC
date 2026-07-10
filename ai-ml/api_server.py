@@ -471,15 +471,8 @@ def detailed_verify():
             if passed_results:
                 partial_confidences = [r.get('confidence', 0) for r in passed_results]
                 liveness_confidence = round(float(np.mean(partial_confidences)), 4)
-                if completed >= 3:
-                    livenessPassed = True
-                    session_liveness_confirmed = True
-                    liveness_reason = f'Verified via 4-step challenge session ({completed}/4 passed, partial)'
-                    logger.info('[DetailedVerify] Session %s: %d/4 passed — partial liveness accepted (conf=%.3f)',
-                                session_id, completed, liveness_confidence)
-                else:
-                    liveness_reason = f'Incomplete liveness session: {completed}/4 challenges passed'
-                    logger.warning('[DetailedVerify] Session %s incomplete: %d/4', session_id, completed)
+                liveness_reason = f'Incomplete liveness session: {completed}/4 challenges passed'
+                logger.warning('[DetailedVerify] Session %s incomplete: %d/4 (partial conf=%.3f)', session_id, completed, liveness_confidence)
             else:
                 liveness_reason = f'Incomplete liveness session: {completed}/4 challenges passed'
                 logger.warning('[DetailedVerify] Session %s incomplete: %d/4', session_id, completed)

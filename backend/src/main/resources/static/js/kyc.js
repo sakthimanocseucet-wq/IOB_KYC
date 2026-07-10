@@ -1165,7 +1165,7 @@ async function startLivenessChallenge() {
         var completedCount = challengeResults.length;
         var passedCount = challengeResults.filter(function(r) { return r.passed; }).length;
         window.__finalChallengeResult = {
-            challengePassed: passedCount >= 3,
+            challengePassed: passedCount >= 4,
             challengeCount: passedCount,
             livenessScore: passedCount / Math.max(completedCount, 1),
         };

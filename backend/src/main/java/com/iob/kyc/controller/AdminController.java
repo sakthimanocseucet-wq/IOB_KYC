@@ -995,19 +995,21 @@ public class AdminController {
                     } else if (newRisk >= 30) {
                         app.setRiskLevel(KYCApplication.RiskLevel.MEDIUM);
                     }
-                } else if (qrResult.getVerificationStatus() == com.iob.kyc.model.QRStatus.PASSED) {
+                } else if (qrResult.getVerificationStatus() == com.iob.kyc.model.QRStatus.SKIPPED) {
                     int currentRisk = app.getRiskScore();
-                    int newRisk = Math.max(currentRisk - 15, 0);
+                    int newRisk = Math.min(currentRisk + 10, 100);
                     app.setRiskScore(newRisk);
                     if (newRisk >= 60) {
                         app.setRiskLevel(KYCApplication.RiskLevel.HIGH);
                     } else if (newRisk >= 30) {
                         app.setRiskLevel(KYCApplication.RiskLevel.MEDIUM);
-                    } else {
-                        app.setRiskLevel(KYCApplication.RiskLevel.LOW);
                     }
+                } else if (qrResult.getVerificationStatus() == com.iob.kyc.model.QRStatus.PASSED) {
+                    int currentRisk = app.getRiskScore();
+                    int newRisk = Math.max(currentRisk - 15, 0);
+                    app.setRiskScore(newRisk);
+                    app.setRiskLevel(KYCApplication.RiskLevel.LOW);
                 }
-                // SKIPPED = no change (neutral)
 
                 kycApplicationRepository.save(app);
 

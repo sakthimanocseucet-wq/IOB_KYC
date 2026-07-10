@@ -483,6 +483,10 @@ async function sendEmailOTP() {
         if (otpData.success) {
             showToast('OTP sent to ' + email, 'success');
         } else {
+            showToast(otpData.message || 'Failed to send OTP', 'error');
+            btn.disabled = false;
+            return;
+        }
     } catch (err) {
         showToast('Failed to send OTP. Please try again.', 'error');
         btn.disabled = false;

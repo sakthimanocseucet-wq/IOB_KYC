@@ -35,8 +35,8 @@ let challengeFrames = [];
 let challengeActive = false;
 let challengeInterval = null;
 let challengeTimerInterval = null;
-const CHALLENGE_FRAME_INTERVAL = 150;
-const CHALLENGE_STEP_TIMEOUT = 8000; // 8 seconds per challenge
+const CHALLENGE_FRAME_INTERVAL = 120;
+const CHALLENGE_STEP_TIMEOUT = 5000; // 5 seconds per challenge
 
 // Sequential 4-challenge session state
 let challengeSessionId = null;
@@ -912,8 +912,8 @@ async function startLivenessChallenge() {
             }
         }
 
-        actionPercent.textContent = '8s';
-        if (typeof timerText !== 'undefined' && timerText) timerText.textContent = '8s';
+        actionPercent.textContent = '5s';
+        if (typeof timerText !== 'undefined' && timerText) timerText.textContent = '5s';
         frameCount.textContent = 'Capturing...';
         actionRingFill.setAttribute('stroke-dasharray', '0, 100');
         if (typeof timerFill !== 'undefined' && timerFill) {
@@ -984,7 +984,7 @@ async function startLivenessChallenge() {
                 timerFill.style.width = '100%';
                 timerFill.style.background = 'linear-gradient(90deg, #22c55e, #4ade80)';
                 void timerFill.offsetWidth;
-                timerFill.style.transition = 'width 8s linear, background 0.5s ease';
+                timerFill.style.transition = 'width 5s linear, background 0.5s ease';
                 timerFill.style.width = '0%';
             }
 
@@ -1013,10 +1013,10 @@ async function startLivenessChallenge() {
                 // Timer color: green > 4s, yellow > 2s, red <= 2s
                 if (typeof timerFill !== 'undefined' && timerFill) {
                     timerFill.style.transition = 'width 0.3s linear';
-                    timerFill.style.width = (remaining / 8 * 100) + '%';
-                    if (remaining <= 2) {
+                    timerFill.style.width = (remaining / 5 * 100) + '%';
+                    if (remaining <= 1) {
                         timerFill.className = 'challenge-timer-fill danger';
-                    } else if (remaining <= 4) {
+                    } else if (remaining <= 3) {
                         timerFill.className = 'challenge-timer-fill warning';
                     } else {
                         timerFill.className = 'challenge-timer-fill';
@@ -1165,7 +1165,7 @@ async function startLivenessChallenge() {
         var completedCount = challengeResults.length;
         var passedCount = challengeResults.filter(function(r) { return r.passed; }).length;
         window.__finalChallengeResult = {
-            challengePassed: passedCount >= 4,
+            challengePassed: passedCount >= 3,
             challengeCount: passedCount,
             livenessScore: passedCount / Math.max(completedCount, 1),
         };

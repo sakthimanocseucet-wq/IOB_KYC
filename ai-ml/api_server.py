@@ -467,8 +467,22 @@ def detailed_verify():
             logger.info('[DetailedVerify] Session %s: %d/4 challenges passed — liveness confirmed',
                        session_id, completed)
         else:
-            liveness_reason = f'Incomplete liveness session: {completed}/4 challenges passed'
-            logger.warning('[DetailedVerify] Session %s incomplete: %d/4', session_id, completed)
+            passed_results = [r for r in results if r.get('challenge_passed', False)]
+            if passed_results:
+                partial_confidences = [r.get('confidence', 0) for r in passed_results]
+                liveness_confidence = round(float(np.mean(partial_confidences)), 4)
+                if completed >= 3:
+                    livenessPassed = True
+                    session_liveness_confirmed = True
+                    liveness_reason = f'Verified via 4-step challenge session ({completed}/4 passed, partial)'
+                    logger.info('[DetailedVerify] Session %s: %d/4 passed — partial liveness accepted (conf=%.3f)',
+                                session_id, completed, liveness_confidence)
+                else:
+                    liveness_reason = f'Incomplete liveness session: {completed}/4 challenges passed'
+                    logger.warning('[DetailedVerify] Session %s incomplete: %d/4', session_id, completed)
+            else:
+                liveness_reason = f'Incomplete liveness session: {completed}/4 challenges passed'
+                logger.warning('[DetailedVerify] Session %s incomplete: %d/4', session_id, completed)
     elif session_result and session_result.get('challengePassed'):
         # Fallback: accept client-side session summary if server session unavailable
         livenessPassed = True

@@ -199,9 +199,16 @@ class ChallengeLivenessDetector:
 
     def evaluate_session(self, session_results):
         completed = sum(1 for r in session_results if r.get('challenge_passed', False))
-        all_passed = (completed == len(session_results))
+        total = len(session_results)
+        all_passed = (completed == total)
+        passed_results = [r for r in session_results if r.get('challenge_passed', False)]
         confidences = [r.get('confidence', 0) for r in session_results]
         avg_confidence = float(np.mean(confidences)) if confidences else 0.0
+        if passed_results:
+            passed_confidences = [r.get('confidence', 0) for r in passed_results]
+            avg_passed_confidence = float(np.mean(passed_confidences))
+        else:
+            avg_passed_confidence = 0.0
         reasons = []
         for r in session_results:
             if not r.get('challenge_passed', False):
@@ -216,10 +223,15 @@ class ChallengeLivenessDetector:
             }
             for r in session_results
         ]
-        liveness_score = round(avg_confidence * 0.7 + (1.0 if all_passed else 0.0) * 0.3, 4)
+        if all_passed:
+            liveness_score = round(avg_confidence * 0.7 + 1.0 * 0.3, 4)
+        elif completed >= 3:
+            liveness_score = round(avg_passed_confidence * 0.7 + 0.75 * 0.3, 4)
+        else:
+            liveness_score = round(avg_confidence * 0.7 + 0.0 * 0.3, 4)
         return {
             'passed': bool(all_passed),
-            'challengeCount': len(session_results),
+            'challengeCount': total,
             'completedChallenges': completed,
             'challengePassed': bool(all_passed),
             'livenessScore': liveness_score,

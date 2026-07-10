@@ -501,8 +501,8 @@ class ChallengeLivenessDetector:
         if n < MIN_FRAMES_FOR_CHALLENGE:
             return False, 0.0, f'Insufficient frames ({n}/{MIN_FRAMES_FOR_CHALLENGE})'
 
-        REQUIRED_BLINKS = 3
-        MIN_BLINK_FRAMES = 2  # each blink must last at least 2 frames
+        REQUIRED_BLINKS = 2
+        MIN_BLINK_FRAMES = 1  # each blink must last at least 1 frame
 
         ear_values = [f['avg_ear'] for f in frames_data]
         left_ears = [f['left_ear'] for f in frames_data]
@@ -514,10 +514,10 @@ class ChallengeLivenessDetector:
         baseline_left = float(np.mean(left_ears[:baseline_end]))
         baseline_right = float(np.mean(right_ears[:baseline_end]))
 
-        # Threshold: eye closed when EAR drops below 75% of baseline or absolute threshold
-        closed_threshold = min(self.EAR_CLOSED_THRESHOLD, baseline_ear * 0.75)
+        # Threshold: eye closed when EAR drops below 60% of baseline or absolute threshold
+        closed_threshold = min(self.EAR_CLOSED_THRESHOLD, baseline_ear * 0.60)
         # Reopen threshold: slightly higher than close threshold to avoid noise
-        open_threshold = closed_threshold * 1.1
+        open_threshold = closed_threshold * 1.15
 
         logger.info("%s frames=%d baseline_ear=%.4f closed_thresh=%.4f open_thresh=%.4f required_blinks=%d",
                      tag, n, baseline_ear, closed_threshold, open_threshold, REQUIRED_BLINKS)

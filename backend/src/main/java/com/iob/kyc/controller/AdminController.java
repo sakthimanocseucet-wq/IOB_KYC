@@ -804,11 +804,12 @@ public class AdminController {
                             if (relativePath.startsWith("uploads/") || relativePath.startsWith("uploads\\")) {
                                 relativePath = relativePath.substring("uploads/".length());
                             }
-                            Path altPath = Paths.get(uploadBaseDir).resolve(relativePath).normalize();
-                            log.info("Image path '{}' not found, trying alt '{}' (exists={})", path, altPath, Files.exists(altPath));
+                            Path altPath = Paths.get(uploadBaseDir).toAbsolutePath().normalize().resolve(relativePath).normalize();
+                            log.info("[Admin-Serve] '{}' not found, trying alt '{}' (exists={})", path.toAbsolutePath(), altPath, Files.exists(altPath));
                             if (Files.exists(altPath)) {
                                 path = altPath;
                             } else {
+                                log.warn("[Admin-Serve] File not found: original='{}', alt='{}', uploadBaseDir='{}'", filePath, altPath, uploadBaseDir);
                                 return ResponseEntity.notFound().<byte[]>build();
                             }
                         }
@@ -819,6 +820,7 @@ public class AdminController {
                                 .header(HttpHeaders.CONTENT_TYPE, contentType)
                                 .body(imageBytes);
                     } catch (Exception e) {
+                        org.slf4j.LoggerFactory.getLogger(getClass()).error("[Admin-Serve] Error serving file: {}", e.getMessage(), e);
                         return ResponseEntity.internalServerError().<byte[]>build();
                     }
                 })
@@ -833,6 +835,8 @@ public class AdminController {
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'OFFICER')")
     public ResponseEntity<?> getQrVerificationResult(@PathVariable Long id) {
         java.util.Optional<QRVerificationResult> qrResult = qrVerificationRepository.findFirstByApplicationIdOrderByVerifiedAtDesc(id);
+        KYCApplication app = kycApplicationRepository.findByIdWithUser(id).orElse(null);
+
         if (qrResult.isPresent()) {
             QRVerificationResult qr = qrResult.get();
             Map<String, Object> result = new HashMap<>();
@@ -841,32 +845,38 @@ public class AdminController {
             result.put("matchPercentage", qr.getMatchPercentage());
             result.put("documentType", qr.getDocumentType());
             result.put("verifiedAt", qr.getVerifiedAt());
-            result.put("results", qr.getResults());
 
-            Map<String, Map<String, Object>> results = qr.getResults();
-            boolean ocrEmpty = true;
-            for (Map<String, Object> field : results.values()) {
-                if (field.get("ocr") != null && !field.get("ocr").toString().isEmpty()) { ocrEmpty = false; break; }
-            }
-            if (ocrEmpty) {
-                KYCApplication app = qr.getApplication();
-                if (app != null) {
-                    Map<String, Map<String, Object>> enriched = new java.util.LinkedHashMap<>();
-                    Map<String, Object> nm = results.getOrDefault("name", new java.util.HashMap<>());
-                    if (nm.get("ocr") == null || nm.get("ocr").toString().isEmpty()) nm.put("ocr", app.getOcrName() != null ? app.getOcrName() : "");
-                    enriched.put("name", nm);
-                    Map<String, Object> dm = results.getOrDefault("dob", new java.util.HashMap<>());
-                    if (dm.get("ocr") == null || dm.get("ocr").toString().isEmpty()) dm.put("ocr", app.getOcrDob() != null ? app.getOcrDob().toString() : "");
-                    enriched.put("dob", dm);
-                    Map<String, Object> am = results.getOrDefault("aadhaar_number", new java.util.HashMap<>());
-                    if (am.get("ocr") == null || am.get("ocr").toString().isEmpty()) am.put("ocr", app.getOcrIdNumber() != null ? app.getOcrIdNumber() : "");
-                    enriched.put("aadhaar_number", am);
-                    Map<String, Object> pm = results.getOrDefault("pan_number", new java.util.HashMap<>());
-                    if (pm.get("ocr") == null || pm.get("ocr").toString().isEmpty()) pm.put("ocr", app.getOcrPanNumber() != null ? app.getOcrPanNumber() : "");
-                    enriched.put("pan_number", pm);
-                    result.put("results", enriched);
-                }
-            }
+            Map<String, Map<String, Object>> results = new java.util.LinkedHashMap<>();
+            String ocrName = qr.getOcrName() != null && !qr.getOcrName().isEmpty() ? qr.getOcrName() : (app != null && app.getOcrName() != null ? app.getOcrName() : "");
+            String ocrDob = qr.getOcrDob() != null && !qr.getOcrDob().isEmpty() ? qr.getOcrDob() : (app != null && app.getOcrDob() != null ? app.getOcrDob().toString() : "");
+            String ocrId = qr.getOcrIdNumber() != null && !qr.getOcrIdNumber().isEmpty() ? qr.getOcrIdNumber() : (app != null && app.getOcrIdNumber() != null ? app.getOcrIdNumber() : "");
+            String ocrPan = qr.getOcrPanNumber() != null && !qr.getOcrPanNumber().isEmpty() ? qr.getOcrPanNumber() : (app != null && app.getOcrPanNumber() != null ? app.getOcrPanNumber() : "");
+
+            Map<String, Object> nameMap = new HashMap<>();
+            nameMap.put("ocr", ocrName);
+            nameMap.put("qr", qr.getQrName() != null ? qr.getQrName() : "");
+            nameMap.put("match", qr.getNameMatch() != null && qr.getNameMatch());
+            results.put("name", nameMap);
+
+            Map<String, Object> dobMap = new HashMap<>();
+            dobMap.put("ocr", ocrDob);
+            dobMap.put("qr", qr.getQrDob() != null ? qr.getQrDob() : "");
+            dobMap.put("match", qr.getDobMatch() != null && qr.getDobMatch());
+            results.put("dob", dobMap);
+
+            Map<String, Object> aadhaarMap = new HashMap<>();
+            aadhaarMap.put("ocr", ocrId);
+            aadhaarMap.put("qr", qr.getQrIdNumber() != null ? qr.getQrIdNumber() : "");
+            aadhaarMap.put("match", qr.getIdNumberMatch() != null && qr.getIdNumberMatch());
+            results.put("aadhaar_number", aadhaarMap);
+
+            Map<String, Object> panMap = new HashMap<>();
+            panMap.put("ocr", ocrPan);
+            panMap.put("qr", qr.getQrPanNumber() != null ? qr.getQrPanNumber() : "");
+            panMap.put("match", qr.getPanNumberMatch() != null && qr.getPanNumberMatch());
+            results.put("pan_number", panMap);
+
+            result.put("results", results);
             return ResponseEntity.ok(result);
         } else {
             return ResponseEntity.ok(java.util.Map.of(

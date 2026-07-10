@@ -442,15 +442,14 @@ public class KYCController {
             Path path = Paths.get(filePath);
             if (!Files.exists(path)) {
                 String relativePath = filePath;
-                if (relativePath.startsWith("uploads/")) {
+                if (relativePath.startsWith("uploads/") || relativePath.startsWith("uploads\\")) {
                     relativePath = relativePath.substring("uploads/".length());
-                } else if (relativePath.startsWith("uploads\\")) {
-                    relativePath = relativePath.substring("uploads\\".length());
                 }
-                Path altPath = Paths.get(uploadBaseDir).resolve(relativePath).normalize();
+                Path altPath = Paths.get(uploadBaseDir).toAbsolutePath().normalize().resolve(relativePath).normalize();
                 if (Files.exists(altPath)) {
                     path = altPath;
                 } else {
+                    logger.warn("[KYC-Serve] File not found: original='{}', alt='{}'", filePath, altPath);
                     return ResponseEntity.notFound().build();
                 }
             }
@@ -461,6 +460,7 @@ public class KYCController {
                     .header(HttpHeaders.CONTENT_TYPE, contentType)
                     .body(imageBytes);
         } catch (Exception e) {
+            logger.error("[KYC-Serve] Error serving file: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().build();
         }
     }

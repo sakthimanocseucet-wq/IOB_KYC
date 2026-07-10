@@ -94,7 +94,7 @@ CHALLENGE_PROMPTS = {
     'look_up':     'Look up',
 }
 CHALLENGE_TIMEOUT_SECONDS = 180
-MIN_FRAMES_FOR_CHALLENGE = 5
+MIN_FRAMES_FOR_CHALLENGE = 8
 
 # ============================================================
 # MediaPipe face landmark indices
@@ -118,20 +118,20 @@ class ChallengeLivenessDetector:
     """Interactive challenge-response liveness detection using MediaPipe FaceMesh."""
 
     # --- Thresholds (tuned for real-world webcam 640x480 @ 6-10 fps) ---
-    EAR_CLOSED_THRESHOLD = 0.15   # EAR below this = eye closed (stricter)
-    MAR_OPEN_THRESHOLD = 0.15     # MAR above this = mouth open (stricter)
-    SHAKE_YAW_DEGREES = 5.0       # min yaw deviation for shake (stricter)
-    LOOK_YAW_DEGREES = 2.5        # min yaw change for gaze look left/right (stricter)
-    PITCH_UP_DEGREES = 7.0        # min pitch change for look up (stricter)
+    EAR_CLOSED_THRESHOLD = 0.12   # EAR below this = eye closed (stricter)
+    MAR_OPEN_THRESHOLD = 0.18     # MAR above this = mouth open (stricter)
+    SHAKE_YAW_DEGREES = 10.0      # min yaw deviation for shake (stricter)
+    LOOK_YAW_DEGREES = 10.0       # min yaw change for gaze look left/right (stricter)
+    PITCH_UP_DEGREES = 10.0       # min pitch change for look up (stricter)
 
     # --- Shake head state machine ---
     SHAKE_MIN_PHASES = 2          # need at least 2 transitions (LEFT->RIGHT or RIGHT->LEFT)
-    SHAKE_MIN_FRAMES_PER_PHASE = 1 # min frames in each phase to count
+    SHAKE_MIN_FRAMES_PER_PHASE = 2 # min frames in each phase to count
 
     # --- Sustained movement ---
-    MIN_SUSTAINED_FRAMES = 3      # require 3 frames meeting criteria (stricter)
-    BASELINE_FRAMES = 5           # frames to average for baseline (stricter)
-    RECOVERY_FRAMES = 2           # frames to confirm return to neutral
+    MIN_SUSTAINED_FRAMES = 5      # require 5 frames meeting criteria (stricter)
+    BASELINE_FRAMES = 8           # frames to average for baseline (stricter)
+    RECOVERY_FRAMES = 3           # frames to confirm return to neutral
 
     def __init__(self):
         self.face_landmarker = None
@@ -502,6 +502,7 @@ class ChallengeLivenessDetector:
             return False, 0.0, f'Insufficient frames ({n}/{MIN_FRAMES_FOR_CHALLENGE})'
 
         REQUIRED_BLINKS = 3
+        MIN_BLINK_FRAMES = 2  # each blink must last at least 2 frames
 
         ear_values = [f['avg_ear'] for f in frames_data]
         left_ears = [f['left_ear'] for f in frames_data]
@@ -544,6 +545,9 @@ class ChallengeLivenessDetector:
                 # Transition: CLOSED -> OPEN — one blink event complete
                 is_closed = False
                 duration = i - closed_start_frame
+                if duration < MIN_BLINK_FRAMES:
+                    # Too short — noise, not a real blink
+                    continue
                 # Get minimum EAR during this blink
                 blink_ears = ear_values[closed_start_frame:i+1]
                 min_ear = float(np.min(blink_ears)) if blink_ears else ear
@@ -614,7 +618,7 @@ class ChallengeLivenessDetector:
 
         logger.info("%s frames=%d baseline_mar=%.4f", tag, n, baseline_mar)
 
-        open_threshold = max(self.MAR_OPEN_THRESHOLD, baseline_mar * 1.2)
+        open_threshold = max(self.MAR_OPEN_THRESHOLD, baseline_mar * 1.3)
         open_count = 0
         max_mar = 0.0
 
@@ -755,12 +759,13 @@ class ChallengeLivenessDetector:
         logger.info("%s frames=%d baseline=%.2f threshold=%.2f min=%.2f max=%.2f range=%.1f all_yaws=[%s]",
                      tag, n, baseline_yaw, look_threshold, min_yaw, max_yaw, yaw_range, yaw_str)
 
-        if max_yaw > look_threshold:
+        sustained_count = sum(1 for y in post_baseline if y > look_threshold)
+        if sustained_count >= self.MIN_SUSTAINED_FRAMES:
             yaw_change = max_yaw - baseline_yaw
             confidence = min(1.0, 0.3 + min(yaw_change / 15.0, 1.0) * 0.7)
-            return True, round(confidence, 3), f'Look left detected (yaw {baseline_yaw:.1f}->{max_yaw:.1f})'
+            return True, round(confidence, 3), f'Look left detected (yaw {baseline_yaw:.1f}->{max_yaw:.1f}, sustained={sustained_count} frames)'
 
-        return False, 0.0, f'No left gaze (max_yaw={max_yaw:.2f}, need>{look_threshold:.2f}, range={yaw_range:.1f})'
+        return False, 0.0, f'No left gaze (max_yaw={max_yaw:.2f}, need>{look_threshold:.2f}, sustained={sustained_count}/{self.MIN_SUSTAINED_FRAMES})'
 
     # ============================================================
     # CHALLENGE: LOOK RIGHT (gaze-based)
@@ -793,12 +798,13 @@ class ChallengeLivenessDetector:
         logger.info("%s frames=%d baseline=%.2f threshold=%.2f min=%.2f max=%.2f range=%.1f all_yaws=[%s]",
                      tag, n, baseline_yaw, look_threshold, min_yaw, max_yaw, yaw_range, yaw_str)
 
-        if min_yaw < look_threshold:
+        sustained_count = sum(1 for y in post_baseline if y < look_threshold)
+        if sustained_count >= self.MIN_SUSTAINED_FRAMES:
             yaw_change = baseline_yaw - min_yaw
             confidence = min(1.0, 0.3 + min(yaw_change / 15.0, 1.0) * 0.7)
-            return True, round(confidence, 3), f'Look right detected (yaw {baseline_yaw:.1f}->{min_yaw:.1f})'
+            return True, round(confidence, 3), f'Look right detected (yaw {baseline_yaw:.1f}->{min_yaw:.1f}, sustained={sustained_count} frames)'
 
-        return False, 0.0, f'No right gaze (min_yaw={min_yaw:.2f}, need<{look_threshold:.2f}, range={yaw_range:.1f})'
+        return False, 0.0, f'No right gaze (min_yaw={min_yaw:.2f}, need<{look_threshold:.2f}, sustained={sustained_count}/{self.MIN_SUSTAINED_FRAMES})'
 
     # ============================================================
     # CHALLENGE: LOOK UP
@@ -821,13 +827,14 @@ class ChallengeLivenessDetector:
         logger.info("%s frames=%d baseline=%.2f threshold=%.2f min_pitch=%.2f",
                      tag, n, baseline_pitch, look_up_threshold, min_pitch)
 
-        # Just need min pitch below threshold
-        if min_pitch < look_up_threshold:
+        post_baseline_pitch = pitch_values[baseline_end:]
+        sustained_count = sum(1 for p in post_baseline_pitch if p < look_up_threshold)
+        if sustained_count >= self.MIN_SUSTAINED_FRAMES:
             pitch_change = baseline_pitch - min_pitch
             confidence = min(1.0, 0.3 + min(pitch_change / 15.0, 1.0) * 0.7)
-            return True, round(confidence, 3), f'Look up detected (pitch {baseline_pitch:.1f}->{min_pitch:.1f})'
+            return True, round(confidence, 3), f'Look up detected (pitch {baseline_pitch:.1f}->{min_pitch:.1f}, sustained={sustained_count} frames)'
 
-        return False, 0.0, f'No look up (min_pitch={min_pitch:.2f}, need<{look_up_threshold:.2f})'
+        return False, 0.0, f'No look up (min_pitch={min_pitch:.2f}, need<{look_up_threshold:.2f}, sustained={sustained_count}/{self.MIN_SUSTAINED_FRAMES})'
 
     # ============================================================
     # FALLBACK (no MediaPipe)
@@ -861,15 +868,15 @@ class ChallengeLivenessDetector:
             frame_diffs.append(float(np.mean(diff)))
 
         mean_diff = float(np.mean(frame_diffs)) if frame_diffs else 0.0
-        has_movement = mean_diff > 3.0
+        has_movement = mean_diff > 8.0
 
         if has_movement:
             result['challenge_passed'] = True
-            result['confidence'] = 0.3
+            result['confidence'] = 0.25
             result['reason'] = 'Movement detected (fallback mode -- MediaPipe unavailable)'
         else:
             result['challenge_passed'] = False
-            result['confidence'] = 0.1
-            result['reason'] = f'Insufficient movement (diff={mean_diff:.3f})'
+            result['confidence'] = 0.05
+            result['reason'] = f'Insufficient movement (diff={mean_diff:.3f}, need>8.0)'
 
         return self._to_native(result)

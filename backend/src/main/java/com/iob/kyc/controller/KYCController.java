@@ -159,34 +159,86 @@ public class KYCController {
 
     @PostMapping("/{id}/document")
     public ResponseEntity<ApiResponse> uploadDocument(@PathVariable Long id, @RequestParam("document") MultipartFile file) {
+        try {
+            byte[] bytes = file.getBytes();
+            String base64 = "data:" + (file.getContentType() != null ? file.getContentType() : "image/jpeg") + ";base64," + java.util.Base64.getEncoder().encodeToString(bytes);
+            kycApplicationRepository.findById(id).ifPresent(app -> {
+                app.setDocFileBase64(base64);
+                kycApplicationRepository.save(app);
+            });
+        } catch (Exception e) { logger.warn("[KYC] Failed to save document base64: {}", e.getMessage()); }
         ApiResponse response = kycService.uploadDocument(id, file);
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }
 
     @PostMapping("/{id}/selfie")
     public ResponseEntity<ApiResponse> uploadSelfie(@PathVariable Long id, @RequestParam("selfie") MultipartFile file) {
+        try {
+            byte[] bytes = file.getBytes();
+            String base64 = "data:" + (file.getContentType() != null ? file.getContentType() : "image/jpeg") + ";base64," + java.util.Base64.getEncoder().encodeToString(bytes);
+            kycApplicationRepository.findById(id).ifPresent(app -> {
+                app.setSelfieBase64(base64);
+                kycApplicationRepository.save(app);
+            });
+        } catch (Exception e) {
+            logger.warn("[KYC] Failed to save selfie base64: {}", e.getMessage());
+        }
         ApiResponse response = kycService.uploadSelfie(id, file);
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }
 
     @PostMapping("/{id}/photo")
     public ResponseEntity<ApiResponse> uploadPhoto(@PathVariable Long id, @RequestParam("photo") MultipartFile file) {
+        try {
+            byte[] bytes = file.getBytes();
+            String base64 = "data:" + (file.getContentType() != null ? file.getContentType() : "image/jpeg") + ";base64," + java.util.Base64.getEncoder().encodeToString(bytes);
+            kycApplicationRepository.findById(id).ifPresent(app -> {
+                app.setPhotoBase64(base64);
+                kycApplicationRepository.save(app);
+            });
+        } catch (Exception e) {
+            logger.warn("[KYC] Failed to save photo base64: {}", e.getMessage());
+        }
         ApiResponse response = kycService.uploadPhoto(id, file);
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }
 
     @PostMapping("/{id}/aadhaar-front")
     public ResponseEntity<ApiResponse> uploadAadhaarFront(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
+        try {
+            byte[] bytes = file.getBytes();
+            String base64 = "data:" + (file.getContentType() != null ? file.getContentType() : "image/jpeg") + ";base64," + java.util.Base64.getEncoder().encodeToString(bytes);
+            kycApplicationRepository.findById(id).ifPresent(app -> {
+                app.setAadhaarFrontBase64(base64);
+                kycApplicationRepository.save(app);
+            });
+        } catch (Exception e) { logger.warn("[KYC] Failed to save aadhaar front base64: {}", e.getMessage()); }
         return ResponseEntity.status(200).body(kycService.uploadAadhaarFront(id, file));
     }
 
     @PostMapping("/{id}/aadhaar-back")
     public ResponseEntity<ApiResponse> uploadAadhaarBack(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
+        try {
+            byte[] bytes = file.getBytes();
+            String base64 = "data:" + (file.getContentType() != null ? file.getContentType() : "image/jpeg") + ";base64," + java.util.Base64.getEncoder().encodeToString(bytes);
+            kycApplicationRepository.findById(id).ifPresent(app -> {
+                app.setAadhaarBackBase64(base64);
+                kycApplicationRepository.save(app);
+            });
+        } catch (Exception e) { logger.warn("[KYC] Failed to save aadhaar back base64: {}", e.getMessage()); }
         return ResponseEntity.status(200).body(kycService.uploadAadhaarBack(id, file));
     }
 
     @PostMapping("/{id}/pan-card")
     public ResponseEntity<ApiResponse> uploadPanCard(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
+        try {
+            byte[] bytes = file.getBytes();
+            String base64 = "data:" + (file.getContentType() != null ? file.getContentType() : "image/jpeg") + ";base64," + java.util.Base64.getEncoder().encodeToString(bytes);
+            kycApplicationRepository.findById(id).ifPresent(app -> {
+                app.setPanCardBase64(base64);
+                kycApplicationRepository.save(app);
+            });
+        } catch (Exception e) { logger.warn("[KYC] Failed to save pan card base64: {}", e.getMessage()); }
         return ResponseEntity.status(200).body(kycService.uploadPanCard(id, file));
     }
 
@@ -203,7 +255,13 @@ public class KYCController {
         if (userId == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         return kycApplicationRepository.findByIdWithUser(id)
                 .filter(app -> app.getUser().getId().equals(userId))
-                .map(app -> serveFileField(app.getDocFilePath()))
+                .map(app -> {
+                    var resp = serveFileField(app.getDocFilePath());
+                    if (resp.getStatusCode().is4xxClientError() && app.getDocFileBase64() != null && !app.getDocFileBase64().isEmpty()) {
+                        return serveBase64(app.getDocFileBase64());
+                    }
+                    return resp;
+                })
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -213,7 +271,13 @@ public class KYCController {
         if (userId == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         return kycApplicationRepository.findByIdWithUser(id)
                 .filter(app -> app.getUser().getId().equals(userId))
-                .map(app -> serveFileField(app.getSelfieFilePath()))
+                .map(app -> {
+                    var resp = serveFileField(app.getSelfieFilePath());
+                    if (resp.getStatusCode().is4xxClientError() && app.getSelfieBase64() != null && !app.getSelfieBase64().isEmpty()) {
+                        return serveBase64(app.getSelfieBase64());
+                    }
+                    return resp;
+                })
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -221,20 +285,16 @@ public class KYCController {
     public ResponseEntity<byte[]> getApplicationPhoto(@PathVariable Long id, Authentication authentication) {
         Long userId = getUserId(authentication);
         if (userId == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        var result = kycApplicationRepository.findByIdWithUser(id)
+        return kycApplicationRepository.findByIdWithUser(id)
                 .filter(app -> app.getUser().getId().equals(userId))
                 .map(app -> {
                     var resp = serveFileField(app.getPhotoFilePath());
-                    if (resp.getStatusCode().is4xxClientError()) {
-                        logger.warn("[KYC] Photo not found for app={}, userId={}, path={}", id, userId, app.getPhotoFilePath());
+                    if (resp.getStatusCode().is4xxClientError() && app.getPhotoBase64() != null && !app.getPhotoBase64().isEmpty()) {
+                        return serveBase64(app.getPhotoBase64());
                     }
                     return resp;
                 })
-                .orElseGet(() -> {
-                    logger.warn("[KYC] Photo request failed: app={} not found or not owned by userId={}", id, userId);
-                    return ResponseEntity.notFound().build();
-                });
-        return result;
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/{id}/aadhaar-front")
@@ -243,7 +303,13 @@ public class KYCController {
         if (userId == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         return kycApplicationRepository.findByIdWithUser(id)
                 .filter(app -> app.getUser().getId().equals(userId))
-                .map(app -> serveFileField(app.getAadhaarFrontPath()))
+                .map(app -> {
+                    var resp = serveFileField(app.getAadhaarFrontPath());
+                    if (resp.getStatusCode().is4xxClientError() && app.getAadhaarFrontBase64() != null && !app.getAadhaarFrontBase64().isEmpty()) {
+                        return serveBase64(app.getAadhaarFrontBase64());
+                    }
+                    return resp;
+                })
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -253,7 +319,13 @@ public class KYCController {
         if (userId == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         return kycApplicationRepository.findByIdWithUser(id)
                 .filter(app -> app.getUser().getId().equals(userId))
-                .map(app -> serveFileField(app.getAadhaarBackPath()))
+                .map(app -> {
+                    var resp = serveFileField(app.getAadhaarBackPath());
+                    if (resp.getStatusCode().is4xxClientError() && app.getAadhaarBackBase64() != null && !app.getAadhaarBackBase64().isEmpty()) {
+                        return serveBase64(app.getAadhaarBackBase64());
+                    }
+                    return resp;
+                })
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -263,7 +335,13 @@ public class KYCController {
         if (userId == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         return kycApplicationRepository.findByIdWithUser(id)
                 .filter(app -> app.getUser().getId().equals(userId))
-                .map(app -> serveFileField(app.getPanCardPath()))
+                .map(app -> {
+                    var resp = serveFileField(app.getPanCardPath());
+                    if (resp.getStatusCode().is4xxClientError() && app.getPanCardBase64() != null && !app.getPanCardBase64().isEmpty()) {
+                        return serveBase64(app.getPanCardBase64());
+                    }
+                    return resp;
+                })
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -462,6 +540,26 @@ public class KYCController {
         } catch (Exception e) {
             logger.error("[KYC-Serve] Error serving file: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    private ResponseEntity<byte[]> serveBase64(String base64Data) {
+        try {
+            String data = base64Data;
+            String contentType = "image/jpeg";
+            if (data.startsWith("data:")) {
+                int commaIdx = data.indexOf(',');
+                if (commaIdx > 0) {
+                    contentType = data.substring(5, commaIdx);
+                    data = data.substring(commaIdx + 1);
+                }
+            }
+            byte[] bytes = java.util.Base64.getDecoder().decode(data);
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_TYPE, contentType)
+                    .body(bytes);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
         }
     }
 

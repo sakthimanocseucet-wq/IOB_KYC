@@ -162,6 +162,30 @@ public class KYCApplication {
     @Column(name = "remarks", length = 1000)
     private String remarks;
 
+    @Lob
+    @Column(name = "selfie_base64", columnDefinition = "LONGTEXT")
+    private String selfieBase64;
+
+    @Lob
+    @Column(name = "photo_base64", columnDefinition = "LONGTEXT")
+    private String photoBase64;
+
+    @Lob
+    @Column(name = "aadhaar_front_base64", columnDefinition = "LONGTEXT")
+    private String aadhaarFrontBase64;
+
+    @Lob
+    @Column(name = "aadhaar_back_base64", columnDefinition = "LONGTEXT")
+    private String aadhaarBackBase64;
+
+    @Lob
+    @Column(name = "pan_card_base64", columnDefinition = "LONGTEXT")
+    private String panCardBase64;
+
+    @Lob
+    @Column(name = "doc_file_base64", columnDefinition = "LONGTEXT")
+    private String docFileBase64;
+
     @Column(name = "re_kyc_status", length = 30)
     private String reKycStatus;
 

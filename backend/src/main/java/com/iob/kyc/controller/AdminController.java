@@ -761,32 +761,69 @@ public class AdminController {
 
     @GetMapping("/applications/{id}/selfie")
     public ResponseEntity<byte[]> getApplicationSelfie(@PathVariable Long id) {
-        return serveFileField(id, KYCApplication::getSelfieFilePath);
+        return serveFileOrBase64(id, KYCApplication::getSelfieFilePath, KYCApplication::getSelfieBase64);
     }
 
     @GetMapping("/applications/{id}/document")
     public ResponseEntity<byte[]> getApplicationDocument(@PathVariable Long id) {
-        return serveFileField(id, KYCApplication::getDocFilePath);
+        return serveFileOrBase64(id, KYCApplication::getDocFilePath, KYCApplication::getDocFileBase64);
     }
 
     @GetMapping("/applications/{id}/aadhaar-front")
     public ResponseEntity<byte[]> getAadhaarFront(@PathVariable Long id) {
-        return serveFileField(id, KYCApplication::getAadhaarFrontPath);
+        return serveFileOrBase64(id, KYCApplication::getAadhaarFrontPath, KYCApplication::getAadhaarFrontBase64);
     }
 
     @GetMapping("/applications/{id}/aadhaar-back")
     public ResponseEntity<byte[]> getAadhaarBack(@PathVariable Long id) {
-        return serveFileField(id, KYCApplication::getAadhaarBackPath);
+        return serveFileOrBase64(id, KYCApplication::getAadhaarBackPath, KYCApplication::getAadhaarBackBase64);
     }
 
     @GetMapping("/applications/{id}/pan-card")
     public ResponseEntity<byte[]> getPanCard(@PathVariable Long id) {
-        return serveFileField(id, KYCApplication::getPanCardPath);
+        return serveFileOrBase64(id, KYCApplication::getPanCardPath, KYCApplication::getPanCardBase64);
     }
 
     @GetMapping("/applications/{id}/photo")
     public ResponseEntity<byte[]> getApplicationPhoto(@PathVariable Long id) {
-        return serveFileField(id, KYCApplication::getPhotoFilePath);
+        return serveFileOrBase64(id, KYCApplication::getPhotoFilePath, KYCApplication::getPhotoBase64);
+    }
+
+    private ResponseEntity<byte[]> serveFileOrBase64(Long id,
+            java.util.function.Function<KYCApplication, String> fileGetter,
+            java.util.function.Function<KYCApplication, String> base64Getter) {
+        return kycApplicationRepository.findById(id)
+                .map(app -> {
+                    ResponseEntity<byte[]> resp = serveFileField(id, fileGetter);
+                    if (resp.getStatusCode().is4xxClientError() || resp.getStatusCode().is5xxServerError()) {
+                        String b64 = base64Getter.apply(app);
+                        if (b64 != null && !b64.isEmpty()) {
+                            return serveBase64(b64);
+                        }
+                    }
+                    return resp;
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    private ResponseEntity<byte[]> serveBase64(String base64Data) {
+        try {
+            String data = base64Data;
+            String contentType = "image/jpeg";
+            if (data.startsWith("data:")) {
+                int commaIdx = data.indexOf(',');
+                if (commaIdx > 0) {
+                    contentType = data.substring(5, commaIdx);
+                    data = data.substring(commaIdx + 1);
+                }
+            }
+            byte[] bytes = java.util.Base64.getDecoder().decode(data);
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_TYPE, contentType)
+                    .body(bytes);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     private ResponseEntity<byte[]> serveFileField(Long id, java.util.function.Function<KYCApplication, String> fieldGetter) {

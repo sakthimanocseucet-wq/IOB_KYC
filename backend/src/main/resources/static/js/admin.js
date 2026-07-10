@@ -420,6 +420,7 @@ function renderDashboard() {
         var reKycBadge = app.applicationType === 'RE_KYC' ? ' <span class="badge badge-info" style="font-size:10px;padding:2px 8px;background:var(--primary,#3b82f6);color:white">Re-KYC</span>' : '';
         return '<tr>' +
             '<td style="cursor:pointer" onclick="viewApplication(' + app.id + ')"><strong>' + app.name + '</strong>' + reKycBadge + '<br><small style="color:var(--gray-500)">' + app.date + '</small></td>' +
+            '<td style="cursor:pointer" onclick="viewApplication(' + app.id + ')"><small>' + (app.branchId || 'N/A') + '</small></td>' +
             '<td style="cursor:pointer" onclick="viewApplication(' + app.id + ')">' + app.docType + '</td>' +
             '<td style="cursor:pointer" onclick="viewApplication(' + app.id + ')">' +
                 '<div class="risk-bar">' +

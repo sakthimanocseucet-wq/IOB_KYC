@@ -159,7 +159,13 @@
 
                     var fmtDate = function(d) {
                         if (!d) return '';
-                        try { return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + new Date(d).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }); } catch(e) { return ''; }
+                        try {
+                            var dateStr = d;
+                            if (!dateStr.endsWith('Z') && !dateStr.includes('+') && !dateStr.endsWith('GMT')) {
+                                dateStr = dateStr + 'Z';
+                            }
+                            return new Date(dateStr).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }) + ' ' + new Date(dateStr).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
+                        } catch(e) { return ''; }
                     };
 
                     var stages = [];

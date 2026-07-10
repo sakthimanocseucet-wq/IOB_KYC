@@ -1530,19 +1530,15 @@ function animateMatchPercent(target) {
 
 async function calculateFinalRiskScore() {
     let riskScore = 15;
-    try {
-        const response = await fetch(AI_API + '/risk-score', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (typeof getAuthToken === 'function' ? getAuthToken() : '') },
-            body: JSON.stringify({
-                face_data: { match_percent: kycData.faceMatchPercent, face_detected: kycData.faceMatchPercent > 0 },
-                device_data: { user_agent: navigator.userAgent, platform: navigator.platform }
-            })
-        });
-        const result = await response.json();
-        if (result.success && result.data) riskScore = result.data.risk_score || 15;
-    } catch (err) {
-        riskScore = kycData.faceMatchPercent < 85 ? 25 : 10;
+    var fm = kycData.faceMatchPercent || 0;
+    if (fm >= 85) {
+        riskScore = 10;
+    } else if (fm >= 70) {
+        riskScore = 25;
+    } else if (fm >= 50) {
+        riskScore = 40;
+    } else {
+        riskScore = 60;
     }
     kycData.riskScore = riskScore;
     const fill = document.getElementById('riskScoreFill');
@@ -1594,6 +1590,7 @@ async function submitKYCApplication(showLoading) {
                 mobile: kycData.mobile || '',
                 email: kycData.email || '',
                 accountType: kycData.accountType || 'savings',
+                branch: ocr.branch || '',
                 riskScore: kycData.riskScore,
                 faceMatchPercent: kycData.faceMatchPercent,
                 ipAddress: getClientIP(),

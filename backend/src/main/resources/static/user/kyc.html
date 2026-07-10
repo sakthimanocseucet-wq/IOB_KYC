@@ -356,7 +356,72 @@
     </script>
     <script src="../js/main.js?v=swipe2"></script>
     <script src="../js/auth.js?v=10"></script>
-    <script src="../js/kyc.js?v=15"></script>
+    <script src="../js/kyc.js?v=16"></script>
+    <script>
+    if (typeof handleDocSelect === 'undefined') {
+        window.handleDocSelect = function(input, type) {
+            var file = input.files[0];
+            if (!file) return;
+            var map = {
+                aadhaar: { uploadId: 'aadhaarUpload', nameId: 'aadhaarFileName', removeId: 'aadhaarRemove', key: 'aadhaarFile' },
+                pan:     { uploadId: 'panUpload',     nameId: 'panFileName',     removeId: 'panRemove',     key: 'panFile' },
+                photo:   { uploadId: 'photoUpload',   nameId: 'photoFileName',   removeId: 'photoRemove',   key: 'profilePhoto' }
+            };
+            var m = map[type];
+            if (!m) return;
+            if (typeof kycData !== 'undefined') kycData[m.key] = file;
+            var uploadEl = document.getElementById(m.uploadId);
+            var nameEl = document.getElementById(m.nameId);
+            var removeEl = document.getElementById(m.removeId);
+            if (nameEl) { nameEl.textContent = '\u2705 ' + file.name; nameEl.style.display = 'block'; }
+            if (removeEl) removeEl.style.display = 'inline-block';
+            if (uploadEl) {
+                uploadEl.classList.add('uploaded');
+                uploadEl.style.borderColor = '#22c55e';
+                uploadEl.style.background = 'rgba(34, 197, 94, 0.06)';
+                var icon = uploadEl.querySelector('.upload-icon');
+                var p = uploadEl.querySelector('p');
+                var sm = uploadEl.querySelector('small');
+                if (icon) icon.style.display = 'none';
+                if (p) p.style.display = 'none';
+                if (sm) sm.style.display = 'none';
+            }
+            input.style.display = 'none';
+            if (typeof checkUploadReady === 'function') checkUploadReady();
+        };
+    }
+    if (typeof removeFile === 'undefined') {
+        window.removeFile = function(type) {
+            var map = {
+                aadhaar: { uploadId: 'aadhaarUpload', nameId: 'aadhaarFileName', removeId: 'aadhaarRemove', inputId: 'aadhaarFile', key: 'aadhaarFile' },
+                pan:     { uploadId: 'panUpload',     nameId: 'panFileName',     removeId: 'panRemove',     inputId: 'panFile',     key: 'panFile' },
+                photo:   { uploadId: 'photoUpload',   nameId: 'photoFileName',   removeId: 'photoRemove',   inputId: 'profilePhoto', key: 'profilePhoto' }
+            };
+            var m = map[type];
+            if (!m) return;
+            if (typeof kycData !== 'undefined') kycData[m.key] = null;
+            var inputEl = document.getElementById(m.inputId);
+            var uploadEl = document.getElementById(m.uploadId);
+            var nameEl = document.getElementById(m.nameId);
+            var removeEl = document.getElementById(m.removeId);
+            if (inputEl) { inputEl.value = ''; inputEl.style.display = ''; }
+            if (nameEl) { nameEl.textContent = ''; nameEl.style.display = 'none'; }
+            if (removeEl) removeEl.style.display = 'none';
+            if (uploadEl) {
+                uploadEl.classList.remove('uploaded');
+                uploadEl.style.borderColor = '';
+                uploadEl.style.background = '';
+                var icon = uploadEl.querySelector('.upload-icon');
+                var p = uploadEl.querySelector('p');
+                var sm = uploadEl.querySelector('small');
+                if (icon) icon.style.display = '';
+                if (p) p.style.display = '';
+                if (sm) sm.style.display = '';
+            }
+            if (typeof checkUploadReady === 'function') checkUploadReady();
+        };
+    }
+    </script>
     <script>
         if (window.__rekycMode) {
             if (typeof goToStep === 'function') {

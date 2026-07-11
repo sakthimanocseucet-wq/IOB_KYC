@@ -440,7 +440,7 @@ async function startOCR() {
         panNumber: data.pan_number || '',
         address: data.address || '',
         addressComponents: data.address_components || null,
-        branch: data.branch || kycData.ocrData.branch || ''
+        branch: data.branch || ''
     };
     document.getElementById('ocrName').value = kycData.ocrData.name;
     document.getElementById('ocrDob').value = kycData.ocrData.dob;

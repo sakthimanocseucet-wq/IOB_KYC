@@ -311,9 +311,12 @@ public class AdminController {
             // For now, show all applications (managers can see all)
             filtered = applications.getContent();
         } else {
-            // OFFICER: only applications assigned to them or unassigned
+            // OFFICER: pending/unassigned apps + apps assigned to them
             filtered = applications.getContent().stream()
-                    .filter(app -> app.getReviewedBy() == null
+                    .filter(app -> app.getStatus() == KYCApplication.Status.PENDING
+                            || app.getStatus() == KYCApplication.Status.UNDER_REVIEW
+                            || app.getStatus() == KYCApplication.Status.DRAFT
+                            || app.getReviewedBy() == null
                             || employeeId.equals(app.getReviewedBy().getEmployeeId()))
                     .collect(Collectors.toList());
         }
@@ -548,8 +551,11 @@ public class AdminController {
                         // For now, managers can access any application
                         return ResponseEntity.ok((Object) app);
                     } else {
-                        // OFFICER: only assigned or unassigned applications
-                        if (app.getReviewedBy() == null
+                        // OFFICER: pending/unassigned + assigned to them
+                        if (app.getStatus() == KYCApplication.Status.PENDING
+                                || app.getStatus() == KYCApplication.Status.UNDER_REVIEW
+                                || app.getStatus() == KYCApplication.Status.DRAFT
+                                || app.getReviewedBy() == null
                                 || employeeId.equals(app.getReviewedBy().getEmployeeId())) {
                             return ResponseEntity.ok((Object) app);
                         }
@@ -1138,7 +1144,7 @@ public class AdminController {
     }
 
     @DeleteMapping("/applications/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> deleteKycApplication(@PathVariable Long id, HttpServletRequest request) {
         try {
             KYCApplication app = kycApplicationRepository.findById(id).orElse(null);

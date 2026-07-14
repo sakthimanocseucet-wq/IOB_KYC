@@ -43,9 +43,14 @@
             <img src="../assets/logo.png" alt="IOB" class="iob-logo" height="36">
             <span>Indian Overseas Bank - Account Details</span>
         </div>
-        <div class="nav-right"><div class="nav-links">
+        <div class="hamburger" onclick="toggleMobileMenu()">
+            <span></span><span></span><span></span>
+        </div>
+        <div class="nav-right"><div class="nav-links" id="navLinks">
             <a href="dashboard.html">Dashboard</a>
             <a href="kyc-review.html">KYC Review</a>
+            <a href="account-details.html" class="active">Account Details</a>
+            <span id="userInfo" style="color:var(--gray-600);font-size:13px;font-weight:600;padding:6px 10px;background:var(--gray-100);border-radius:6px;white-space:nowrap"></span>
             <a href="#" onclick="handleAdminLogout(); return false;">Logout</a>
         </div></div>
     </nav>

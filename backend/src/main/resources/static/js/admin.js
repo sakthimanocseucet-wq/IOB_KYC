@@ -71,6 +71,19 @@ document.addEventListener('DOMContentLoaded', function() {
         el.style.display = (role === 'officer') ? '' : 'none';
     });
 
+    // Show logged-in user info in top bar
+    var userInfoEl = document.getElementById('userInfo');
+    if (userInfoEl && user) {
+        var roleBadgeColors = { admin: '#dc2626', manager: '#f59e0b', officer: '#3b82f6' };
+        var roleBadgeBg = { admin: 'rgba(220,38,38,0.1)', manager: 'rgba(245,158,11,0.1)', officer: 'rgba(59,130,246,0.1)' };
+        var displayName = user.employeeName || user.name || user.employeeId || 'Staff';
+        var roleLabel = (role || 'admin').toUpperCase();
+        var badgeColor = roleBadgeColors[role] || '#6b7280';
+        var badgeBg = roleBadgeBg[role] || 'rgba(107,114,128,0.1)';
+        userInfoEl.innerHTML = '<span style="margin-right:6px">' + displayName + '</span>' +
+            '<span style="background:' + badgeBg + ';color:' + badgeColor + ';padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;text-transform:uppercase">' + roleLabel + '</span>';
+    }
+
     if (document.getElementById('kycTableBody')) {
         loadApplicationsFromAPI();
         refreshInterval = setInterval(refreshDashboard, 30000);
@@ -432,7 +445,7 @@ function renderDashboard() {
             '</td>' +
             '<td style="cursor:pointer" onclick="viewApplication(' + app.id + ')"><span class="badge ' + statusBadge + '">' + statusLabel + '</span></td>' +
             '<td>' +
-                '<button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteKycApplication(' + app.id + ')" title="Delete Application">&#128465;</button>' +
+                ((function() { var u = getUser(); return u && u.role === 'admin'; })() ? '<button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteKycApplication(' + app.id + ')" title="Delete Application">&#128465;</button>' : '') +
             '</td>' +
         '</tr>';
     }).join('');

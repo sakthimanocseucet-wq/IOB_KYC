@@ -77,7 +77,8 @@ class MiniFASNetDetector:
 
     INPUT_SIZE = (80, 80)
     CROP_MARGIN = 2.7
-    SPOOF_THRESHOLD = 0.45  # raised — stricter to catch screen/print attacks
+    SPOOF_THRESHOLD = 0.55  # stricter — rejects faces where liveness score is below 55%
+    SPOOF_CONFIDENCE_THRESHOLD = 0.28  # model must favor spoof by at least 28% to trigger
 
     def __init__(self):
         self.session = None
@@ -280,8 +281,8 @@ class MiniFASNetDetector:
             liveness_score = live_prob
             return {
                 'live_prob': round(live_prob, 4),
-                'print_prob': round(spoof_prob * 0.5, 4),
-                'replay_prob': round(spoof_prob * 0.5, 4),
+                'print_prob': round(spoof_prob, 4),
+                'replay_prob': round(spoof_prob, 4),
                 'liveness_score': round(liveness_score, 4),
             }
         elif self.session is not None:
@@ -406,21 +407,41 @@ class MiniFASNetDetector:
 
         probs = self._run_inference(face_crop)
 
-        # Only trust the model when it's confident about a specific attack type.
-        # If print_prob ≈ replay_prob ≈ 0.5, the model is confused (miscalibrated)
-        # and should not be used to reject a real face.
+        # Detection strategy:
+        # 1. If liveness score is very low (< 0.40), always flag as spoof regardless of model confidence
+        # 2. If liveness score is below SPOOF_THRESHOLD (0.55) AND model shows spoof倾向, flag as spoof
+        # 3. If model is uncertain but liveness is borderline, still flag (err on side of security)
         max_spoof_prob = max(probs['print_prob'], probs['replay_prob'])
-        model_confident = max_spoof_prob > 0.50  # model must clearly favor one attack type
-        spoof_detected = model_confident and (probs['liveness_score'] < self.SPOOF_THRESHOLD)
+        combined_spoof = probs['print_prob'] + probs['replay_prob']
+
+        # Very low liveness = definitely spoof
+        very_low_liveness = probs['liveness_score'] < 0.40
+
+        # Model confident about spoof (lowered threshold from 0.50)
+        model_confident = max_spoof_prob > self.SPOOF_CONFIDENCE_THRESHOLD or combined_spoof > 0.50
+
+        # Spoof detected if:
+        # - liveness is very low (< 0.40), OR
+        # - model is confident AND liveness below threshold, OR
+        # - combined spoof probability is high (> 0.60) even if individual classes are split
+        spoof_detected = (
+            very_low_liveness
+            or (model_confident and probs['liveness_score'] < self.SPOOF_THRESHOLD)
+            or combined_spoof > 0.60
+        )
 
         reasons = []
-        if not model_confident:
+        if very_low_liveness:
+            reasons.append(f"Very low liveness score ({probs['liveness_score']:.2f} < 0.40)")
+        if not model_confident and not very_low_liveness:
             reasons.append(f"Anti-spoof model uncertain (print={probs['print_prob']:.2f}, replay={probs['replay_prob']:.2f})")
-        if probs['print_prob'] > 0.65:
+        if probs['print_prob'] > 0.55:
             reasons.append(f"Print attack detected (p={probs['print_prob']:.2f})")
-        if probs['replay_prob'] > 0.65:
+        if probs['replay_prob'] > 0.55:
             reasons.append(f"Replay attack detected (p={probs['replay_prob']:.2f})")
-        if spoof_detected:
+        if combined_spoof > 0.60:
+            reasons.append(f"Combined spoof probability high ({combined_spoof:.2f})")
+        if spoof_detected and not very_low_liveness:
             reasons.append(f"Liveness score {probs['liveness_score']:.2f} < {self.SPOOF_THRESHOLD}")
 
         return {
@@ -476,18 +497,69 @@ class MiniFASNetDetector:
         avg_replay = float(np.mean(replay_probs))
         avg_live = float(np.mean(live_probs))
 
-        # Majority voting: spoof detected only if >= 50% of frames say spoof
+        # Majority voting: spoof detected if >= 50% of frames say spoof
         num_spoof = sum(1 for r in results if r['spoofDetected'])
         any_spoof = (num_spoof * 2) >= len(results)
+
+        # Screen replay detection heuristic:
+        # Real faces have micro-movements between frames. Screen replays are
+        # more static (same face position, same lighting, same pixel patterns).
+        screen_replay_suspect = False
+        frame_brightnesses = []
+        if len(frames) >= 3:
+            decoded_imgs = []
+            for frame in frames:
+                try:
+                    if isinstance(frame, str) and ',' in frame:
+                        frame = frame.split(',')[1]
+                    img_bytes = base64.b64decode(frame)
+                    nparr = np.frombuffer(img_bytes, np.uint8)
+                    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                    if img is not None:
+                        decoded_imgs.append(img)
+                        frame_brightnesses.append(float(np.mean(img)))
+                except Exception:
+                    continue
+
+            if len(decoded_imgs) >= 3:
+                # Check inter-frame difference — screens are more static
+                diffs = []
+                for i in range(1, min(len(decoded_imgs), 8)):
+                    diff = cv2.absdiff(
+                        cv2.cvtColor(decoded_imgs[i-1], cv2.COLOR_BGR2GRAY) if len(decoded_imgs[i-1].shape) == 3 else decoded_imgs[i-1],
+                        cv2.cvtColor(decoded_imgs[i], cv2.COLOR_BGR2GRAY) if len(decoded_imgs[i].shape) == 3 else decoded_imgs[i]
+                    )
+                    diffs.append(float(np.mean(diff)))
+
+                if diffs:
+                    avg_diff = float(np.mean(diffs))
+                    # Real face: avg_diff typically 3-15 (micro-movements)
+                    # Screen replay: avg_diff typically < 2 (very static)
+                    if avg_diff < 1.5 and len(diffs) >= 3:
+                        screen_replay_suspect = True
+
+                # Check brightness uniformity — screens have very uniform brightness
+                if frame_brightnesses:
+                    brightness_std = float(np.std(frame_brightnesses))
+                    # Real face: brightness varies (slight head movements change lighting)
+                    # Screen: brightness is very consistent (std < 2)
+                    if brightness_std < 1.5 and avg_diff < 2.0:
+                        screen_replay_suspect = True
 
         reasons = []
         if any_spoof:
             spoof_frames = [i for i, r in enumerate(results) if r['spoofDetected']]
             reasons.append(f"Spoof detected in frames: {spoof_frames}")
-        if avg_print > 0.4:
+        if avg_print > 0.35:
             reasons.append(f"Average print attack probability: {avg_print:.2f}")
-        if avg_replay > 0.4:
+        if avg_replay > 0.35:
             reasons.append(f"Average replay attack probability: {avg_replay:.2f}")
+        if screen_replay_suspect:
+            reasons.append("Screen replay suspected (low inter-frame variation)")
+            # If model already shows borderline liveness AND screen suspect, flag it
+            if avg_liveness < 0.65:
+                any_spoof = True
+                reasons.append(f"Screen replay confirmed (liveness={avg_liveness:.2f} < 0.65 with static frames)")
 
         return {
             'spoofDetected': any_spoof,
@@ -497,6 +569,7 @@ class MiniFASNetDetector:
             'live_prob': round(avg_live, 4),
             'frames_analyzed': len(frames),
             'available': True,
+            'screen_replay_suspect': screen_replay_suspect,
             'reason': '; '.join(reasons) if reasons else 'Live face verified across all frames',
             'processing_time_ms': round((time.time() - start) * 1000, 1),
         }

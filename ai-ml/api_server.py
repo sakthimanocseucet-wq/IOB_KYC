@@ -528,12 +528,11 @@ def detailed_verify():
                 spoofDetected = True
                 spoof_reason = f"Multi-frame: {_safe_get(multi_frame_result, 'reason', spoof_reason)}"
 
-    # Override anti-spoof if 4-step challenge session passed with high liveness
-    # The interactive challenge is a stronger liveness signal than a single-image classifier
-    if spoofDetected and session_liveness_confirmed and liveness_confidence >= 0.6:
-        logger.info('[VERIFY] Overriding anti-spoof: session liveness confirmed (conf=%.3f)', liveness_confidence)
-        spoofDetected = False
-        spoof_reason = f"Override: challenge session passed ({liveness_confidence:.2f})"
+    # Anti-spoof is NEVER overridden by liveness challenges.
+    # A person holding a phone with someone else's face video can still
+    # blink and move their head, making challenge-response ineffective
+    # against screen replay attacks. Only the anti-spoof model can
+    # detect printed photos and screen replays.
 
     # ============================================================
     # 4. DEEPFAKE (EfficientNet-B2)

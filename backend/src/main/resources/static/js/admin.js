@@ -689,7 +689,6 @@ function viewApplication(id) {
             (app.applicationType === 'RE_KYC' ? '<button class="btn btn-sm btn-outline" onclick="compareReKyc(' + app.id + ')" style="color:var(--warning);border-color:var(--warning)">&#128260; Compare</button>' : '') +
             ((function() { var u = getUser(); return u && (u.role === 'admin' || u.role === 'manager'); })() ? '<button class="btn btn-sm btn-danger" onclick="rejectApplication(' + app.id + ')">&#10060; Reject</button>' : '') +
             ((function() { var u = getUser(); return u && (u.role === 'admin' || u.role === 'manager'); })() ? '<button class="btn btn-sm btn-success" onclick="approveApplication(' + app.id + ')">&#9989; Approve</button>' : '') +
-            ((function() { var u = getUser(); return u && u.role === 'officer'; })() ? '<button class="btn btn-sm btn-primary" onclick="submitForReview(' + app.id + ')">&#128221; Submit for Review</button>' : '') +
         '</div>';
 
     modal.classList.add('active');
@@ -886,9 +885,9 @@ function loadReviewList() {
                 '<small style="color:var(--gray-500)">Risk Score</small>' +
             '</div>' +
             '<div class="review-actions">' +
-                ((function() { var u = getUser(); return u && u.role !== 'admin'; })() ? '<button class="btn btn-sm btn-success" onclick="quickApprove(' + app.id + ')">&#10003;</button>' : '') +
+                ((function() { var u = getUser(); return u && (u.role === 'admin' || u.role === 'manager'); })() ? '<button class="btn btn-sm btn-success" onclick="quickApprove(' + app.id + ')">&#10003;</button>' : '') +
                 '<button class="btn btn-sm btn-warning" onclick="viewApplication(' + app.id + ')">&#128065;</button>' +
-                ((function() { var u = getUser(); return u && u.role !== 'admin'; })() ? '<button class="btn btn-sm btn-danger" onclick="quickReject(' + app.id + ')">&#10007;</button>' : '') +
+                ((function() { var u = getUser(); return u && (u.role === 'admin' || u.role === 'manager'); })() ? '<button class="btn btn-sm btn-danger" onclick="quickReject(' + app.id + ')">&#10007;</button>' : '') +
             '</div>' +
         '</div>';
     }).join('');

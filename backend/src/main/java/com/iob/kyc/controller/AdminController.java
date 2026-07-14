@@ -597,11 +597,14 @@ public class AdminController {
                                     && oldApp.getStatus() == KYCApplication.Status.APPROVED
                                     && oldApp.getApplicationType() != KYCApplication.ApplicationType.RE_KYC) {
                                 oldApp.setStatus(KYCApplication.Status.SUPERSEDED);
+                                oldApp.setReKycStatus("COMPLETED");
                                 oldApp.setReviewNotes("Superseded by Re-KYC application " + app.getApplicationRef());
                                 kycApplicationRepository.save(oldApp);
                                 break;
                             }
                         }
+                        app.setReKycStatus("APPROVED");
+                        kycApplicationRepository.save(app);
                     }
 
                     User user = app.getUser();
@@ -651,6 +654,9 @@ public class AdminController {
                     if (body != null && body.containsKey("notes")) {
                         notes = body.get("notes");
                         app.setReviewNotes(notes);
+                    }
+                    if (app.getApplicationType() == KYCApplication.ApplicationType.RE_KYC) {
+                        app.setReKycStatus("REJECTED");
                     }
                     kycApplicationRepository.save(app);
 

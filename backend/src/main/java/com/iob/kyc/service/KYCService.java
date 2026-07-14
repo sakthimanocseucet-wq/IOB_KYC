@@ -81,9 +81,11 @@ public class KYCService {
                     .ocrAddress(request.ocrAddress())
                     .mobile(request.mobile())
                     .email(request.email())
+                    .gender(request.gender())
                     .ipAddress(request.ipAddress())
                     .device(device != null ? device : "Unknown Device")
                     .location("India")
+                    .reKycStatus(appType == KYCApplication.ApplicationType.RE_KYC ? "PENDING" : null)
                     .status(KYCApplication.Status.PENDING)
                     .submittedAt(LocalDateTime.now())
                     .build();
@@ -96,6 +98,9 @@ public class KYCService {
             application.setOcrAddress(request.ocrAddress());
             application.setMobile(request.mobile());
             application.setEmail(request.email());
+            if (request.gender() != null && !request.gender().isEmpty()) {
+                application.setGender(request.gender());
+            }
             application.setIpAddress(request.ipAddress());
             application.setDevice(device != null ? device : "Unknown Device");
             application.setSubmittedAt(LocalDateTime.now());
@@ -162,6 +167,10 @@ public class KYCService {
         if (appType == KYCApplication.ApplicationType.RE_KYC && request.existingAppId() != null) {
             KYCApplication currentApp = application;
             kycApplicationRepository.findById(request.existingAppId()).ifPresent(oldApp -> {
+                // Mark old app as re-KYC initiated
+                oldApp.setReKycStatus("INITIATED");
+                kycApplicationRepository.save(oldApp);
+
                 boolean updated = false;
                 if (currentApp.getAadhaarFrontPath() == null && oldApp.getAadhaarFrontPath() != null) {
                     currentApp.setAadhaarFrontPath(oldApp.getAadhaarFrontPath());

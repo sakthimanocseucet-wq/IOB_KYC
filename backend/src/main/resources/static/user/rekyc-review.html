@@ -110,6 +110,15 @@
                     <input type="email" id="editEmail" placeholder="email@example.com">
                 </div>
                 <div class="editable-field">
+                    <label>Gender</label>
+                    <select id="editGender" style="width:100%;padding:10px 12px;border:1px solid var(--gray-300,#d1d5db);border-radius:8px;font-size:14px;background:var(--white,#fff);">
+                        <option value="">Select gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="editable-field">
                     <label>Account Type</label>
                     <input type="text" id="editAccountType" value="Savings" readonly style="background:#f9fafb;cursor:default">
                 </div>
@@ -296,6 +305,7 @@
                         else { window._pendingBranchValue = app.branchId; }
                     }
                     if (app.accountType) document.getElementById('editAccountType').value = app.accountType.charAt(0) + app.accountType.slice(1).toLowerCase();
+                    if (app.gender) document.getElementById('editGender').value = app.gender;
 
                     document.getElementById('reviewLoading').style.display = 'none';
                     document.getElementById('reviewContent').style.display = 'block';
@@ -362,6 +372,7 @@
                             else { window._pendingBranchValue = app.branchId; }
                         }
                         if (app.accountType) document.getElementById('editAccountType').value = app.accountType.charAt(0) + app.accountType.slice(1).toLowerCase();
+                        if (app.gender) document.getElementById('editGender').value = app.gender;
 
                         document.getElementById('reviewLoading').style.display = 'none';
                         document.getElementById('reviewContent').style.display = 'block';
@@ -537,6 +548,7 @@
                 address: document.getElementById('editAddress').value.trim(),
                 mobile: document.getElementById('editMobile').value.trim(),
                 email: document.getElementById('editEmail').value.trim(),
+                gender: document.getElementById('editGender').value,
                 accountType: document.getElementById('editAccountType').value,
                 branch: document.getElementById('editBranch').value,
                 remarks: document.getElementById('editRemarks').value.trim()
@@ -569,6 +581,7 @@
                     ocrAddress: details.address,
                     mobile: details.mobile,
                     email: details.email,
+                    gender: details.gender,
                     accountType: details.accountType,
                     branch: details.branch,
                     applicationType: 'RE_KYC'

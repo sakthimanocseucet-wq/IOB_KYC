@@ -93,9 +93,13 @@
                         <label>PAN Number</label>
                         <span id="rekycPan">--</span>
                     </div>
-                    <div class="bank-detail-item" style="grid-column:1/-1">
+                    <div class="bank-detail-item">
                         <label>Address</label>
                         <span id="rekycAddress">--</span>
+                    </div>
+                    <div class="bank-detail-item">
+                        <label>Gender</label>
+                        <span id="rekycGender">--</span>
                     </div>
                 </div>
             </div>
@@ -236,6 +240,18 @@
                     }
                     approvedApp = found;
                     localStorage.setItem('kycData', JSON.stringify(found));
+
+                    // For RE_KYC apps, fetch all apps to find old APPROVED app's face/liveness data
+                    if (found.applicationType === 'RE_KYC' && (!found.faceMatchPercentage || parseFloat(String(found.faceMatchPercentage)) === 0)) {
+                        for (var j = 0; j < apps.length; j++) {
+                            if (apps[j].status === 'APPROVED' && apps[j].id !== found.id && apps[j].faceMatchPercentage) {
+                                found.faceMatchPercentage = apps[j].faceMatchPercentage;
+                                found.livenessPassed = apps[j].livenessPassed;
+                                break;
+                            }
+                        }
+                    }
+
                     renderDetails(found);
                     document.getElementById('rekycLoading').style.display = 'none';
                     document.getElementById('rekycContent').style.display = '';
@@ -277,14 +293,18 @@
             document.getElementById('rekycAadhaar').textContent = app.ocrIdNumber || '--';
             document.getElementById('rekycPan').textContent = app.ocrPanNumber || '--';
             document.getElementById('rekycAddress').textContent = app.ocrAddress || '--';
+            document.getElementById('rekycGender').textContent = app.gender || '--';
 
             if (app.ocrDob) {
                 var d = new Date(app.ocrDob);
                 document.getElementById('rekycDob').textContent = d.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
             }
 
-            document.getElementById('rekycFaceMatch').textContent = app.faceMatchPercentage ? app.faceMatchPercentage + '%' : '--';
-            document.getElementById('rekycLiveness').textContent = app.livenessPassed ? 'Passed' : 'Failed';
+            var faceMatchVal = app.faceMatchPercentage ? parseFloat(String(app.faceMatchPercentage)) : 0;
+            var livenessVal = !!app.livenessPassed;
+            document.getElementById('rekycFaceMatch').textContent = faceMatchVal > 0 ? faceMatchVal.toFixed(1) + '%' : '--';
+            document.getElementById('rekycLiveness').textContent = livenessVal ? 'Passed' : 'Failed';
+            document.getElementById('rekycRiskLevel').textContent = app.riskLevel || 'LOW';
             document.getElementById('rekycRiskLevel').textContent = app.riskLevel || 'LOW';
             document.getElementById('rekycAppType').textContent = app.applicationType || 'NORMAL';
             document.getElementById('rekycStatus').textContent = app.status || '--';

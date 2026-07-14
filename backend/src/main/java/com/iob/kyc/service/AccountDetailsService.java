@@ -175,7 +175,19 @@ public class AccountDetailsService {
         // KYC details
         Map<String, Object> kycDetails = new HashMap<>();
         kycDetails.put("kycStatus", app.getStatus() != null ? app.getStatus().name() : "DRAFT");
-        kycDetails.put("reKycStatus", app.getReKycStatus() != null ? app.getReKycStatus() : "N/A");
+        String reKycStatus = app.getReKycStatus();
+        // If reKycStatus is not set, check if there's a newer RE_KYC app from this user
+        if ((reKycStatus == null || reKycStatus.isEmpty()) && app.getUser() != null) {
+            List<KYCApplication> userApps = kycApplicationRepository.findByUserIdOrderByIdDesc(app.getUser().getId());
+            for (KYCApplication otherApp : userApps) {
+                if (otherApp.getId() != app.getId()
+                        && otherApp.getApplicationType() == KYCApplication.ApplicationType.RE_KYC) {
+                    reKycStatus = otherApp.getReKycStatus() != null ? otherApp.getReKycStatus() : "INITIATED";
+                    break;
+                }
+            }
+        }
+        kycDetails.put("reKycStatus", (reKycStatus != null && !reKycStatus.isEmpty()) ? reKycStatus : "N/A");
         kycDetails.put("applicationId", app.getId());
         kycDetails.put("applicationRef", app.getApplicationRef());
         kycDetails.put("submittedAt", app.getSubmittedAt());

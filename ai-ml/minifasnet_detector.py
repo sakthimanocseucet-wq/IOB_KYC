@@ -282,7 +282,7 @@ class MiniFASNetDetector:
             return {
                 'live_prob': round(live_prob, 4),
                 'print_prob': round(spoof_prob, 4),
-                'replay_prob': round(spoof_prob, 4),
+                'replay_prob': 0.0,  # binary model can't distinguish print vs replay
                 'liveness_score': round(liveness_score, 4),
             }
         elif self.session is not None:

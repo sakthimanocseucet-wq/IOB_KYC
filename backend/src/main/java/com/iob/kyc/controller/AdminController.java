@@ -306,19 +306,11 @@ public class AdminController {
             // ADMIN sees ALL applications
             filtered = applications.getContent();
         } else if ("MANAGER".equals(employeeRole)) {
-            // MANAGER sees unassigned or assigned to their branch
-            // TODO: Implement branch-based filtering once branch assignment is fully implemented
-            // For now, show all applications (managers can see all)
+            // MANAGER sees all applications (branch filtering TODO)
             filtered = applications.getContent();
         } else {
-            // OFFICER: pending/unassigned apps + apps assigned to them
-            filtered = applications.getContent().stream()
-                    .filter(app -> app.getStatus() == KYCApplication.Status.PENDING
-                            || app.getStatus() == KYCApplication.Status.UNDER_REVIEW
-                            || app.getStatus() == KYCApplication.Status.DRAFT
-                            || app.getReviewedBy() == null
-                            || employeeId.equals(app.getReviewedBy().getEmployeeId()))
-                    .collect(Collectors.toList());
+            // OFFICER: sees all applications (action-level RBAC restricts approve/reject/delete)
+            filtered = applications.getContent();
         }
 
         Map<String, Object> response = new HashMap<>();
@@ -551,16 +543,8 @@ public class AdminController {
                         // For now, managers can access any application
                         return ResponseEntity.ok((Object) app);
                     } else {
-                        // OFFICER: pending/unassigned + assigned to them
-                        if (app.getStatus() == KYCApplication.Status.PENDING
-                                || app.getStatus() == KYCApplication.Status.UNDER_REVIEW
-                                || app.getStatus() == KYCApplication.Status.DRAFT
-                                || app.getReviewedBy() == null
-                                || employeeId.equals(app.getReviewedBy().getEmployeeId())) {
-                            return ResponseEntity.ok((Object) app);
-                        }
-                        return ResponseEntity.status(403).body((Object) Map.of(
-                                "success", false, "message", "Access denied: not assigned to this application"));
+                        // OFFICER: can view any application (action-level RBAC restricts approve/reject/delete)
+                        return ResponseEntity.ok((Object) app);
                     }
                 })
                 .orElse(ResponseEntity.notFound().build());

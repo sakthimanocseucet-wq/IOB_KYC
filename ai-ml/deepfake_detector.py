@@ -61,7 +61,6 @@ class DeepfakeDetector:
     Output: is_deepfake (bool), confidence (0-1)
     """
 
-    _shared_face_app = None  # Shared InsightFace instance across all detectors
     _shared_cascade = None   # Shared Haar cascade instance
 
     def __init__(self):
@@ -71,19 +70,6 @@ class DeepfakeDetector:
         self._transform = None
 
         self._load_model()
-
-    @classmethod
-    def _get_face_app(cls):
-        """Get or create shared InsightFace FaceAnalysis instance."""
-        if cls._shared_face_app is None:
-            try:
-                from insightface.app import FaceAnalysis
-                app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'])
-                app.prepare(ctx_id=0, det_size=(640, 640))
-                cls._shared_face_app = app
-            except Exception:
-                pass
-        return cls._shared_face_app
 
     @classmethod
     def _get_cascade(cls):
@@ -152,17 +138,6 @@ class DeepfakeDetector:
 
     def _detect_face(self, img):
         """Detect the largest face in image. Returns (x1,y1,x2,y2) or None."""
-        face_app = self._get_face_app()
-        if face_app is not None:
-            try:
-                faces = face_app.get(img)
-                if faces:
-                    best = max(faces, key=lambda f: f.bbox[2] * f.bbox[3])
-                    x1, y1, x2, y2 = best.bbox.astype(int)
-                    return (x1, y1, x2, y2)
-            except Exception:
-                pass
-
         try:
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             cascade = self._get_cascade()

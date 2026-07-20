@@ -17,13 +17,7 @@ logger = logging.getLogger(__name__)
 
 MODEL_DIR = os.path.join(os.path.dirname(__file__), 'models', 'trained')
 EFFICIENTNET_MODEL_PATH = os.path.join(MODEL_DIR, 'antispoof_efficientnet_b0.pth')
-ONNX_MODEL_PATH = os.path.join(MODEL_DIR, 'minifasnet_v2.onnx')
 PTH_MODEL_PATH = os.path.join(MODEL_DIR, '2.7_80x80_MiniFASNetV2.pth')
-
-ONNX_MODEL_URL = (
-    "https://huggingface.co/garciafido/minifasnet-v2-anti-spoofing-onnx/"
-    "resolve/main/minifasnet_v2.onnx"
-)
 PTH_MODEL_URL = (
     "https://github.com/minivision-ai/Silent-Face-Anti-Spoofing/"
     "raw/master/resources/anti_spoof_models/2.7_80x80_MiniFASNetV2.pth"
@@ -31,14 +25,11 @@ PTH_MODEL_URL = (
 
 
 def _ensure_model():
-    """Download MiniFASNet model if not present locally. Prefer PTH over broken ONNX."""
+    """Download MiniFASNet model if not present locally."""
     os.makedirs(MODEL_DIR, exist_ok=True)
 
     if os.path.exists(PTH_MODEL_PATH):
-        return PTH_MODEL_PATH, 'pth'
-
-    if os.path.exists(ONNX_MODEL_PATH):
-        return ONNX_MODEL_PATH, 'onnx'
+        return PTH_MODEL_PATH
 
     try:
         import requests
@@ -48,21 +39,10 @@ def _ensure_model():
         with open(PTH_MODEL_PATH, 'wb') as f:
             f.write(r.content)
         logger.info("MiniFASNet PyTorch model downloaded (%d bytes)", len(r.content))
-        return PTH_MODEL_PATH, 'pth'
-    except Exception as e:
-        logger.warning("PyTorch download failed (%s), trying ONNX...", e)
-
-    try:
-        import requests
-        r = requests.get(ONNX_MODEL_URL, timeout=120)
-        r.raise_for_status()
-        with open(ONNX_MODEL_PATH, 'wb') as f:
-            f.write(r.content)
-        logger.info("MiniFASNet ONNX model downloaded (%d bytes)", len(r.content))
-        return ONNX_MODEL_PATH, 'onnx'
+        return PTH_MODEL_PATH
     except Exception as e:
         logger.error("Failed to download MiniFASNet model: %s", e)
-        return None, None
+        return None
 
 
 class MiniFASNetDetector:
@@ -81,7 +61,6 @@ class MiniFASNetDetector:
     SPOOF_CONFIDENCE_THRESHOLD = 0.28  # model must favor spoof by at least 28% to trigger
 
     def __init__(self):
-        self.session = None
         self.model = None
         self.model_type = None
         self.available = False
@@ -89,7 +68,7 @@ class MiniFASNetDetector:
         self._load_model()
 
     def _load_model(self):
-        """Load anti-spoof model. Tries EfficientNet-B0, MiniFASNet V2 PTH, then ONNX."""
+        """Load anti-spoof model. Tries EfficientNet-B0 then MiniFASNet V2 PTH."""
         # Try EfficientNet-B0 first
         if os.path.exists(EFFICIENTNET_MODEL_PATH):
             try:
@@ -114,22 +93,9 @@ class MiniFASNetDetector:
             except Exception as e:
                 logger.warning("Failed to load MiniFASNet V2 PTH: %s", e)
 
-        # Try MiniFASNet V2 ONNX
-        if os.path.exists(ONNX_MODEL_PATH):
-            try:
-                logger.info("Loading MiniFASNet V2 ONNX model from %s ...", ONNX_MODEL_PATH)
-                import onnxruntime as ort
-                self.session = ort.InferenceSession(ONNX_MODEL_PATH, providers=['CPUExecutionProvider'])
-                self.model_type = 'minifasnet_onnx'
-                self.available = True
-                logger.info("MiniFASNet V2 ONNX model loaded successfully")
-                return
-            except Exception as e:
-                logger.warning("Failed to load MiniFASNet V2 ONNX: %s", e)
-
         # Try downloading model
-        model_path, model_type = _ensure_model()
-        if model_path and model_type == 'pth':
+        model_path = _ensure_model()
+        if model_path:
             try:
                 self._load_pytorch(model_path)
                 self.model_type = 'minifasnet_pth'
@@ -138,16 +104,6 @@ class MiniFASNetDetector:
                 return
             except Exception as e:
                 logger.warning("Failed to load downloaded PTH model: %s", e)
-        elif model_path and model_type == 'onnx':
-            try:
-                import onnxruntime as ort
-                self.session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
-                self.model_type = 'minifasnet_onnx'
-                self.available = True
-                logger.info("Downloaded MiniFASNet V2 ONNX model loaded successfully")
-                return
-            except Exception as e:
-                logger.warning("Failed to load downloaded ONNX model: %s", e)
 
         logger.warning("Anti-spoofing model unavailable — all loading methods failed")
 
@@ -224,19 +180,6 @@ class MiniFASNetDetector:
 
         return img[crop_y1:crop_y2, crop_x1:crop_x2]
 
-    def _preprocess(self, face_crop):
-        """Preprocess face crop for ONNX MiniFASNet inference.
-
-        Input: BGR face crop (any size)
-        Output: (1, 3, 80, 80) float32 tensor, RGB channels, range [0, 1]
-        """
-        resized = cv2.resize(face_crop, self.INPUT_SIZE, interpolation=cv2.INTER_LINEAR)
-        rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
-        blob = rgb.astype(np.float32) / 255.0
-        blob = blob.transpose(2, 0, 1)  # HWC → CHW
-        blob = np.expand_dims(blob, axis=0)  # NCHW
-        return blob
-
     def _preprocess_pytorch(self, face_crop):
         import torch
         resized = cv2.resize(face_crop, self.INPUT_SIZE, interpolation=cv2.INTER_LINEAR)
@@ -285,14 +228,6 @@ class MiniFASNetDetector:
                 'replay_prob': 0.0,  # binary model can't distinguish print vs replay
                 'liveness_score': round(liveness_score, 4),
             }
-        elif self.session is not None:
-            blob = self._preprocess(face_crop)
-            input_name = self.session.get_inputs()[0].name
-            output = self.session.run(None, {input_name: blob})[0]
-            probs = self._softmax(output)[0]
-            live_prob = float(probs[0])
-            print_prob = float(probs[1])
-            replay_prob = float(probs[2])
         elif self.model is not None:
             import torch
             blob = self._preprocess_pytorch(face_crop)

@@ -950,6 +950,34 @@ class ChallengeLivenessDetector:
         right_raised = right_wrist_y < avg_shoulder_y * self.HAND_SHOULDER_Y_THRESHOLD + avg_shoulder_y * (1 - self.HAND_SHOULDER_Y_THRESHOLD)
         return left_raised, right_raised
 
+    # ============================================================
+    # HAND CHALLENGES (Pose-based)
+    # ============================================================
+
+    def _verify_raise_one_hand(self, frames_data):
+        """Wrapper: verify raise_one_hand via _verify_hand_challenge."""
+        result = {
+            'challenge_passed': False,
+            'confidence': 0.0,
+            'reason': '',
+            'details': {}
+        }
+        challenge_data = {'challenge_type': 'raise_one_hand'}
+        frames_base64 = [f.get('frame_b64', '') for f in frames_data if f.get('frame_b64')]
+        return self._verify_hand_challenge(challenge_data, frames_base64, result)
+
+    def _verify_raise_both_hands(self, frames_data):
+        """Wrapper: verify raise_both_hands via _verify_hand_challenge."""
+        result = {
+            'challenge_passed': False,
+            'confidence': 0.0,
+            'reason': '',
+            'details': {}
+        }
+        challenge_data = {'challenge_type': 'raise_both_hands'}
+        frames_base64 = [f.get('frame_b64', '') for f in frames_data if f.get('frame_b64')]
+        return self._verify_hand_challenge(challenge_data, frames_base64, result)
+
     def _verify_hand_challenge(self, challenge_data, frames_base64, result):
         """Verify hand raise challenges using MediaPipe Pose."""
         tag = "[HAND_CHALLENGE]"

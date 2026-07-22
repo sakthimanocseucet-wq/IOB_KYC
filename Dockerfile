@@ -19,6 +19,12 @@ COPY ai-ml/requirements.txt ai-ml/requirements.txt
 RUN pip3 install --no-cache-dir --no-compile -r ai-ml/requirements.txt && \
     rm -rf /root/.cache/pip /tmp/*
 
+# Download haarcascade files for opencv-python-headless
+RUN python3 -c "import cv2, os; print(cv2.data.haarcascades)" && \
+    wget -q https://raw.githubusercontent.com/opencv/opencv/master/data/haarcascades/haarcascade_frontalface_default.xml -O /usr/local/lib/python3.11/site-packages/cv2/data/haarcascade_frontalface_default.xml && \
+    wget -q https://raw.githubusercontent.com/opencv/opencv/master/data/haarcascades/haarcascade_eye.xml -O /usr/local/lib/python3.11/site-packages/cv2/data/haarcascade_eye.xml && \
+    echo "Haarcascade files downloaded"
+
 COPY ai-ml/ ai-ml/
 COPY --from=builder /app/backend/target/kyc-system-1.0.0.jar app.jar
 

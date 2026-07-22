@@ -189,7 +189,14 @@ function mapBackendApp(app) {
         qrVerified: app.qrVerified || false,
         qrVerificationStatus: app.qrVerificationStatus || null,
         qrMatchPercentage: app.qrMatchPercentage || 0,
-        qrVerifiedAt: app.qrVerifiedAt || null
+        qrVerifiedAt: app.qrVerifiedAt || null,
+        challengeVideoBase64: app.challengeResponseVideoBase64 || null,
+        challengeResults: app.challengeResults || null,
+        challengeSequence: app.challengeSequence || null,
+        qrFaceMatchScore: app.qrFaceMatchScore || null,
+        qrFaceMatchStatus: app.qrFaceMatchStatus || null,
+        qrFaceConfidence: app.qrFaceConfidence || null,
+        verificationTimestamp: app.verificationTimestamp || null
     };
 }
 
@@ -641,6 +648,88 @@ function viewApplication(id) {
         '<div id="qrVerificationSection" style="margin-bottom:20px;padding:16px;background:var(--gray-50,#f8fafc);border-radius:8px;border:1px solid var(--gray-200)">' +
             '<div style="text-align:center;padding:12px"><div class="spinner" style="margin:0 auto 8px"></div><p style="font-size:13px;color:var(--gray-500)">Loading QR verification status...</p></div>' +
         '</div>' +
+
+        (function() {
+            var challengeHtml = '';
+            var hasVideo = !!(app.challengeVideoBase64);
+            var hasResults = !!(app.challengeResults);
+            var hasQrFace = !!(app.qrFaceMatchStatus);
+
+            if (!hasVideo && !hasResults && !hasQrFace) return '';
+
+            challengeHtml += '<h4 style="margin-bottom:12px;color:var(--gray-700)">&#127909; Challenge Response Verification</h4>';
+            challengeHtml += '<div style="margin-bottom:20px;padding:16px;background:var(--gray-50,#f8fafc);border-radius:8px;border:1px solid var(--gray-200)">';
+
+            // Verification timestamp
+            if (app.verificationTimestamp) {
+                var vtDate = '';
+                try {
+                    var d = new Date(app.verificationTimestamp);
+                    if (isNaN(d.getTime())) d = new Date(app.verificationTimestamp + 'Z');
+                    vtDate = d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true });
+                } catch(e) { vtDate = app.verificationTimestamp; }
+                challengeHtml += '<p style="font-size:12px;color:var(--gray-500);margin:0 0 12px">Verified: ' + vtDate + '</p>';
+            }
+
+            // Challenge video player
+            if (hasVideo) {
+                challengeHtml += '<div style="margin-bottom:16px">' +
+                    '<p style="font-weight:600;font-size:13px;margin-bottom:8px">&#127909; Challenge Response Video</p>' +
+                    '<video controls style="width:100%;max-width:480px;border-radius:8px;border:2px solid var(--gray-200);background:#000" preload="metadata">' +
+                        '<source src="' + app.challengeVideoBase64 + '" type="video/webm">' +
+                        'Your browser does not support video playback.' +
+                    '</video>' +
+                '</div>';
+            }
+
+            // Challenge completion results
+            if (hasResults) {
+                var results = [];
+                try { results = JSON.parse(app.challengeResults); } catch(e) {}
+                if (results.length > 0) {
+                    challengeHtml += '<div style="margin-bottom:16px">' +
+                        '<p style="font-weight:600;font-size:13px;margin-bottom:8px">&#9989; Challenge Completion</p>' +
+                        '<div style="display:flex;flex-wrap:wrap;gap:8px">';
+                    var challengeNames = { 'blink': 'Blink', 'open_mouth': 'Open Mouth', 'shake_head': 'Shake Head', 'look_left': 'Look Left', 'look_right': 'Look Right', 'look_up': 'Look Up', 'raise_one_hand': 'Raise One Hand', 'raise_both_hands': 'Raise Both Hands' };
+                    for (var ci = 0; ci < results.length; ci++) {
+                        var r = results[ci];
+                        var chName = challengeNames[r.challenge] || r.challenge;
+                        var chColor = r.passed ? 'var(--success)' : 'var(--danger)';
+                        var chIcon = r.passed ? '&#9989;' : '&#10060;';
+                        challengeHtml += '<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:#fff;border-radius:6px;border:1px solid ' + chColor + '">' +
+                            '<span>' + chIcon + '</span>' +
+                            '<span style="font-size:12px;font-weight:600">' + chName + '</span>' +
+                        '</div>';
+                    }
+                    challengeHtml += '</div></div>';
+                }
+            }
+
+            // QR face match results
+            if (hasQrFace) {
+                var faceColor = app.qrFaceMatchStatus === 'MATCH' ? 'var(--success)' : (app.qrFaceMatchStatus === 'PARTIAL_MATCH' ? 'var(--warning)' : 'var(--danger)');
+                challengeHtml += '<div style="margin-bottom:8px">' +
+                    '<p style="font-weight:600;font-size:13px;margin-bottom:8px">&#128100; QR Face vs ID Card Face Comparison</p>' +
+                    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">' +
+                        '<div style="padding:10px;background:#fff;border-radius:6px;text-align:center">' +
+                            '<p style="font-size:11px;color:var(--gray-500);margin:0">Match Status</p>' +
+                            '<p style="font-weight:700;font-size:14px;margin:4px 0 0;color:' + faceColor + '">' + (app.qrFaceMatchStatus || 'N/A') + '</p>' +
+                        '</div>' +
+                        '<div style="padding:10px;background:#fff;border-radius:6px;text-align:center">' +
+                            '<p style="font-size:11px;color:var(--gray-500);margin:0">Match Score</p>' +
+                            '<p style="font-weight:700;font-size:14px;margin:4px 0 0">' + (app.qrFaceMatchScore != null ? app.qrFaceMatchScore.toFixed(1) + '%' : 'N/A') + '</p>' +
+                        '</div>' +
+                        '<div style="padding:10px;background:#fff;border-radius:6px;text-align:center">' +
+                            '<p style="font-size:11px;color:var(--gray-500);margin:0">Confidence</p>' +
+                            '<p style="font-weight:700;font-size:14px;margin:4px 0 0">' + (app.qrFaceConfidence != null ? (app.qrFaceConfidence * 100).toFixed(1) + '%' : 'N/A') + '</p>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+            }
+
+            challengeHtml += '</div>';
+            return challengeHtml;
+        })() +
 
         '<h4 style="margin-bottom:12px;color:var(--gray-700)">&#128100; Personal Details</h4>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;font-size:14px">' +

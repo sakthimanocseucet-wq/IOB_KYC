@@ -45,6 +45,10 @@ let challengeTotalCount = 4;
 let challengeResults = [];
 const CHALLENGE_FRAMES_PER_STEP = 15;
 
+let challengeVideoRecorder = null;
+let challengeVideoChunks = [];
+let challengeVideoBase64 = null;
+
 function goToStep(step) {
     currentStep = step;
     document.querySelectorAll('.kyc-step').forEach(el => el.style.display = 'none');
@@ -57,6 +61,9 @@ function goToStep(step) {
         challengeSessionId = null;
         challengeCurrentIndex = 0;
         challengeResults = [];
+        challengeVideoRecorder = null;
+        challengeVideoChunks = [];
+        challengeVideoBase64 = null;
         window.__finalChallengeResult = null;
         window.__localChallenges = null;
         if (challengeInterval) { clearInterval(challengeInterval); challengeInterval = null; }
@@ -593,6 +600,9 @@ function retryFaceVerification() {
     challengeSessionId = null;
     challengeCurrentIndex = 0;
     challengeResults = [];
+    challengeVideoRecorder = null;
+    challengeVideoChunks = [];
+    challengeVideoBase64 = null;
     window.__finalChallengeResult = null;
     window.__localChallenges = null;
     if (challengeInterval) { clearInterval(challengeInterval); challengeInterval = null; }
@@ -715,7 +725,9 @@ function getChallengePrompt(type) {
         'shake_head':  { icon: '\u{1F645}', text: 'Shake your head no', tip: 'Turn head left then right, like saying "no"' },
         'look_left':   { icon: '\u{1F448}', text: 'Look to your left', tip: 'Look left without turning your head fully' },
         'look_right':  { icon: '\u{1F449}', text: 'Look to your right', tip: 'Look right without turning your head fully' },
-        'look_up':     { icon: '\u{1F446}', text: 'Look up', tip: 'Tilt your head up, then back to center' }
+        'look_up':     { icon: '\u{1F446}', text: 'Look up', tip: 'Tilt your head up, then back to center' },
+        'raise_one_hand':  { icon: '\u270B', text: 'Raise one hand', tip: 'Raise one hand above your shoulder and hold it there' },
+        'raise_both_hands': { icon: '\u{1F64C}', text: 'Raise both hands', tip: 'Raise both hands above your shoulders and hold them there' }
     };
     return prompts[type] || { icon: '\u{1F3AF}', text: type, tip: '' };
 }
@@ -778,8 +790,8 @@ async function startLivenessChallenge() {
         challengeTotalCount = result.data.total_challenges || 4;
         challengeData = result.data.challenge;
     } catch (err) {
-        // Offline fallback — generate 4 local random challenges
-        var allTypes = ['blink', 'open_mouth', 'shake_head', 'look_left', 'look_right', 'look_up'];
+        // Offline fallback — generate 4 local random challenges from all 8 types
+        var allTypes = ['blink', 'open_mouth', 'shake_head', 'look_left', 'look_right', 'look_up', 'raise_one_hand', 'raise_both_hands'];
         var shuffled = allTypes.sort(() => Math.random() - 0.5).slice(0, 4);
         challengeSessionId = 'local-' + Date.now();
         challengeTotalCount = 4;
@@ -944,6 +956,20 @@ async function startLivenessChallenge() {
     let maxRetries = 0;
     let lastChallengeFrames = [];
     let allCapturedFrames = [];
+
+    // Start recording challenge-response video
+    challengeVideoChunks = [];
+    challengeVideoBase64 = null;
+    try {
+        if (webcamStream && typeof MediaRecorder !== 'undefined') {
+            var mrStream = new MediaStream(webcamStream.getVideoTracks());
+            var mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : (MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : 'video/mp4');
+            challengeVideoRecorder = new MediaRecorder(mrStream, { mimeType: mimeType });
+            challengeVideoRecorder.ondataavailable = function(e) { if (e.data && e.data.size > 0) challengeVideoChunks.push(e.data); };
+            challengeVideoRecorder.start();
+            console.log('[VIDEO] Challenge recording started, mimeType:', mimeType);
+        }
+    } catch (e) { console.warn('[VIDEO] MediaRecorder start failed:', e); challengeVideoRecorder = null; }
 
     for (let idx = 0; idx < challengeTotalCount; idx++) {
         challengeCurrentIndex = idx;
@@ -1173,6 +1199,22 @@ async function startLivenessChallenge() {
 
     challengeActive = false;
     if (challengeTimerInterval) { clearInterval(challengeTimerInterval); challengeTimerInterval = null; }
+
+    // Stop challenge video recording and convert to base64
+    if (challengeVideoRecorder && challengeVideoRecorder.state === 'recording') {
+        challengeVideoRecorder.stop();
+        console.log('[VIDEO] Challenge recording stopped, chunks:', challengeVideoChunks.length);
+        try {
+            var videoBlob = new Blob(challengeVideoChunks, { type: challengeVideoRecorder.mimeType || 'video/webm' });
+            var videoReader = new FileReader();
+            videoReader.onloadend = function() {
+                challengeVideoBase64 = videoReader.result;
+                console.log('[VIDEO] Challenge video converted to base64, size:', Math.round((challengeVideoBase64 ? challengeVideoBase64.length : 0) / 1024) + 'KB');
+            };
+            videoReader.readAsDataURL(videoBlob);
+        } catch (e) { console.warn('[VIDEO] Blob conversion failed:', e); }
+    }
+    challengeVideoRecorder = null;
 
     actionLabel.textContent = 'Completed!';
     actionRingFill.setAttribute('stroke-dasharray', '100, 100');
@@ -1627,6 +1669,23 @@ async function submitKYCApplication(showLoading) {
             const blob = await fetch(kycData.selfieImage).then(r => r.blob());
             fd.append('selfie', blob, 'selfie.jpg');
             await fetch(KYC_API + '/' + appId + '/selfie', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd });
+        }
+
+        // Upload challenge video + results if available
+        if (challengeVideoBase64 && appId) {
+            try {
+                var challengeSequenceList = challengeResults.map(function(r) { return r.challenge; });
+                await fetch(KYC_API + '/' + appId + '/challenge-video', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                    body: JSON.stringify({
+                        videoBase64: challengeVideoBase64,
+                        challengeResults: JSON.stringify(challengeResults),
+                        challengeSequence: challengeSequenceList.join(',')
+                    })
+                });
+                console.log('[VIDEO] Challenge video uploaded for app:', appId);
+            } catch (e) { console.warn('[VIDEO] Challenge video upload failed:', e); }
         }
 
         localStorage.setItem('kycData', JSON.stringify({

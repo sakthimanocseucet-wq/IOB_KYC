@@ -189,6 +189,31 @@ public class KYCApplication {
     @Column(name = "re_kyc_status", length = 30)
     private String reKycStatus;
 
+    @Column(name = "challenge_response_video_path")
+    private String challengeResponseVideoPath;
+
+    @Lob
+    @Column(name = "challenge_response_video_base64", columnDefinition = "LONGTEXT")
+    private String challengeResponseVideoBase64;
+
+    @Column(name = "challenge_results", columnDefinition = "TEXT")
+    private String challengeResults;
+
+    @Column(name = "challenge_sequence", length = 500)
+    private String challengeSequence;
+
+    @Column(name = "qr_face_match_score")
+    private Double qrFaceMatchScore;
+
+    @Column(name = "qr_face_match_status", length = 30)
+    private String qrFaceMatchStatus;
+
+    @Column(name = "qr_face_confidence")
+    private Double qrFaceConfidence;
+
+    @Column(name = "verification_timestamp")
+    private LocalDateTime verificationTimestamp;
+
     @Column(name = "last_reviewed_at")
     private LocalDateTime lastReviewedAt;
 

@@ -147,6 +147,11 @@ public class AIProxyController {
         proxyJson(flaskBaseUrl() + "/api/ai/face-detect", jsonBody, response);
     }
 
+    @PostMapping("/qr-face-compare")
+    public void qrFaceCompare(@RequestBody String jsonBody, HttpServletResponse response) throws IOException {
+        proxyJson(flaskBaseUrl() + "/api/ai/qr-face-compare", jsonBody, response);
+    }
+
     @GetMapping("/health")
     public void health(HttpServletResponse response) throws IOException {
         try {

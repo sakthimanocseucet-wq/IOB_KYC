@@ -242,6 +242,38 @@ public class KYCController {
         return ResponseEntity.status(200).body(kycService.uploadPanCard(id, file));
     }
 
+    @PostMapping("/{id}/challenge-video")
+    public ResponseEntity<ApiResponse> uploadChallengeVideo(@PathVariable Long id,
+                                                            @RequestBody Map<String, String> body) {
+        try {
+            String videoBase64 = body.get("videoBase64");
+            String challengeResults = body.get("challengeResults");
+            String challengeSequence = body.get("challengeSequence");
+
+            kycApplicationRepository.findById(id).ifPresent(app -> {
+                if (videoBase64 != null) {
+                    app.setChallengeResponseVideoBase64(videoBase64);
+                }
+                if (challengeResults != null) {
+                    app.setChallengeResults(challengeResults);
+                }
+                if (challengeSequence != null) {
+                    app.setChallengeSequence(challengeSequence);
+                }
+                app.setVerificationTimestamp(LocalDateTime.now());
+                kycApplicationRepository.save(app);
+            });
+
+            auditLogService.log(String.valueOf(id), "CHALLENGE_VIDEO_UPLOAD", "KYCApplication",
+                    String.valueOf(id), "Challenge response video uploaded for application " + id);
+
+            return ResponseEntity.ok(ApiResponse.success("Challenge video uploaded successfully", null));
+        } catch (Exception e) {
+            logger.warn("[KYC] Failed to save challenge video: {}", e.getMessage());
+            return ResponseEntity.status(500).body(ApiResponse.error("Failed to save challenge video", 500));
+        }
+    }
+
     @GetMapping("/status")
     public ResponseEntity<ApiResponse> getKycStatus(Authentication authentication) {
         Long userId = getUserId(authentication);

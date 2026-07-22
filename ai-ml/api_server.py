@@ -1007,6 +1007,53 @@ def api_qr_verify_base64():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/qr-face-compare', methods=['POST'])
+def qr_face_compare():
+    """Compare face from QR code against face on ID card.
+
+    Request:
+        {
+            "card_image": "<base64>",
+            "face_image": "<base64>"  (optional)
+        }
+    Response:
+        {
+            "success": true,
+            "data": {
+                "match_percentage": 75.5,
+                "confidence": 0.755,
+                "status": "MATCH",
+                "tampering_flag": false
+            }
+        }
+    """
+    try:
+        from qr_verification import compare_qr_face_with_card_face
+
+        data = request.json
+        if not data or 'card_image' not in data:
+            return jsonify({'success': False, 'error': 'card_image field required'}), 400
+
+        face_image = data.get('face_image')
+
+        result = _safe_detect(
+            lambda: compare_qr_face_with_card_face(data['card_image'], face_image),
+            'qr_face_compare',
+            {
+                'match_percentage': 0,
+                'confidence': 0,
+                'status': 'ERROR',
+                'tampering_flag': False,
+                'message': 'QR face comparison error',
+            }
+        )
+
+        return jsonify({'success': True, 'data': result})
+    except Exception as e:
+        logger.exception('[QRFaceCompare] Error: %s', e)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # ============================================================
 # MAIN
 # ============================================================

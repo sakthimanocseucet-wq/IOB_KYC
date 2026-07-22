@@ -542,3 +542,134 @@ if __name__ == '__main__':
 
     result = verify_qr(image_data, ocr_data, doc_type)
     print(json.dumps(result, indent=2, ensure_ascii=False))
+
+
+# ============================================================
+# QR FACE vs CARD FACE COMPARISON
+# ============================================================
+
+def compare_qr_face_with_card_face(card_image_data, face_image_data=None):
+    """Compare face from QR code / verification data against face on ID card.
+
+    Uses OpenCV Haar cascade for face detection and cosine similarity
+    of histogram features for comparison.
+
+    Args:
+        card_image_data: base64 or bytes of the ID card image (Aadhaar/PAN)
+        face_image_data: base64 or bytes of the face image from QR/verification data (optional)
+
+    Returns:
+        dict with match_percentage, confidence, status, tampering_flag
+    """
+    start = time.time()
+
+    try:
+        card_img = _decode_image(card_image_data)
+    except Exception as e:
+        return {
+            'match_percentage': 0,
+            'confidence': 0,
+            'status': 'ERROR',
+            'tampering_flag': False,
+            'message': f'Failed to decode card image: {e}',
+            'processing_time_ms': round((time.time() - start) * 1000, 1),
+        }
+
+    cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+    card_gray = cv2.cvtColor(card_img, cv2.COLOR_BGR2GRAY)
+    card_faces = cascade.detectMultiScale(card_gray, 1.1, 5, minSize=(60, 60))
+
+    if len(card_faces) == 0:
+        return {
+            'match_percentage': 0,
+            'confidence': 0,
+            'status': 'NO_FACE_ON_CARD',
+            'tampering_flag': True,
+            'message': 'No face detected on the ID card',
+            'processing_time_ms': round((time.time() - start) * 1000, 1),
+        }
+
+    x, y, w, h = max(card_faces, key=lambda r: r[2] * r[3])
+    card_face = card_img[y:y+h, x:x+w]
+
+    if face_image_data is None:
+        return {
+            'match_percentage': 0,
+            'confidence': 0,
+            'status': 'NO_QR_FACE',
+            'tampering_flag': False,
+            'message': 'No face image from QR code available for comparison',
+            'processing_time_ms': round((time.time() - start) * 1000, 1),
+        }
+
+    try:
+        face_img = _decode_image(face_image_data)
+    except Exception as e:
+        return {
+            'match_percentage': 0,
+            'confidence': 0,
+            'status': 'ERROR',
+            'tampering_flag': False,
+            'message': f'Failed to decode face image: {e}',
+            'processing_time_ms': round((time.time() - start) * 1000, 1),
+        }
+
+    face_gray = cv2.cvtColor(face_img, cv2.COLOR_BGR2GRAY)
+    qr_faces = cascade.detectMultiScale(face_gray, 1.1, 5, minSize=(60, 60))
+
+    if len(qr_faces) == 0:
+        return {
+            'match_percentage': 0,
+            'confidence': 0,
+            'status': 'NO_FACE_IN_QR',
+            'tampering_flag': True,
+            'message': 'No face detected in QR verification image',
+            'processing_time_ms': round((time.time() - start) * 1000, 1),
+        }
+
+    fx, fy, fw, fh = max(qr_faces, key=lambda r: r[2] * r[3])
+    qr_face = face_img[fy:fy+fh, fx:fx+fw]
+
+    card_face_resized = cv2.resize(card_face, (128, 128))
+    qr_face_resized = cv2.resize(qr_face, (128, 128))
+
+    card_hist = cv2.calcHist([card_face_resized], [0, 1, 2], None, [8, 8, 8], [0, 256, 0, 256, 0, 256])
+    qr_hist = cv2.calcHist([qr_face_resized], [0, 1, 2], None, [8, 8, 8], [0, 256, 0, 256, 0, 256])
+    cv2.normalize(card_hist, card_hist)
+    cv2.normalize(qr_hist, qr_hist)
+    hist_similarity = cv2.compareHist(card_hist, qr_hist, cv2.HISTCMP_CORREL)
+
+    card_gray_resized = cv2.resize(card_face_resized, (64, 64)).flatten().astype(np.float32)
+    qr_gray_resized = cv2.resize(qr_face_resized, (64, 64)).flatten().astype(np.float32)
+    cos_sim = float(np.dot(card_gray_resized, qr_gray_resized) / (np.linalg.norm(card_gray_resized) * np.linalg.norm(qr_gray_resized) + 1e-6))
+
+    match_percentage = round((hist_similarity * 0.6 + max(0, cos_sim) * 0.4) * 100, 2)
+    confidence = round(min(1.0, match_percentage / 100.0), 4)
+
+    THRESHOLD = 50.0
+    tampering_flag = match_percentage < THRESHOLD
+
+    if match_percentage >= 80:
+        status = 'MATCH'
+    elif match_percentage >= 50:
+        status = 'PARTIAL_MATCH'
+    else:
+        status = 'NO_MATCH'
+
+    elapsed = round((time.time() - start) * 1000, 1)
+
+    return {
+        'match_percentage': match_percentage,
+        'confidence': confidence,
+        'status': status,
+        'tampering_flag': tampering_flag,
+        'message': f'Face comparison: {status} ({match_percentage:.1f}%)',
+        'details': {
+            'histogram_similarity': round(hist_similarity, 4),
+            'cosine_similarity': round(cos_sim, 4),
+            'card_face_detected': True,
+            'qr_face_detected': True,
+        },
+        'processing_time_ms': elapsed,
+    }

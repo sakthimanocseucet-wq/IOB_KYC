@@ -41,6 +41,7 @@ except ImportError:
     mp_vision = None
 
 FACE_LANDMARKER_MODEL_PATH = None
+POSE_LANDMARKER_MODEL_PATH = None
 
 
 def _ensure_face_landmarker_model():
@@ -81,20 +82,62 @@ def _ensure_face_landmarker_model():
         return None
 
 
+def _ensure_pose_landmarker_model():
+    """Download pose_landmarker.task from MediaPipe hub if not present."""
+    global POSE_LANDMARKER_MODEL_PATH
+    if POSE_LANDMARKER_MODEL_PATH and os.path.exists(POSE_LANDMARKER_MODEL_PATH):
+        return POSE_LANDMARKER_MODEL_PATH
+
+    import tempfile
+    possible_paths = [
+        os.path.join(os.path.dirname(__file__), 'models', 'pose_landmarker.task'),
+        os.path.join(tempfile.gettempdir(), 'mediapipe_models', 'pose_landmarker.task'),
+    ]
+
+    for p in possible_paths:
+        expanded = os.path.expanduser(os.path.expandvars(p))
+        if os.path.exists(expanded):
+            POSE_LANDMARKER_MODEL_PATH = expanded
+            return expanded
+
+    model_url = (
+        'https://storage.googleapis.com/mediapipe-models/pose_landmarker/'
+        'pose_landmarker_lite/float16/latest/pose_landmarker_lite.task'
+    )
+    dest_dir = os.path.join(tempfile.gettempdir(), 'mediapipe_models')
+    os.makedirs(dest_dir, exist_ok=True)
+    dest_path = os.path.join(dest_dir, 'pose_landmarker.task')
+
+    try:
+        import urllib.request
+        logger.info("[MediaPipe] Downloading pose_landmarker.task model...")
+        urllib.request.urlretrieve(model_url, dest_path)
+        logger.info("[MediaPipe] Pose model downloaded to %s", dest_path)
+        POSE_LANDMARKER_MODEL_PATH = dest_path
+        return dest_path
+    except Exception as e:
+        logger.error("[MediaPipe] Failed to download pose model: %s", e)
+        return None
+
+
 # ============================================================
-# CHALLENGE TYPES — 6 simple, robust challenges
+# CHALLENGE TYPES — 8 challenges (6 face + 2 hand)
 # ============================================================
-CHALLENGE_TYPES = ['blink', 'open_mouth', 'shake_head', 'look_left', 'look_right', 'look_up']
+CHALLENGE_TYPES = ['blink', 'open_mouth', 'shake_head', 'look_left', 'look_right', 'look_up', 'raise_one_hand', 'raise_both_hands']
 CHALLENGE_PROMPTS = {
-    'blink':       'Blink both eyes',
-    'open_mouth':  'Open your mouth',
-    'shake_head':  'Shake your head no',
-    'look_left':   'Look to your left',
-    'look_right':  'Look to your right',
-    'look_up':     'Look up',
+    'blink':             'Blink both eyes',
+    'open_mouth':        'Open your mouth',
+    'shake_head':        'Shake your head no',
+    'look_left':         'Look to your left',
+    'look_right':        'Look to your right',
+    'look_up':           'Look up',
+    'raise_one_hand':    'Raise one hand above your shoulder',
+    'raise_both_hands':  'Raise both hands above your shoulders',
 }
 CHALLENGE_TIMEOUT_SECONDS = 180
 MIN_FRAMES_FOR_CHALLENGE = 8
+HAND_SHOULDER_Y_THRESHOLD = 0.45  # wrist y < shoulder y means hand is raised (y increases downward)
+HAND_HOLD_FRAMES = 12             # frames hand must be held above shoulder (~2 seconds at 6fps)
 
 # ============================================================
 # MediaPipe face landmark indices
@@ -115,7 +158,7 @@ MOUTH_BOTTOM_INNER = 87
 
 
 class ChallengeLivenessDetector:
-    """Interactive challenge-response liveness detection using MediaPipe FaceMesh."""
+    """Interactive challenge-response liveness detection using MediaPipe FaceMesh + Pose."""
 
     # --- Thresholds (tuned for real-world webcam 640x480 @ 6-10 fps) ---
     EAR_CLOSED_THRESHOLD = 0.12   # EAR below this = eye closed (stricter)
@@ -133,8 +176,13 @@ class ChallengeLivenessDetector:
     BASELINE_FRAMES = 8           # frames to average for baseline (stricter)
     RECOVERY_FRAMES = 3           # frames to confirm return to neutral
 
+    # --- Hand detection thresholds ---
+    HAND_SHOULDER_Y_THRESHOLD = HAND_SHOULDER_Y_THRESHOLD
+    HAND_HOLD_FRAMES = HAND_HOLD_FRAMES
+
     def __init__(self):
         self.face_landmarker = None
+        self.pose_landmarker = None
         self.FALLBACK_MODE = False
 
         try:
@@ -158,6 +206,25 @@ class ChallengeLivenessDetector:
             )
             self.face_landmarker = mp_vision.FaceLandmarker.create_from_options(options)
             logger.info("ChallengeLivenessDetector initialized with FaceLandmarker")
+
+            # Initialize Pose landmarker for hand challenges
+            try:
+                pose_model_path = _ensure_pose_landmarker_model()
+                if pose_model_path:
+                    pose_base = mp_tasks.BaseOptions(model_asset_path=pose_model_path)
+                    pose_options = mp_vision.PoseLandmarkerOptions(
+                        base_options=pose_base, num_poses=1,
+                        min_pose_detection_confidence=0.3,
+                        min_pose_presence_confidence=0.3,
+                        min_tracking_confidence=0.3,
+                    )
+                    self.pose_landmarker = mp_vision.PoseLandmarker.create_from_options(pose_options)
+                    logger.info("PoseLandmarker initialized for hand challenges")
+                else:
+                    logger.warning("Pose landmarker model not available -- hand challenges disabled")
+            except Exception as e:
+                logger.warning("PoseLandmarker init failed: %s -- hand challenges disabled", e)
+
         except Exception as e:
             logger.warning("ChallengeLivenessDetector init failed (%s) -- fallback mode", e)
             self.FALLBACK_MODE = True
@@ -376,6 +443,11 @@ class ChallengeLivenessDetector:
             return self._verify_fallback(challenge_data, frames_base64, result)
 
         challenge_type = challenge_data.get('challenge_type')
+        is_hand_challenge = challenge_type in ('raise_one_hand', 'raise_both_hands')
+
+        if is_hand_challenge:
+            return self._verify_hand_challenge(challenge_data, frames_base64, result)
+
         frames_data = []
         total_frames = len(frames_base64)
         lost_landmark_frames = 0
@@ -473,12 +545,14 @@ class ChallengeLivenessDetector:
 
     def _verify_action(self, action, frames_data):
         dispatch = {
-            'blink':       self._verify_blink,
-            'open_mouth':  self._verify_open_mouth,
-            'shake_head':  self._verify_shake_head,
-            'look_left':   self._verify_look_left,
-            'look_right':  self._verify_look_right,
-            'look_up':     self._verify_look_up,
+            'blink':             self._verify_blink,
+            'open_mouth':        self._verify_open_mouth,
+            'shake_head':        self._verify_shake_head,
+            'look_left':         self._verify_look_left,
+            'look_right':        self._verify_look_right,
+            'look_up':           self._verify_look_up,
+            'raise_one_hand':    self._verify_raise_one_hand,
+            'raise_both_hands':  self._verify_raise_both_hands,
         }
         fn = dispatch.get(action)
         if fn is None:
@@ -835,6 +909,117 @@ class ChallengeLivenessDetector:
             return True, round(confidence, 3), f'Look up detected (pitch {baseline_pitch:.1f}->{min_pitch:.1f}, sustained={sustained_count} frames)'
 
         return False, 0.0, f'No look up (min_pitch={min_pitch:.2f}, need<{look_up_threshold:.2f}, sustained={sustained_count}/{self.MIN_SUSTAINED_FRAMES})'
+
+    # ============================================================
+    # HAND CHALLENGE VERIFICATION (using MediaPipe Pose)
+    # ============================================================
+
+    def _extract_pose_landmarks(self, img):
+        """Extract pose landmarks from image using MediaPipe Pose."""
+        if self.pose_landmarker is None:
+            return None
+        try:
+            rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+            results = self.pose_landmarker.detect(mp_image)
+            if not results or not results.pose_landmarks:
+                return None
+            landmarks = results.pose_landmarks[0]
+            h, w = img.shape[:2]
+            return {
+                'left_wrist': (landmarks[15].x * w, landmarks[15].y * h),
+                'right_wrist': (landmarks[16].x * w, landmarks[16].y * h),
+                'left_shoulder': (landmarks[11].x * w, landmarks[11].y * h),
+                'right_shoulder': (landmarks[12].x * w, landmarks[12].y * h),
+                'nose': (landmarks[0].x * w, landmarks[0].y * h),
+            }
+        except Exception as e:
+            logger.warning("[POSE] Landmark extraction failed: %s", e)
+            return None
+
+    def _is_hand_raised(self, pose_data):
+        """Check if a hand is raised above shoulder level."""
+        if pose_data is None:
+            return False, False
+        left_wrist_y = pose_data['left_wrist'][1]
+        right_wrist_y = pose_data['right_wrist'][1]
+        left_shoulder_y = pose_data['left_shoulder'][1]
+        right_shoulder_y = pose_data['right_shoulder'][1]
+        avg_shoulder_y = (left_shoulder_y + right_shoulder_y) / 2.0
+        left_raised = left_wrist_y < avg_shoulder_y * self.HAND_SHOULDER_Y_THRESHOLD + avg_shoulder_y * (1 - self.HAND_SHOULDER_Y_THRESHOLD)
+        right_raised = right_wrist_y < avg_shoulder_y * self.HAND_SHOULDER_Y_THRESHOLD + avg_shoulder_y * (1 - self.HAND_SHOULDER_Y_THRESHOLD)
+        return left_raised, right_raised
+
+    def _verify_hand_challenge(self, challenge_data, frames_base64, result):
+        """Verify hand raise challenges using MediaPipe Pose."""
+        tag = "[HAND_CHALLENGE]"
+        challenge_type = challenge_data.get('challenge_type', 'unknown')
+        frames_base64 = frames_base64 or []
+
+        if self.pose_landmarker is None:
+            result['reason'] = 'Pose landmarker not available -- hand challenges require MediaPipe Pose'
+            result['details'] = {'verdict': 'POSE_UNAVAILABLE'}
+            return self._to_native(result)
+
+        if len(frames_base64) < MIN_FRAMES_FOR_CHALLENGE:
+            result['reason'] = f'Insufficient frames ({len(frames_base64)}/{MIN_FRAMES_FOR_CHALLENGE})'
+            return self._to_native(result)
+
+        left_raised_frames = 0
+        right_raised_frames = 0
+        valid_frames = 0
+
+        for frame_b64 in frames_base64:
+            try:
+                if isinstance(frame_b64, str) and ',' in frame_b64:
+                    frame_b64 = frame_b64.split(',')[1]
+                img_bytes = base64.b64decode(frame_b64)
+                nparr = np.frombuffer(img_bytes, np.uint8)
+                img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                if img is None:
+                    continue
+
+                pose_data = self._extract_pose_landmarks(img)
+                if pose_data is None:
+                    continue
+
+                valid_frames += 1
+                left_raised, right_raised = self._is_hand_raised(pose_data)
+                if left_raised:
+                    left_raised_frames += 1
+                if right_raised:
+                    right_raised_frames += 1
+
+            except Exception:
+                continue
+
+        if valid_frames < MIN_FRAMES_FOR_CHALLENGE:
+            result['reason'] = f'Insufficient valid pose frames ({valid_frames}/{MIN_FRAMES_FOR_CHALLENGE})'
+            return self._to_native(result)
+
+        logger.info("%s type=%s valid_frames=%d left_raised=%d right_raised=%d",
+                     tag, challenge_type, valid_frames, left_raised_frames, right_raised_frames)
+
+        if challenge_type == 'raise_one_hand':
+            either_hand = left_raised_frames >= self.HAND_HOLD_FRAMES or right_raised_frames >= self.HAND_HOLD_FRAMES
+            if either_hand:
+                held_frames = max(left_raised_frames, right_raised_frames)
+                confidence = min(1.0, 0.4 + (held_frames / valid_frames) * 0.6)
+                hand = 'left' if left_raised_frames >= self.HAND_HOLD_FRAMES else 'right'
+                return True, round(confidence, 3), f'One hand raised ({hand}, held {held_frames}/{valid_frames} frames)'
+            else:
+                return False, 0.0, f'No hand raised long enough (left={left_raised_frames}, right={right_raised_frames}, need>={self.HAND_HOLD_FRAMES})'
+
+        elif challenge_type == 'raise_both_hands':
+            both_hands = left_raised_frames >= self.HAND_HOLD_FRAMES and right_raised_frames >= self.HAND_HOLD_FRAMES
+            if both_hands:
+                held_frames = min(left_raised_frames, right_raised_frames)
+                confidence = min(1.0, 0.4 + (held_frames / valid_frames) * 0.6)
+                return True, round(confidence, 3), f'Both hands raised (held {held_frames}/{valid_frames} frames)'
+            else:
+                return False, 0.0, f'Both hands not raised long enough (left={left_raised_frames}, right={right_raised_frames}, need>={self.HAND_HOLD_FRAMES})'
+
+        return False, 0.0, f'Unknown hand challenge: {challenge_type}'
 
     # ============================================================
     # FALLBACK (no MediaPipe)

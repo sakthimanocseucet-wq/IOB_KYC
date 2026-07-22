@@ -181,7 +181,9 @@ def health():
             },
             'deepfake': {
                 'available': deepfake_detector is not None and getattr(deepfake_detector, 'available', False),
-                'model': 'EfficientNet-B2',
+                'model': 'Multi-Model Ensemble (Xception + EfficientNet-B4 + F3Net + RECCE)',
+                'models_loaded': getattr(deepfake_detector, 'models_loaded', []),
+                'threshold': DEEPFAKE_THRESHOLD,
             },
         },
         'endpoints': {
@@ -535,7 +537,7 @@ def detailed_verify():
     # detect printed photos and screen replays.
 
     # ============================================================
-    # 4. DEEPFAKE (EfficientNet-B2)
+    # 4. DEEPFAKE (Multi-Model Ensemble: Xception + EfficientNet-B4 + F3Net + RECCE)
     # ============================================================
     deepfake_result = _safe_detect(
         lambda: deepfake_detector.detect(selfie),
@@ -546,6 +548,8 @@ def detailed_verify():
     deepfakeDetected = bool(_safe_get(deepfake_result, 'is_deepfake', False))
     deepfake_confidence = round(_safe_get(deepfake_result, 'confidence', 0.5), 4)
     deepfake_reason = _safe_get(deepfake_result, 'reason', '')
+    deepfake_per_model = deepfake_result.get('per_model', {})
+    deepfake_models_used = deepfake_result.get('models_used', [])
 
     # ============================================================
     # 5. GATE DECISION — STRICT ALL-CONDITIONS-MUST-PASS
@@ -603,6 +607,8 @@ def detailed_verify():
             'deepfake': deepfake_confidence,
             'screen_replay': screen_replay_conf,
         },
+        'deepfake_per_model': deepfake_per_model,
+        'deepfake_models_used': deepfake_models_used,
         'processing_time_ms': elapsed_total,
     }
 

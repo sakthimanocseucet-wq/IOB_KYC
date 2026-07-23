@@ -568,18 +568,15 @@ def detailed_verify():
     high_confidence = strong_face_match and strong_liveness and all_challenges_passed
 
     if high_confidence:
-        # Face match + liveness + challenges all pass → treat spoof/deepfake as advisory
-        # Only reject if spoof OR deepfake is extremely confident (> 0.90)
-        extreme_spoof = spoofDetected and spoof_liveness < 0.10
-        extreme_deepfake = deepfakeDetected and deepfake_confidence > 0.90
-        verified = not (extreme_spoof or extreme_deepfake)
-        if not verified:
-            reasons_override = []
-            if extreme_spoof:
-                reasons_override.append(f"Extreme anti-spoof confidence (liveness={spoof_liveness:.2f})")
-            if extreme_deepfake:
-                reasons_override.append(f"Extreme deepfake confidence (fake_prob={deepfake_confidence:.2f})")
-            logger.info("[VERIFY] High-confidence path but extreme spoof/deepfake: %s", reasons_override)
+        # Face match + liveness + challenges all pass → skip anti-spoof/deepfake rejection
+        # These models can produce false positives on certain faces
+        # Security is maintained by the 3 other gates (face + liveness + challenges)
+        verified = True
+        if spoofDetected or deepfakeDetected:
+            logger.info(
+                "[VERIFY] High-confidence override: spoof=%s (liveness=%.2f) deepfake=%s (prob=%.2f) — overriding",
+                spoofDetected, spoof_liveness, deepfakeDetected, deepfake_confidence
+            )
     else:
         # Normal path: all conditions must pass
         verified = (

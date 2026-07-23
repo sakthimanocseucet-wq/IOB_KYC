@@ -1,12 +1,14 @@
 package com.iob.kyc.controller;
 
 import com.iob.kyc.model.AuditLog;
+import com.iob.kyc.model.Branch;
 import com.iob.kyc.model.Employee;
 import com.iob.kyc.model.FraudAlert;
 import com.iob.kyc.model.KYCApplication;
 import com.iob.kyc.model.QRVerificationResult;
 import com.iob.kyc.model.User;
 import com.iob.kyc.repository.AuditLogRepository;
+import com.iob.kyc.repository.BranchRepository;
 import com.iob.kyc.repository.EmployeeRepository;
 import com.iob.kyc.repository.FraudAlertRepository;
 import com.iob.kyc.repository.KYCApplicationRepository;
@@ -59,6 +61,7 @@ public class AdminController {
     private final JwtTokenProvider jwtTokenProvider;
     private final AuditLogService auditLogService;
     private final AuditLogRepository auditLogRepository;
+    private final BranchRepository branchRepository;
 
     @Value("${file.upload-dir:./uploads}")
     private String uploadBaseDir;
@@ -72,7 +75,8 @@ public class AdminController {
                            QRVerificationRepository qrVerificationRepository,
                            JwtTokenProvider jwtTokenProvider,
                            AuditLogService auditLogService,
-                           AuditLogRepository auditLogRepository) {
+                           AuditLogRepository auditLogRepository,
+                           BranchRepository branchRepository) {
         this.kycApplicationRepository = kycApplicationRepository;
         this.fraudAlertRepository = fraudAlertRepository;
         this.fraudDetectionService = fraudDetectionService;
@@ -83,6 +87,7 @@ public class AdminController {
         this.jwtTokenProvider = jwtTokenProvider;
         this.auditLogService = auditLogService;
         this.auditLogRepository = auditLogRepository;
+        this.branchRepository = branchRepository;
     }
 
     // ============================================================
@@ -576,7 +581,16 @@ public class AdminController {
                         app.setCustomerId("CUST" + String.format("%05d", id));
                     }
                     if (app.getIfscCode() == null || app.getIfscCode().isEmpty()) {
-                        app.setIfscCode("IOBA000" + String.format("%04d", id));
+                        // Try to look up IFSC from branch table
+                        String branchIfsc = null;
+                        if (app.getBranchId() != null && !app.getBranchId().isEmpty()) {
+                            Branch lookupBranch = branchRepository.findByBranchId(app.getBranchId())
+                                    .orElseGet(() -> branchRepository.findByBranchNameContaining(app.getBranchId()).orElse(null));
+                            if (lookupBranch != null) {
+                                branchIfsc = lookupBranch.getIfscCode();
+                            }
+                        }
+                        app.setIfscCode(branchIfsc != null ? branchIfsc : "IOBA000" + String.format("%04d", id));
                     }
                     kycApplicationRepository.save(app);
 

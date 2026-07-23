@@ -342,22 +342,29 @@
             var docs = d.documents || {};
             var docHtml = '';
             var docItems = [
-                { label: 'Selfie', path: docs.selfiePath },
-                { label: 'Aadhaar Front', path: docs.aadhaarFrontPath },
-                { label: 'Aadhaar Back', path: docs.aadhaarBackPath },
-                { label: 'PAN Card', path: docs.panCardPath },
-                { label: 'Document', path: docs.docFilePath }
+                { label: 'Selfie', path: docs.selfiePath, b64: docs.selfieBase64 },
+                { label: 'Aadhaar Front', path: docs.aadhaarFrontPath, b64: docs.aadhaarFrontBase64 },
+                { label: 'Aadhaar Back', path: docs.aadhaarBackPath, b64: docs.aadhaarBackBase64 },
+                { label: 'PAN Card', path: docs.panCardPath, b64: docs.panCardBase64 },
+                { label: 'Document', path: docs.docFilePath, b64: docs.docFileBase64 },
+                { label: 'Photo', path: docs.photoPath, b64: docs.photoBase64 }
             ];
             docItems.forEach(function(item) {
+                var url = '';
                 if (item.path) {
-                    var url = '/api/admin/applications/' + d.id + '/' + item.label.toLowerCase().replace(/ /g, '-');
                     if (item.label === 'Selfie') url = '/api/admin/applications/' + d.id + '/selfie';
                     else if (item.label === 'Aadhaar Front') url = '/api/admin/applications/' + d.id + '/aadhaar-front';
                     else if (item.label === 'Aadhaar Back') url = '/api/admin/applications/' + d.id + '/aadhaar-back';
                     else if (item.label === 'PAN Card') url = '/api/admin/applications/' + d.id + '/pan-card';
                     else if (item.label === 'Document') url = '/api/admin/applications/' + d.id + '/document';
+                    else if (item.label === 'Photo') url = '/api/admin/applications/' + d.id + '/photo';
+                }
+                if (!url && item.b64) {
+                    url = item.b64;
+                }
+                if (url) {
                     docHtml += '<div style="text-align:center">' +
-                        '<img src="' + url + '?t=' + Date.now() + '" class="doc-thumb" onclick="openImageModal(this.src)" onerror="this.style.display=\'none\'">' +
+                        '<img src="' + url + (url.indexOf('data:') !== 0 ? '?t=' + Date.now() : '') + '" class="doc-thumb" onclick="openImageModal(this.src)" onerror="this.style.display=\'none\'">' +
                         '<div style="font-size:11px;color:var(--gray-500);margin-top:4px">' + item.label + '</div></div>';
                 }
             });

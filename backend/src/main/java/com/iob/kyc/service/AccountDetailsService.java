@@ -236,10 +236,17 @@ public class AccountDetailsService {
         // Documents
         Map<String, Object> documents = new HashMap<>();
         documents.put("selfiePath", app.getSelfieFilePath());
+        documents.put("selfieBase64", app.getSelfieBase64());
         documents.put("aadhaarFrontPath", app.getAadhaarFrontPath());
+        documents.put("aadhaarFrontBase64", app.getAadhaarFrontBase64());
         documents.put("aadhaarBackPath", app.getAadhaarBackPath());
+        documents.put("aadhaarBackBase64", app.getAadhaarBackBase64());
         documents.put("panCardPath", app.getPanCardPath());
+        documents.put("panCardBase64", app.getPanCardBase64());
         documents.put("docFilePath", app.getDocFilePath());
+        documents.put("docFileBase64", app.getDocFileBase64());
+        documents.put("photoPath", app.getPhotoFilePath());
+        documents.put("photoBase64", app.getPhotoBase64());
         details.put("documents", documents);
 
         // Timeline

@@ -941,54 +941,118 @@ public class AdminController {
         KYCApplication app = kycApplicationRepository.findByIdWithUser(id).orElse(null);
         if (app == null) return ResponseEntity.notFound().build();
 
-        String imagePath = null;
-        String docType = app.getDocType().name();
+        // Build OCR data map for both Aadhaar and PAN
+        Map<String, Object> ocrDataMap = new HashMap<>();
+        ocrDataMap.put("name", app.getOcrName());
+        ocrDataMap.put("dob", app.getOcrDob() != null ? app.getOcrDob().toString() : "");
+        ocrDataMap.put("id_number", app.getOcrIdNumber());
+        ocrDataMap.put("aadhaar_number", app.getOcrIdNumber());
+        ocrDataMap.put("pan_number", app.getOcrPanNumber());
 
-        if ("AADHAAR".equals(docType)) {
-            imagePath = app.getAadhaarFrontPath();
-            if (imagePath == null || imagePath.isEmpty()) {
-                imagePath = app.getAadhaarBackPath();
+        // Try to verify Aadhaar QR
+        QRVerificationResult aadhaarQrResult = runQrVerifyForDoc(
+                id, app.getAadhaarFrontPath(), app.getAadhaarFrontBase64(),
+                app.getAadhaarBackPath(), app.getAadhaarBackBase64(),
+                app.getDocFilePath(), app.getDocFileBase64(),
+                "AADHAAR", ocrDataMap, app);
+
+        // Try to verify PAN QR
+        QRVerificationResult panQrResult = runQrVerifyForDoc(
+                id, app.getPanCardPath(), app.getPanCardBase64(),
+                null, null,
+                null, null,
+                "PAN", ocrDataMap, app);
+
+        // Pick the best result (PASSED > FAILED > SKIPPED)
+        QRVerificationResult bestResult = null;
+        if (aadhaarQrResult != null && aadhaarQrResult.getVerificationStatus() == com.iob.kyc.model.QRStatus.PASSED) {
+            bestResult = aadhaarQrResult;
+        } else if (panQrResult != null && panQrResult.getVerificationStatus() == com.iob.kyc.model.QRStatus.PASSED) {
+            bestResult = panQrResult;
+        } else if (aadhaarQrResult != null) {
+            bestResult = aadhaarQrResult;
+        } else if (panQrResult != null) {
+            bestResult = panQrResult;
+        }
+
+        if (bestResult == null) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "No document image found for QR verification"));
+        }
+
+        // Merge: take name from Aadhaar QR, PAN number from PAN QR
+        if (aadhaarQrResult != null && panQrResult != null) {
+            String aadhaarName = aadhaarQrResult.getQrName();
+            String panNumber = panQrResult.getQrPanNumber();
+            if (aadhaarName != null && !aadhaarName.isEmpty()) {
+                bestResult.setQrName(aadhaarName);
+                bestResult.setNameMatch(aadhaarQrResult.isNameMatch());
             }
-        } else if ("PAN".equals(docType)) {
-            imagePath = app.getPanCardPath();
-        }
-        if (imagePath == null || imagePath.isEmpty()) {
-            imagePath = app.getDocFilePath();
+            if (panNumber != null && !panNumber.isEmpty()) {
+                bestResult.setQrPanNumber(panNumber);
+                bestResult.setPanNumberMatch(panQrResult.isPanNumberMatch());
+            }
+            // Use higher match percentage
+            double bestMatch = Math.max(aadhaarQrResult.getMatchPercentage(), panQrResult.getMatchPercentage());
+            bestResult.setMatchPercentage(bestMatch);
         }
 
-        if (imagePath == null || imagePath.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "No document image uploaded"));
+        app.setQrVerified(true);
+        app.setQrVerificationStatus(bestResult.getVerificationStatus());
+        app.setQrMatchPercentage(bestResult.getMatchPercentage());
+        app.setQrVerifiedAt(java.time.LocalDateTime.now());
+
+        if (bestResult.getVerificationStatus() == com.iob.kyc.model.QRStatus.FAILED) {
+            int currentRisk = app.getRiskScore();
+            int newRisk = Math.min(currentRisk + 25, 100);
+            app.setRiskScore(newRisk);
+            if (newRisk >= 60) app.setRiskLevel(KYCApplication.RiskLevel.HIGH);
+            else if (newRisk >= 30) app.setRiskLevel(KYCApplication.RiskLevel.MEDIUM);
+        } else if (bestResult.getVerificationStatus() == com.iob.kyc.model.QRStatus.SKIPPED) {
+            int currentRisk = app.getRiskScore();
+            int newRisk = Math.min(currentRisk + 10, 100);
+            app.setRiskScore(newRisk);
+            if (newRisk >= 60) app.setRiskLevel(KYCApplication.RiskLevel.HIGH);
+            else if (newRisk >= 30) app.setRiskLevel(KYCApplication.RiskLevel.MEDIUM);
+        } else if (bestResult.getVerificationStatus() == com.iob.kyc.model.QRStatus.PASSED) {
+            int currentRisk = app.getRiskScore();
+            int newRisk = Math.max(currentRisk - 15, 0);
+            app.setRiskScore(newRisk);
+            app.setRiskLevel(KYCApplication.RiskLevel.LOW);
         }
+        kycApplicationRepository.save(app);
+
+        audit(request, "QR_VERIFY", "KYC_APPLICATION", String.valueOf(id),
+                "QR verification completed: " + bestResult.getVerificationStatus());
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("status", bestResult.getVerificationStatus().name());
+        response.put("matchPercentage", bestResult.getMatchPercentage());
+        response.put("qrDetected", bestResult.isQrDetected());
+        response.put("message", "QR verification completed");
+
+        return ResponseEntity.ok(response);
+    }
+
+    private QRVerificationResult runQrVerifyForDoc(Long appId,
+                                                   String path1, String b64_1,
+                                                   String path2, String b64_2,
+                                                   String fallbackPath, String fallbackB64,
+                                                   String docType, Map<String, Object> ocrDataMap,
+                                                   KYCApplication app) {
+        // Try to get image bytes from file path or base64
+        byte[] imageBytes = getImageBytes(path1, b64_1);
+        if (imageBytes == null) imageBytes = getImageBytes(path2, b64_2);
+        if (imageBytes == null) imageBytes = getImageBytes(fallbackPath, fallbackB64);
+
+        if (imageBytes == null) return null;
 
         try {
-            Path path = Paths.get(imagePath);
-            if (!Files.exists(path)) {
-                String relativePath = imagePath;
-                if (relativePath.startsWith("uploads/")) {
-                    relativePath = relativePath.substring("uploads/".length());
-                } else if (relativePath.startsWith("uploads\\")) {
-                    relativePath = relativePath.substring("uploads\\".length());
-                }
-                Path altPath = Paths.get(uploadBaseDir).resolve(relativePath).normalize();
-                if (Files.exists(altPath)) {
-                    path = altPath;
-                } else {
-                    return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Document file not found"));
-                }
-            }
-
-            byte[] imageBytes = Files.readAllBytes(path);
             org.springframework.core.io.ByteArrayResource imageResource = new org.springframework.core.io.ByteArrayResource(imageBytes) {
                 @Override
                 public String getFilename() { return "document.jpg"; }
             };
 
-            Map<String, Object> ocrDataMap = new HashMap<>();
-            ocrDataMap.put("name", app.getOcrName());
-            ocrDataMap.put("dob", app.getOcrDob() != null ? app.getOcrDob().toString() : "");
-            ocrDataMap.put("id_number", app.getOcrIdNumber());
-            ocrDataMap.put("aadhaar_number", app.getOcrIdNumber());
-            ocrDataMap.put("pan_number", app.getOcrPanNumber());
             String ocrDataJson = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(ocrDataMap);
 
             String aiServiceUrlLocal = "http://localhost:5001";
@@ -1062,50 +1126,52 @@ public class AdminController {
                 }
 
                 qrVerificationRepository.save(qrResult);
-
-                app.setQrVerified(true);
-                app.setQrVerificationStatus(qrResult.getVerificationStatus());
-                app.setQrMatchPercentage(qrResult.getMatchPercentage());
-                app.setQrVerifiedAt(java.time.LocalDateTime.now());
-
-                if (qrResult.getVerificationStatus() == com.iob.kyc.model.QRStatus.FAILED) {
-                    int currentRisk = app.getRiskScore();
-                    int newRisk = Math.min(currentRisk + 25, 100);
-                    app.setRiskScore(newRisk);
-                    if (newRisk >= 60) {
-                        app.setRiskLevel(KYCApplication.RiskLevel.HIGH);
-                    } else if (newRisk >= 30) {
-                        app.setRiskLevel(KYCApplication.RiskLevel.MEDIUM);
-                    }
-                } else if (qrResult.getVerificationStatus() == com.iob.kyc.model.QRStatus.SKIPPED) {
-                    int currentRisk = app.getRiskScore();
-                    int newRisk = Math.min(currentRisk + 10, 100);
-                    app.setRiskScore(newRisk);
-                    if (newRisk >= 60) {
-                        app.setRiskLevel(KYCApplication.RiskLevel.HIGH);
-                    } else if (newRisk >= 30) {
-                        app.setRiskLevel(KYCApplication.RiskLevel.MEDIUM);
-                    }
-                } else if (qrResult.getVerificationStatus() == com.iob.kyc.model.QRStatus.PASSED) {
-                    int currentRisk = app.getRiskScore();
-                    int newRisk = Math.max(currentRisk - 15, 0);
-                    app.setRiskScore(newRisk);
-                    app.setRiskLevel(KYCApplication.RiskLevel.LOW);
-                }
-
-                kycApplicationRepository.save(app);
-
-                audit(request, "QR_VERIFY", "KYC_APPLICATION", String.valueOf(id),
-                        "QR verification triggered for application " + app.getApplicationRef()
-                                + " — Result: " + qrResult.getVerificationStatus());
-
-                return ResponseEntity.ok(Map.of("success", true, "data", qrResult));
-            } else {
-                return ResponseEntity.status(502).body(Map.of("success", false, "message", "AI service error"));
+                return qrResult;
             }
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of("success", false, "message", e.getMessage()));
+            logger.warn("[QR] Verification failed for doc type {}: {}", docType, e.getMessage());
         }
+        return null;
+    }
+
+    private byte[] getImageBytes(String filePath, String base64Data) {
+        // Try file path first
+        if (filePath != null && !filePath.isEmpty()) {
+            try {
+                Path path = Paths.get(filePath);
+                if (!Files.exists(path)) {
+                    String relativePath = filePath;
+                    if (relativePath.startsWith("uploads/")) {
+                        relativePath = relativePath.substring("uploads/".length());
+                    } else if (relativePath.startsWith("uploads\\")) {
+                        relativePath = relativePath.substring("uploads\\".length());
+                    }
+                    Path altPath = Paths.get(uploadBaseDir).resolve(relativePath).normalize();
+                    if (Files.exists(altPath)) {
+                        path = altPath;
+                    }
+                }
+                if (Files.exists(path)) {
+                    return Files.readAllBytes(path);
+                }
+            } catch (Exception e) {
+                logger.warn("[QR] Failed to read file {}: {}", filePath, e.getMessage());
+            }
+        }
+        // Try base64 data
+        if (base64Data != null && !base64Data.isEmpty()) {
+            try {
+                String data = base64Data;
+                if (data.startsWith("data:")) {
+                    int commaIdx = data.indexOf(',');
+                    if (commaIdx > 0) data = data.substring(commaIdx + 1);
+                }
+                return java.util.Base64.getDecoder().decode(data);
+            } catch (Exception e) {
+                logger.warn("[QR] Failed to decode base64 data: {}", e.getMessage());
+            }
+        }
+        return null;
     }
 
     @DeleteMapping("/delete-all-kyc")

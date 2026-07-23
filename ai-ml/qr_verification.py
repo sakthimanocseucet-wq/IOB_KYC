@@ -215,6 +215,7 @@ def parse_aadhaar_qr(qr_data):
     """Parse Aadhaar QR code data to extract name, DOB, and Aadhaar number.
 
     Aadhaar QR codes may contain:
+    - XML-like data with attributes (PrintLetterBarcodeData)
     - XML-like data with tags
     - Pipe-separated fields
     - Plain text with embedded numbers
@@ -237,9 +238,19 @@ def parse_aadhaar_qr(qr_data):
     except (json.JSONDecodeError, TypeError):
         pass
 
+    # XML attribute format: <PrintLetterBarcodeData uid="..." name="..." dob="..." />
+    xml_attr_match = re.search(r'name\s*=\s*["\']([^"\']+)["\']', qr_data, re.IGNORECASE)
+    if xml_attr_match:
+        result['name'] = xml_attr_match.group(1).strip()
+
     uid_match = re.search(r'<uid[^>]*>(\d{12})</uid>', qr_data, re.IGNORECASE)
     if uid_match:
         result['aadhaar_number'] = uid_match.group(1)
+
+    if not result['aadhaar_number']:
+        uid_attr_match = re.search(r'uid\s*=\s*["\']?(\d{12})["\']?', qr_data, re.IGNORECASE)
+        if uid_attr_match:
+            result['aadhaar_number'] = uid_attr_match.group(1)
 
     if not result['aadhaar_number']:
         uid_match = re.search(r'\b(\d{4}\s?\d{4}\s?\d{4})\b', qr_data)
@@ -249,14 +260,21 @@ def parse_aadhaar_qr(qr_data):
             if len(candidate) == 12:
                 result['aadhaar_number'] = candidate
 
-    name_match = re.search(r'<name[^>]*>([^<]+)</name>', qr_data, re.IGNORECASE)
-    if name_match:
-        result['name'] = name_match.group(1).strip()
+    if not result['name']:
+        name_match = re.search(r'<name[^>]*>([^<]+)</name>', qr_data, re.IGNORECASE)
+        if name_match:
+            result['name'] = name_match.group(1).strip()
 
     if not result['name']:
         name_match = re.search(r'<naam[^>]*>([^<]+)</naam>', qr_data, re.IGNORECASE)
         if name_match:
             result['name'] = name_match.group(1).strip()
+
+    # XML attribute format: dob="..."
+    if not result['dob']:
+        dob_attr_match = re.search(r'dob\s*=\s*["\']([^"\']+)["\']', qr_data, re.IGNORECASE)
+        if dob_attr_match:
+            result['dob'] = dob_attr_match.group(1).strip()
 
     dob_match = re.search(r'<dob[^>]*>([^<]+)</dob>', qr_data, re.IGNORECASE)
     if dob_match:
@@ -309,9 +327,10 @@ def parse_pan_qr(qr_data):
     """Parse PAN QR code data to extract name, DOB, and PAN number.
 
     PAN QR codes typically contain:
-    - XML-like data with tags
+    - XML-like data with tags or attributes
     - JSON data
     - Pipe-separated or comma-separated fields
+    - Plain text with PAN pattern
     """
     result = {'name': '', 'dob': '', 'pan_number': ''}
 
@@ -331,23 +350,41 @@ def parse_pan_qr(qr_data):
     except (json.JSONDecodeError, TypeError):
         pass
 
-    pan_match = re.search(r'\b([A-Z]{5}\d{4}[A-Z])\b', qr_data)
-    if pan_match:
-        result['pan_number'] = pan_match.group(1)
+    # XML attribute format: pan="ABCPM1234D" or name="ARJUN MEHRA"
+    pan_attr_match = re.search(r'pan\s*=\s*["\']([A-Z0-9]{10})["\']', qr_data, re.IGNORECASE)
+    if pan_attr_match:
+        result['pan_number'] = pan_attr_match.group(1).upper()
+
+    if not result['pan_number']:
+        pan_match = re.search(r'\b([A-Z]{5}\d{4}[A-Z])\b', qr_data)
+        if pan_match:
+            result['pan_number'] = pan_match.group(1)
 
     if not result['pan_number']:
         pan_match = re.search(r'<pan[^>]*>([A-Z0-9]{10})</pan>', qr_data, re.IGNORECASE)
         if pan_match:
             result['pan_number'] = pan_match.group(1).upper()
 
-    name_match = re.search(r'<name[^>]*>([^<]+)</name>', qr_data, re.IGNORECASE)
-    if name_match:
-        result['name'] = name_match.group(1).strip()
+    # XML attribute format: name="..."
+    name_attr_match = re.search(r'name\s*=\s*["\']([^"\']+)["\']', qr_data, re.IGNORECASE)
+    if name_attr_match:
+        result['name'] = name_attr_match.group(1).strip()
+
+    if not result['name']:
+        name_match = re.search(r'<name[^>]*>([^<]+)</name>', qr_data, re.IGNORECASE)
+        if name_match:
+            result['name'] = name_match.group(1).strip()
 
     if not result['name']:
         name_match = re.search(r'<naam[^>]*>([^<]+)</naam>', qr_data, re.IGNORECASE)
         if name_match:
             result['name'] = name_match.group(1).strip()
+
+    # XML attribute format: dob="..."
+    if not result['dob']:
+        dob_attr_match = re.search(r'dob\s*=\s*["\']([^"\']+)["\']', qr_data, re.IGNORECASE)
+        if dob_attr_match:
+            result['dob'] = dob_attr_match.group(1).strip()
 
     dob_match = re.search(r'<dob[^>]*>([^<]+)</dob>', qr_data, re.IGNORECASE)
     if dob_match:

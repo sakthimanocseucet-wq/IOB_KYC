@@ -10,7 +10,7 @@ RUN cd backend && mvn clean package -DskipTests -q
 FROM python:3.11-slim
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends default-jre-headless libgl1 libglib2.0-0 libzbar0 libegl1 libgles2 && \
+    apt-get install -y --no-install-recommends default-jre-headless libgl1 libglib2.0-0 libzbar0 libegl1 libgles2 wget && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

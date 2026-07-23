@@ -1034,20 +1034,29 @@ class ChallengeLivenessDetector:
                 held_frames = max(left_raised_frames, right_raised_frames)
                 confidence = min(1.0, 0.4 + (held_frames / valid_frames) * 0.6)
                 hand = 'left' if left_raised_frames >= self.HAND_HOLD_FRAMES else 'right'
-                return True, round(confidence, 3), f'One hand raised ({hand}, held {held_frames}/{valid_frames} frames)'
+                result['challenge_passed'] = True
+                result['confidence'] = round(confidence, 3)
+                result['reason'] = f'One hand raised ({hand}, held {held_frames}/{valid_frames} frames)'
+                return self._to_native(result)
             else:
-                return False, 0.0, f'No hand raised long enough (left={left_raised_frames}, right={right_raised_frames}, need>={self.HAND_HOLD_FRAMES})'
+                result['reason'] = f'No hand raised long enough (left={left_raised_frames}, right={right_raised_frames}, need>={self.HAND_HOLD_FRAMES})'
+                return self._to_native(result)
 
         elif challenge_type == 'raise_both_hands':
             both_hands = left_raised_frames >= self.HAND_HOLD_FRAMES and right_raised_frames >= self.HAND_HOLD_FRAMES
             if both_hands:
                 held_frames = min(left_raised_frames, right_raised_frames)
                 confidence = min(1.0, 0.4 + (held_frames / valid_frames) * 0.6)
-                return True, round(confidence, 3), f'Both hands raised (held {held_frames}/{valid_frames} frames)'
+                result['challenge_passed'] = True
+                result['confidence'] = round(confidence, 3)
+                result['reason'] = f'Both hands raised (held {held_frames}/{valid_frames} frames)'
+                return self._to_native(result)
             else:
-                return False, 0.0, f'Both hands not raised long enough (left={left_raised_frames}, right={right_raised_frames}, need>={self.HAND_HOLD_FRAMES})'
+                result['reason'] = f'Both hands not raised long enough (left={left_raised_frames}, right={right_raised_frames}, need>={self.HAND_HOLD_FRAMES})'
+                return self._to_native(result)
 
-        return False, 0.0, f'Unknown hand challenge: {challenge_type}'
+        result['reason'] = f'Unknown hand challenge: {challenge_type}'
+        return self._to_native(result)
 
     # ============================================================
     # FALLBACK (no MediaPipe)

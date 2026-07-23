@@ -181,8 +181,10 @@ def health():
             },
             'deepfake': {
                 'available': deepfake_detector is not None and getattr(deepfake_detector, 'available', False),
-                'model': 'Multi-Model Ensemble (Xception + EfficientNet-B4 + F3Net + RECCE)',
+                'model': 'Deepfake Ensemble (Xception + EfficientNet-B2) -- official architectures only',
                 'models_loaded': getattr(deepfake_detector, 'models_loaded', []),
+                'models_disabled': getattr(deepfake_detector, 'models_disabled', []),
+                'model_diagnostics': getattr(deepfake_detector, '_build_model_diagnostics', lambda: {})(),
                 'threshold': DEEPFAKE_THRESHOLD,
             },
         },
@@ -537,7 +539,7 @@ def detailed_verify():
     # detect printed photos and screen replays.
 
     # ============================================================
-    # 4. DEEPFAKE (Multi-Model Ensemble: Xception + EfficientNet-B4 + F3Net + RECCE)
+    # 4. DEEPFAKE (Official Models: Xception + EfficientNet-B2)
     # ============================================================
     deepfake_result = _safe_detect(
         lambda: deepfake_detector.detect(selfie),

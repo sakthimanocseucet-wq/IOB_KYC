@@ -554,17 +554,40 @@ def detailed_verify():
     deepfake_models_used = deepfake_result.get('models_used', [])
 
     # ============================================================
-    # 5. GATE DECISION — STRICT ALL-CONDITIONS-MUST-PASS
+    # 5. GATE DECISION — CONFIDENCE-BASED OVERRIDE
     # ============================================================
-    # No single module can override other security failures.
-    # ALL conditions must pass for verification to succeed.
+    # If face match is strong AND liveness passed AND all challenges passed,
+    # anti-spoof and deepfake are treated as advisory (soft-fail).
+    # This prevents false positives from incorrectly rejecting real people.
 
-    verified = (
-        faceMatchPassed
-        and livenessPassed
-        and (not spoofDetected)
-        and (not deepfakeDetected)
-    )
+    strong_face_match = faceMatchPassed and face_similarity >= 0.50
+    strong_liveness = livenessPassed and session_liveness_confirmed
+    all_challenges_passed = session_liveness_confirmed
+
+    # High confidence path: face + liveness + challenges all pass
+    high_confidence = strong_face_match and strong_liveness and all_challenges_passed
+
+    if high_confidence:
+        # Face match + liveness + challenges all pass → treat spoof/deepfake as advisory
+        # Only reject if spoof OR deepfake is extremely confident (> 0.90)
+        extreme_spoof = spoofDetected and spoof_liveness < 0.10
+        extreme_deepfake = deepfakeDetected and deepfake_confidence > 0.90
+        verified = not (extreme_spoof or extreme_deepfake)
+        if not verified:
+            reasons_override = []
+            if extreme_spoof:
+                reasons_override.append(f"Extreme anti-spoof confidence (liveness={spoof_liveness:.2f})")
+            if extreme_deepfake:
+                reasons_override.append(f"Extreme deepfake confidence (fake_prob={deepfake_confidence:.2f})")
+            logger.info("[VERIFY] High-confidence path but extreme spoof/deepfake: %s", reasons_override)
+    else:
+        # Normal path: all conditions must pass
+        verified = (
+            faceMatchPassed
+            and livenessPassed
+            and (not spoofDetected)
+            and (not deepfakeDetected)
+        )
 
     reasons = []
     if not faceMatchPassed:
@@ -583,9 +606,9 @@ def detailed_verify():
     elapsed_total = round((time.time() - start_total) * 1000, 1)
 
     logger.info(
-        "[VERIFY] face=%s live=%s spoof=%s deepfake=%s screen_replay=%s → %s (%.1fms)",
+        "[VERIFY] face=%s live=%s spoof=%s deepfake=%s screen_replay=%s high_conf=%s → %s (%.1fms)",
         faceMatchPassed, livenessPassed, spoofDetected, deepfakeDetected,
-        screenReplayDetected, verdict, elapsed_total,
+        screenReplayDetected, high_confidence, verdict, elapsed_total,
     )
     if not verified:
         logger.warning("[VERIFY_REJECTED] reasons=%s", reasons)

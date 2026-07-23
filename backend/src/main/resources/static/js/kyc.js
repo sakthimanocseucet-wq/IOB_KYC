@@ -1202,19 +1202,22 @@ async function startLivenessChallenge() {
 
     // Stop challenge video recording and convert to base64
     if (challengeVideoRecorder && challengeVideoRecorder.state === 'recording') {
-        challengeVideoRecorder.stop();
-        console.log('[VIDEO] Challenge recording stopped, chunks:', challengeVideoChunks.length);
-        try {
-            var videoBlob = new Blob(challengeVideoChunks, { type: challengeVideoRecorder.mimeType || 'video/webm' });
-            var videoReader = new FileReader();
-            videoReader.onloadend = function() {
-                challengeVideoBase64 = videoReader.result;
-                console.log('[VIDEO] Challenge video converted to base64, size:', Math.round((challengeVideoBase64 ? challengeVideoBase64.length : 0) / 1024) + 'KB');
-            };
-            videoReader.readAsDataURL(videoBlob);
-        } catch (e) { console.warn('[VIDEO] Blob conversion failed:', e); }
+        var recorderRef = challengeVideoRecorder;
+        challengeVideoRecorder = null;
+        recorderRef.onstop = function() {
+            try {
+                console.log('[VIDEO] Challenge recording stopped, chunks:', challengeVideoChunks.length);
+                var videoBlob = new Blob(challengeVideoChunks, { type: recorderRef.mimeType || 'video/webm' });
+                var videoReader = new FileReader();
+                videoReader.onloadend = function() {
+                    challengeVideoBase64 = videoReader.result;
+                    console.log('[VIDEO] Challenge video converted to base64, size:', Math.round((challengeVideoBase64 ? challengeVideoBase64.length : 0) / 1024) + 'KB');
+                };
+                videoReader.readAsDataURL(videoBlob);
+            } catch (e) { console.warn('[VIDEO] Blob conversion failed:', e); }
+        };
+        recorderRef.stop();
     }
-    challengeVideoRecorder = null;
 
     actionLabel.textContent = 'Completed!';
     actionRingFill.setAttribute('stroke-dasharray', '100, 100');

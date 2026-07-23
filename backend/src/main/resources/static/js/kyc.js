@@ -1204,18 +1204,27 @@ async function startLivenessChallenge() {
     if (challengeVideoRecorder && challengeVideoRecorder.state === 'recording') {
         var recorderRef = challengeVideoRecorder;
         challengeVideoRecorder = null;
-        recorderRef.onstop = function() {
-            try {
-                console.log('[VIDEO] Challenge recording stopped, chunks:', challengeVideoChunks.length);
-                var videoBlob = new Blob(challengeVideoChunks, { type: recorderRef.mimeType || 'video/webm' });
-                var videoReader = new FileReader();
-                videoReader.onloadend = function() {
-                    challengeVideoBase64 = videoReader.result;
-                    console.log('[VIDEO] Challenge video converted to base64, size:', Math.round((challengeVideoBase64 ? challengeVideoBase64.length : 0) / 1024) + 'KB');
-                };
-                videoReader.readAsDataURL(videoBlob);
-            } catch (e) { console.warn('[VIDEO] Blob conversion failed:', e); }
-        };
+        window.__challengeVideoPromise = new Promise(function(resolve) {
+            recorderRef.onstop = function() {
+                try {
+                    console.log('[VIDEO] Challenge recording stopped, chunks:', challengeVideoChunks.length);
+                    if (challengeVideoChunks.length === 0) {
+                        console.warn('[VIDEO] No video chunks recorded');
+                        resolve();
+                        return;
+                    }
+                    var videoBlob = new Blob(challengeVideoChunks, { type: recorderRef.mimeType || 'video/webm' });
+                    var videoReader = new FileReader();
+                    videoReader.onloadend = function() {
+                        challengeVideoBase64 = videoReader.result;
+                        console.log('[VIDEO] Challenge video converted to base64, size:', Math.round((challengeVideoBase64 ? challengeVideoBase64.length : 0) / 1024) + 'KB');
+                        resolve();
+                    };
+                    videoReader.onerror = function() { console.warn('[VIDEO] FileReader error'); resolve(); };
+                    videoReader.readAsDataURL(videoBlob);
+                } catch (e) { console.warn('[VIDEO] Blob conversion failed:', e); resolve(); }
+            };
+        });
         recorderRef.stop();
     }
 
@@ -1676,6 +1685,9 @@ async function submitKYCApplication(showLoading) {
         }
 
         // Upload challenge video + results if available
+        if (window.__challengeVideoPromise) {
+            try { await window.__challengeVideoPromise; } catch(e) { console.warn('[VIDEO] Promise wait failed:', e); }
+        }
         if (challengeVideoBase64 && appId) {
             try {
                 var challengeSequenceList = challengeResults.map(function(r) { return r.challenge; });

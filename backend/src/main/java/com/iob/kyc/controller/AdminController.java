@@ -926,6 +926,7 @@ public class AdminController {
             results.put("pan_number", panMap);
 
             result.put("results", results);
+            result.put("qrRawData", qr.getQrRawData() != null ? qr.getQrRawData() : "");
             return ResponseEntity.ok(result);
         } else {
             return ResponseEntity.ok(java.util.Map.of(
@@ -1041,6 +1042,41 @@ public class AdminController {
         response.put("status", bestResult.getVerificationStatus().name());
         response.put("matchPercentage", bestResult.getMatchPercentage());
         response.put("qrDetected", bestResult.isQrDetected());
+        response.put("verificationStatus", bestResult.getVerificationStatus().name());
+        response.put("documentType", bestResult.getDocumentType());
+        response.put("verifiedAt", bestResult.getVerifiedAt() != null ? bestResult.getVerifiedAt().toString() : java.time.LocalDateTime.now().toString());
+
+        Map<String, Map<String, Object>> resultsMap = new java.util.LinkedHashMap<>();
+        String ocrNameVal = bestResult.getOcrName() != null ? bestResult.getOcrName() : "";
+        String ocrDobVal = bestResult.getOcrDob() != null ? bestResult.getOcrDob() : "";
+        String ocrIdVal = bestResult.getOcrIdNumber() != null ? bestResult.getOcrIdNumber() : "";
+        String ocrPanVal = bestResult.getOcrPanNumber() != null ? bestResult.getOcrPanNumber() : "";
+
+        Map<String, Object> nm = new HashMap<>();
+        nm.put("ocr", ocrNameVal);
+        nm.put("qr", bestResult.getQrName() != null ? bestResult.getQrName() : "");
+        nm.put("match", bestResult.getNameMatch() != null && bestResult.getNameMatch());
+        resultsMap.put("name", nm);
+
+        Map<String, Object> dm = new HashMap<>();
+        dm.put("ocr", ocrDobVal);
+        dm.put("qr", bestResult.getQrDob() != null ? bestResult.getQrDob() : "");
+        dm.put("match", bestResult.getDobMatch() != null && bestResult.getDobMatch());
+        resultsMap.put("dob", dm);
+
+        Map<String, Object> am = new HashMap<>();
+        am.put("ocr", ocrIdVal);
+        am.put("qr", bestResult.getQrIdNumber() != null ? bestResult.getQrIdNumber() : "");
+        am.put("match", bestResult.getIdNumberMatch() != null && bestResult.getIdNumberMatch());
+        resultsMap.put("aadhaar_number", am);
+
+        Map<String, Object> pm = new HashMap<>();
+        pm.put("ocr", ocrPanVal);
+        pm.put("qr", bestResult.getQrPanNumber() != null ? bestResult.getQrPanNumber() : "");
+        pm.put("match", bestResult.getPanNumberMatch() != null && bestResult.getPanNumberMatch());
+        resultsMap.put("pan_number", pm);
+
+        response.put("results", resultsMap);
         response.put("message", "QR verification completed");
 
         return ResponseEntity.ok(response);

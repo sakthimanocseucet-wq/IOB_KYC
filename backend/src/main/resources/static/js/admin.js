@@ -1421,12 +1421,19 @@ function renderQrResult(data, appId) {
 
     var timestampHtml = timestamp ? '<p style="font-size:11px;color:var(--gray-500);margin:0">Verified at: ' + timestamp + '</p>' : '';
 
+    var rawDataHtml = '';
+    if (data.qrRawData) {
+        rawDataHtml = '<details style="margin-top:8px"><summary style="font-size:11px;color:var(--gray-500);cursor:pointer">QR Raw Data (first 500 chars)</summary>' +
+            '<pre style="font-size:10px;color:var(--gray-600);background:var(--gray-100,#f1f5f9);padding:8px;border-radius:4px;margin-top:4px;white-space:pre-wrap;word-break:break-all;max-height:120px;overflow:auto">' + (data.qrRawData || '').replace(/</g, '&lt;') + '</pre></details>';
+    }
+
     return '<div style="padding:4px">' +
         headerHtml +
         '<div style="padding:12px;border:1px solid ' + sc.border + ';border-radius:8px;background:' + sc.bg + ';margin-bottom:12px">' +
             fieldTable +
         '</div>' +
         timestampHtml +
+        rawDataHtml +
     '</div>';
 }
 
@@ -1452,13 +1459,35 @@ async function triggerQrVerification(appId) {
         });
 
         var data = await res.json();
-        if (data.success && data.data) {
-            if (container) {
-                container.innerHTML = renderQrResult(data.data, appId);
-            }
+        if (data.success) {
             lastDataHash = '';
             await loadApplicationsFromAPI();
-            showToast('QR verification completed: ' + (data.data.verificationStatus || 'Unknown'), data.data.verificationStatus === 'PASSED' ? 'success' : data.data.verificationStatus === 'FAILED' ? 'error' : 'info');
+            if (data.results && data.verificationStatus) {
+                if (container) {
+                    container.innerHTML = renderQrResult(data, appId);
+                }
+                showToast('QR verification completed: ' + (data.verificationStatus || 'Unknown'), data.verificationStatus === 'PASSED' ? 'success' : data.verificationStatus === 'FAILED' ? 'error' : 'info');
+            } else {
+                var getRes = await fetch(ADMIN_API + '/applications/' + appId + '/qr-verify', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (getRes.ok) {
+                    var getResult = await getRes.json();
+                    if (getResult.results && getResult.verificationStatus) {
+                        if (container) {
+                            container.innerHTML = renderQrResult(getResult, appId);
+                        }
+                        showToast('QR verification completed: ' + (getResult.verificationStatus || 'Unknown'), getResult.verificationStatus === 'PASSED' ? 'success' : getResult.verificationStatus === 'FAILED' ? 'error' : 'info');
+                        return;
+                    }
+                }
+                var status = data.status || 'Unknown';
+                if (container) {
+                    container.innerHTML = '<div style="text-align:center;padding:12px"><p style="font-size:13px;color:var(--success)">QR verification completed: ' + status + '</p>' +
+                        '<button class="btn btn-sm btn-outline" onclick="loadQrVerification(' + appId + ')" style="margin-top:8px;font-size:12px;padding:6px 12px;cursor:pointer">&#128260; Refresh</button></div>';
+                }
+                showToast('QR verification completed: ' + status, status === 'PASSED' ? 'success' : status === 'FAILED' ? 'error' : 'info');
+            }
         } else {
             if (container) {
                 container.innerHTML = '<div style="text-align:center;padding:12px"><p style="font-size:13px;color:var(--danger)">&#10060; ' + (data.message || 'Verification failed') + '</p>' +

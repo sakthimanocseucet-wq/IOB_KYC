@@ -219,11 +219,34 @@ def parse_aadhaar_qr(qr_data):
     - XML-like data with tags
     - Pipe-separated fields
     - Plain text with embedded numbers
+    - URL with embedded data (e.g. https://uidai.gov.in/qr?data=...)
+    - Base64-encoded JSON/XML
     """
     result = {'name': '', 'dob': '', 'aadhaar_number': ''}
 
     if not qr_data:
         return result
+
+    logger.info("[QR-PARSE-Aadhaar] raw_data (first 300): %s", qr_data[:300])
+
+    if qr_data.startswith('http://') or qr_data.startswith('https://'):
+        try:
+            from urllib.parse import urlparse, parse_qs
+            parsed_url = urlparse(qr_data)
+            params = parse_qs(parsed_url.query)
+            for key in ('data', 'qr', 'content', 'payload'):
+                if key in params:
+                    embedded = params[key][0]
+                    try:
+                        decoded = base64.b64decode(embedded).decode('utf-8', errors='ignore')
+                        qr_data = decoded
+                        logger.info("[QR-PARSE-Aadhaar] decoded URL param '%s', new data (first 300): %s", key, qr_data[:300])
+                        break
+                    except Exception:
+                        qr_data = embedded
+                        break
+        except Exception as e:
+            logger.warning("[QR-PARSE-Aadhaar] URL parse failed: %s", e)
 
     try:
         if qr_data.startswith('{') or qr_data.startswith('['):
@@ -234,14 +257,31 @@ def parse_aadhaar_qr(qr_data):
                 result['aadhaar_number'] = parsed.get('aadhaarNumber', parsed.get('uid', parsed.get('aadhaar', parsed.get('number', ''))))
                 if result['aadhaar_number']:
                     result['aadhaar_number'] = normalize_id_number(str(result['aadhaar_number']))
+                logger.info("[QR-PARSE-Aadhaar] JSON parsed: name=%s dob=%s uid=%s", bool(result['name']), bool(result['dob']), bool(result['aadhaar_number']))
                 return result
     except (json.JSONDecodeError, TypeError):
         pass
 
-    # XML attribute format: <PrintLetterBarcodeData uid="..." name="..." dob="..." />
-    xml_attr_match = re.search(r'name\s*=\s*["\']([^"\']+)["\']', qr_data, re.IGNORECASE)
-    if xml_attr_match:
-        result['name'] = xml_attr_match.group(1).strip()
+    plc_match = re.search(r'PrintLetterBarcodeData\b([^>]*)', qr_data, re.IGNORECASE | re.DOTALL)
+    if plc_match:
+        attrs_str = plc_match.group(1)
+        logger.info("[QR-PARSE-Aadhaar] PrintLetterBarcodeData attrs: %s", attrs_str[:200])
+        name_m = re.search(r'\bname\s*=\s*["\']([^"\']+)["\']', attrs_str, re.IGNORECASE)
+        if name_m:
+            result['name'] = name_m.group(1).strip()
+        uid_m = re.search(r'\buid\s*=\s*["\'](\d{12})["\']', attrs_str, re.IGNORECASE)
+        if uid_m:
+            result['aadhaar_number'] = uid_m.group(1)
+        dob_m = re.search(r'\bdob\s*=\s*["\']([^"\']+)["\']', attrs_str, re.IGNORECASE)
+        if dob_m:
+            result['dob'] = dob_m.group(1).strip()
+        if any(result.values()):
+            logger.info("[QR-PARSE-Aadhaar] PLC parsed: name=%s dob=%s uid=%s", bool(result['name']), bool(result['dob']), bool(result['aadhaar_number']))
+            return result
+    if not result['name']:
+        name_attr_match = re.search(r'name\s*=\s*["\']([^"\']+)["\']', qr_data, re.IGNORECASE)
+        if name_attr_match:
+            result['name'] = name_attr_match.group(1).strip()
 
     uid_match = re.search(r'<uid[^>]*>(\d{12})</uid>', qr_data, re.IGNORECASE)
     if uid_match:

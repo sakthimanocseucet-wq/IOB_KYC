@@ -98,6 +98,34 @@ public class AccountDetailsService {
             if (!employeeId.equals(app.getAssignedEmployeeId())) return null;
         }
 
+        // Backfill account number / IFSC / customerId for approved apps that are missing them
+        if (app.getStatus() == KYCApplication.Status.APPROVED) {
+            boolean updated = false;
+            if (app.getAccountNumber() == null || app.getAccountNumber().isEmpty()) {
+                app.setAccountNumber("IOB" + String.format("%04d", app.getId()) + String.format("%06d", System.currentTimeMillis() % 1000000));
+                updated = true;
+            }
+            if (app.getCustomerId() == null || app.getCustomerId().isEmpty()) {
+                app.setCustomerId("CUST" + String.format("%05d", app.getId()));
+                updated = true;
+            }
+            if (app.getIfscCode() == null || app.getIfscCode().isEmpty()) {
+                String branchIfsc = null;
+                if (app.getBranchId() != null && !app.getBranchId().isEmpty()) {
+                    Branch lookupBranch = branchRepository.findByBranchId(app.getBranchId())
+                            .orElseGet(() -> branchRepository.findByBranchNameContaining(app.getBranchId()).orElse(null));
+                    if (lookupBranch != null) {
+                        branchIfsc = lookupBranch.getIfscCode();
+                    }
+                }
+                app.setIfscCode(branchIfsc != null ? branchIfsc : "IOBA000" + String.format("%04d", app.getId()));
+                updated = true;
+            }
+            if (updated) {
+                kycApplicationRepository.save(app);
+            }
+        }
+
         Map<String, Object> details = new HashMap<>();
 
         // Basic info

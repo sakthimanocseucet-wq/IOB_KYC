@@ -981,13 +981,23 @@ public class AdminController {
             return ResponseEntity.badRequest().body(Map.of("success", false, "message", "No document image found for QR verification"));
         }
 
-        // Merge: take name from Aadhaar QR, PAN number from PAN QR
+        // Merge: take Aadhaar fields from Aadhaar QR, PAN number from PAN QR
         if (aadhaarQrResult != null && panQrResult != null) {
             String aadhaarName = aadhaarQrResult.getQrName();
+            String aadhaarNumber = aadhaarQrResult.getQrIdNumber();
+            String aadhaarDob = aadhaarQrResult.getQrDob();
             String panNumber = panQrResult.getQrPanNumber();
             if (aadhaarName != null && !aadhaarName.isEmpty()) {
                 bestResult.setQrName(aadhaarName);
                 bestResult.setNameMatch(aadhaarQrResult.getNameMatch());
+            }
+            if (aadhaarNumber != null && !aadhaarNumber.isEmpty()) {
+                bestResult.setQrIdNumber(aadhaarNumber);
+                bestResult.setIdNumberMatch(aadhaarQrResult.getIdNumberMatch());
+            }
+            if (aadhaarDob != null && !aadhaarDob.isEmpty()) {
+                bestResult.setQrDob(aadhaarDob);
+                bestResult.setDobMatch(aadhaarQrResult.getDobMatch());
             }
             if (panNumber != null && !panNumber.isEmpty()) {
                 bestResult.setQrPanNumber(panNumber);

@@ -678,18 +678,34 @@ function viewApplication(id) {
 
             // Challenge video player
             if (hasVideo) {
+                var vid = app.challengeVideoBase64;
+                var vidBlobUrl = null;
+                if (vid && vid.indexOf('base64,') !== -1) {
+                    try {
+                        var parts = vid.split('base64,');
+                        var mime = parts[0].replace('data:', '').replace(';', '');
+                        var raw = atob(parts[1]);
+                        var arr = new Uint8Array(raw.length);
+                        for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+                        vidBlobUrl = URL.createObjectURL(new Blob([arr], { type: mime }));
+                    } catch(e) { vidBlobUrl = vid; }
+                } else if (vid) {
+                    vidBlobUrl = vid;
+                }
                 challengeHtml += '<div style="margin-bottom:16px">' +
                     '<p style="font-weight:600;font-size:13px;margin-bottom:8px">&#127909; Challenge Response Video</p>' +
-                    '<video id="challengeVideoPlayer" controls style="width:100%;max-width:480px;border-radius:8px;border:2px solid var(--gray-200);background:#000" preload="metadata">' +
+                    '<video id="challengeVideoPlayer_' + app.id + '" controls style="width:100%;max-width:480px;border-radius:8px;border:2px solid var(--gray-200);background:#000" preload="metadata">' +
                         'Your browser does not support video playback.' +
                     '</video>' +
                 '</div>';
-                setTimeout(function() {
-                    var vp = document.getElementById('challengeVideoPlayer');
-                    if (vp && app.challengeVideoBase64) {
-                        vp.src = app.challengeVideoBase64;
-                    }
-                }, 100);
+                setTimeout(function(bUrl) {
+                    return function() {
+                        var vp = document.getElementById('challengeVideoPlayer_' + app.id);
+                        if (vp && bUrl) {
+                            vp.src = bUrl;
+                        }
+                    };
+                }(vidBlobUrl), 200);
             }
 
             // Challenge completion results

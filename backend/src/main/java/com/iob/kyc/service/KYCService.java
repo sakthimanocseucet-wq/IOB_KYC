@@ -172,29 +172,43 @@ public class KYCService {
                 kycApplicationRepository.save(oldApp);
 
                 boolean updated = false;
+                // Copy file paths
                 if (currentApp.getAadhaarFrontPath() == null && oldApp.getAadhaarFrontPath() != null) {
-                    currentApp.setAadhaarFrontPath(oldApp.getAadhaarFrontPath());
-                    updated = true;
+                    currentApp.setAadhaarFrontPath(oldApp.getAadhaarFrontPath()); updated = true;
                 }
                 if (currentApp.getAadhaarBackPath() == null && oldApp.getAadhaarBackPath() != null) {
-                    currentApp.setAadhaarBackPath(oldApp.getAadhaarBackPath());
-                    updated = true;
+                    currentApp.setAadhaarBackPath(oldApp.getAadhaarBackPath()); updated = true;
                 }
                 if (currentApp.getPanCardPath() == null && oldApp.getPanCardPath() != null) {
-                    currentApp.setPanCardPath(oldApp.getPanCardPath());
-                    updated = true;
+                    currentApp.setPanCardPath(oldApp.getPanCardPath()); updated = true;
                 }
                 if (currentApp.getPhotoFilePath() == null && oldApp.getPhotoFilePath() != null) {
-                    currentApp.setPhotoFilePath(oldApp.getPhotoFilePath());
-                    updated = true;
+                    currentApp.setPhotoFilePath(oldApp.getPhotoFilePath()); updated = true;
                 }
                 if (currentApp.getDocFilePath() == null && oldApp.getDocFilePath() != null) {
-                    currentApp.setDocFilePath(oldApp.getDocFilePath());
-                    updated = true;
+                    currentApp.setDocFilePath(oldApp.getDocFilePath()); updated = true;
                 }
                 if (currentApp.getSelfieFilePath() == null && oldApp.getSelfieFilePath() != null) {
-                    currentApp.setSelfieFilePath(oldApp.getSelfieFilePath());
-                    updated = true;
+                    currentApp.setSelfieFilePath(oldApp.getSelfieFilePath()); updated = true;
+                }
+                // Copy base64 data (images stored in DB)
+                if (currentApp.getAadhaarFrontBase64() == null && oldApp.getAadhaarFrontBase64() != null) {
+                    currentApp.setAadhaarFrontBase64(oldApp.getAadhaarFrontBase64()); updated = true;
+                }
+                if (currentApp.getAadhaarBackBase64() == null && oldApp.getAadhaarBackBase64() != null) {
+                    currentApp.setAadhaarBackBase64(oldApp.getAadhaarBackBase64()); updated = true;
+                }
+                if (currentApp.getPanCardBase64() == null && oldApp.getPanCardBase64() != null) {
+                    currentApp.setPanCardBase64(oldApp.getPanCardBase64()); updated = true;
+                }
+                if (currentApp.getPhotoBase64() == null && oldApp.getPhotoBase64() != null) {
+                    currentApp.setPhotoBase64(oldApp.getPhotoBase64()); updated = true;
+                }
+                if (currentApp.getDocFileBase64() == null && oldApp.getDocFileBase64() != null) {
+                    currentApp.setDocFileBase64(oldApp.getDocFileBase64()); updated = true;
+                }
+                if (currentApp.getSelfieBase64() == null && oldApp.getSelfieBase64() != null) {
+                    currentApp.setSelfieBase64(oldApp.getSelfieBase64()); updated = true;
                 }
                 if (updated) {
                     kycApplicationRepository.save(currentApp);

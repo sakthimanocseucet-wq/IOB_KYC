@@ -1639,7 +1639,8 @@ async function submitKYCApplication(showLoading) {
                 riskScore: kycData.riskScore,
                 faceMatchPercent: kycData.faceMatchPercent,
                 ipAddress: getClientIP(),
-                applicationType: kycData.reKyc ? 'RE_KYC' : 'NORMAL'
+                applicationType: kycData.reKyc ? 'RE_KYC' : 'NORMAL',
+                existingAppId: kycData.reKyc ? kycData.reKycAppId : null
             })
         });
         const submitResult = await submitRes.json();

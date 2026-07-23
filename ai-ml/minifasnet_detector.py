@@ -57,8 +57,8 @@ class MiniFASNetDetector:
 
     INPUT_SIZE = (80, 80)
     CROP_MARGIN = 2.7
-    SPOOF_THRESHOLD = 0.55  # stricter — rejects faces where liveness score is below 55%
-    SPOOF_CONFIDENCE_THRESHOLD = 0.28  # model must favor spoof by at least 28% to trigger
+    SPOOF_THRESHOLD = 0.45  # reject faces where liveness score is below 45%
+    SPOOF_CONFIDENCE_THRESHOLD = 0.35  # model must favor spoof by at least 35% to trigger
 
     def __init__(self):
         self.model = None
@@ -350,19 +350,19 @@ class MiniFASNetDetector:
         combined_spoof = probs['print_prob'] + probs['replay_prob']
 
         # Very low liveness = definitely spoof
-        very_low_liveness = probs['liveness_score'] < 0.40
+        very_low_liveness = probs['liveness_score'] < 0.30
 
         # Model confident about spoof (lowered threshold from 0.50)
         model_confident = max_spoof_prob > self.SPOOF_CONFIDENCE_THRESHOLD or combined_spoof > 0.50
 
         # Spoof detected if:
-        # - liveness is very low (< 0.40), OR
+        # - liveness is very low (< 0.30), OR
         # - model is confident AND liveness below threshold, OR
-        # - combined spoof probability is high (> 0.60) even if individual classes are split
+        # - combined spoof probability is high (> 0.70) even if individual classes are split
         spoof_detected = (
             very_low_liveness
             or (model_confident and probs['liveness_score'] < self.SPOOF_THRESHOLD)
-            or combined_spoof > 0.60
+            or combined_spoof > 0.70
         )
 
         reasons = []
@@ -370,9 +370,9 @@ class MiniFASNetDetector:
             reasons.append(f"Very low liveness score ({probs['liveness_score']:.2f} < 0.40)")
         if not model_confident and not very_low_liveness:
             reasons.append(f"Anti-spoof model uncertain (print={probs['print_prob']:.2f}, replay={probs['replay_prob']:.2f})")
-        if probs['print_prob'] > 0.55:
+        if probs['print_prob'] > 0.65:
             reasons.append(f"Print attack detected (p={probs['print_prob']:.2f})")
-        if probs['replay_prob'] > 0.55:
+        if probs['replay_prob'] > 0.65:
             reasons.append(f"Replay attack detected (p={probs['replay_prob']:.2f})")
         if combined_spoof > 0.60:
             reasons.append(f"Combined spoof probability high ({combined_spoof:.2f})")
@@ -485,16 +485,16 @@ class MiniFASNetDetector:
         if any_spoof:
             spoof_frames = [i for i, r in enumerate(results) if r['spoofDetected']]
             reasons.append(f"Spoof detected in frames: {spoof_frames}")
-        if avg_print > 0.35:
+        if avg_print > 0.45:
             reasons.append(f"Average print attack probability: {avg_print:.2f}")
-        if avg_replay > 0.35:
+        if avg_replay > 0.45:
             reasons.append(f"Average replay attack probability: {avg_replay:.2f}")
         if screen_replay_suspect:
             reasons.append("Screen replay suspected (low inter-frame variation)")
             # If model already shows borderline liveness AND screen suspect, flag it
-            if avg_liveness < 0.65:
+            if avg_liveness < 0.55:
                 any_spoof = True
-                reasons.append(f"Screen replay confirmed (liveness={avg_liveness:.2f} < 0.65 with static frames)")
+                reasons.append(f"Screen replay confirmed (liveness={avg_liveness:.2f} < 0.55 with static frames)")
 
         return {
             'spoofDetected': any_spoof,

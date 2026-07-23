@@ -28,7 +28,7 @@ import torch.nn.functional as F
 logger = logging.getLogger(__name__)
 
 MODEL_DIR = os.path.join(os.path.dirname(__file__), 'models')
-DEEPFAKE_THRESHOLD = 0.55
+DEEPFAKE_THRESHOLD = 0.70
 IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 

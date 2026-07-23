@@ -660,13 +660,18 @@ function viewApplication(id) {
             challengeHtml += '<h4 style="margin-bottom:12px;color:var(--gray-700)">&#127909; Challenge Response Verification</h4>';
             challengeHtml += '<div style="margin-bottom:20px;padding:16px;background:var(--gray-50,#f8fafc);border-radius:8px;border:1px solid var(--gray-200)">';
 
-            // Verification timestamp
+            // Verification timestamp (server stores UTC, append Z)
             if (app.verificationTimestamp) {
                 var vtDate = '';
                 try {
-                    var d = new Date(app.verificationTimestamp);
-                    if (isNaN(d.getTime())) d = new Date(app.verificationTimestamp + 'Z');
-                    vtDate = d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true });
+                    var tsStr = String(app.verificationTimestamp).trim();
+                    if (tsStr.endsWith('Z') || tsStr.endsWith('+00:00')) {
+                        var d = new Date(tsStr);
+                        vtDate = d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true });
+                    } else {
+                        var d = new Date(tsStr + 'Z');
+                        vtDate = d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true });
+                    }
                 } catch(e) { vtDate = app.verificationTimestamp; }
                 challengeHtml += '<p style="font-size:12px;color:var(--gray-500);margin:0 0 12px">Verified: ' + vtDate + '</p>';
             }
@@ -675,11 +680,16 @@ function viewApplication(id) {
             if (hasVideo) {
                 challengeHtml += '<div style="margin-bottom:16px">' +
                     '<p style="font-weight:600;font-size:13px;margin-bottom:8px">&#127909; Challenge Response Video</p>' +
-                    '<video controls style="width:100%;max-width:480px;border-radius:8px;border:2px solid var(--gray-200);background:#000" preload="metadata">' +
-                        '<source src="' + app.challengeVideoBase64 + '" type="video/webm">' +
+                    '<video id="challengeVideoPlayer" controls style="width:100%;max-width:480px;border-radius:8px;border:2px solid var(--gray-200);background:#000" preload="metadata">' +
                         'Your browser does not support video playback.' +
                     '</video>' +
                 '</div>';
+                setTimeout(function() {
+                    var vp = document.getElementById('challengeVideoPlayer');
+                    if (vp && app.challengeVideoBase64) {
+                        vp.src = app.challengeVideoBase64;
+                    }
+                }, 100);
             }
 
             // Challenge completion results
@@ -1387,8 +1397,9 @@ function renderQrResult(data, appId) {
     var timestamp = '';
     if (data.verifiedAt) {
         try {
-            var dt = new Date(data.verifiedAt);
-            timestamp = dt.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            var dtStr = String(data.verifiedAt).trim();
+            var dt = new Date(dtStr.endsWith('Z') || dtStr.endsWith('+00:00') ? dtStr : dtStr + 'Z');
+            timestamp = dt.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
         } catch(e) { timestamp = data.verifiedAt; }
     }
 

@@ -51,6 +51,8 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/admin")
 public class AdminController {
 
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AdminController.class);
+
     private final KYCApplicationRepository kycApplicationRepository;
     private final FraudAlertRepository fraudAlertRepository;
     private final FraudDetectionService fraudDetectionService;
@@ -985,11 +987,11 @@ public class AdminController {
             String panNumber = panQrResult.getQrPanNumber();
             if (aadhaarName != null && !aadhaarName.isEmpty()) {
                 bestResult.setQrName(aadhaarName);
-                bestResult.setNameMatch(aadhaarQrResult.isNameMatch());
+                bestResult.setNameMatch(aadhaarQrResult.getNameMatch());
             }
             if (panNumber != null && !panNumber.isEmpty()) {
                 bestResult.setQrPanNumber(panNumber);
-                bestResult.setPanNumberMatch(panQrResult.isPanNumberMatch());
+                bestResult.setPanNumberMatch(panQrResult.getPanNumberMatch());
             }
             // Use higher match percentage
             double bestMatch = Math.max(aadhaarQrResult.getMatchPercentage(), panQrResult.getMatchPercentage());

@@ -1688,7 +1688,14 @@ async function submitKYCApplication(showLoading) {
         if (window.__challengeVideoPromise) {
             try { await window.__challengeVideoPromise; } catch(e) { console.warn('[VIDEO] Promise wait failed:', e); }
         }
-        if (challengeVideoBase64 && appId) {
+        console.log('[VIDEO] Upload check: videoBase64=' + (challengeVideoBase64 ? challengeVideoBase64.length : 0) + ' challengeResults=' + (challengeResults ? challengeResults.length : 0) + ' chunks=' + challengeVideoChunks.length);
+        // If we have chunks but video not yet converted, wait briefly
+        if (!challengeVideoBase64 && challengeVideoChunks.length > 0) {
+            console.log('[VIDEO] Waiting 2s for video conversion...');
+            await new Promise(function(r) { setTimeout(r, 2000); });
+            console.log('[VIDEO] After wait: videoBase64=' + (challengeVideoBase64 ? challengeVideoBase64.length : 0));
+        }
+        if (challengeVideoBase64 && challengeVideoBase64.length > 50 && appId) {
             try {
                 var challengeSequenceList = challengeResults.map(function(r) { return r.challenge; });
                 await fetch(KYC_API + '/' + appId + '/challenge-video', {
@@ -1702,6 +1709,21 @@ async function submitKYCApplication(showLoading) {
                 });
                 console.log('[VIDEO] Challenge video uploaded for app:', appId);
             } catch (e) { console.warn('[VIDEO] Challenge video upload failed:', e); }
+        } else if (challengeResults && challengeResults.length > 0 && appId) {
+            // Upload challenge results even without video
+            try {
+                var challengeSequenceList2 = challengeResults.map(function(r) { return r.challenge; });
+                await fetch(KYC_API + '/' + appId + '/challenge-video', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                    body: JSON.stringify({
+                        videoBase64: null,
+                        challengeResults: JSON.stringify(challengeResults),
+                        challengeSequence: challengeSequenceList2.join(',')
+                    })
+                });
+                console.log('[VIDEO] Challenge results uploaded (no video) for app:', appId);
+            } catch (e) { console.warn('[VIDEO] Challenge results upload failed:', e); }
         }
 
         localStorage.setItem('kycData', JSON.stringify({

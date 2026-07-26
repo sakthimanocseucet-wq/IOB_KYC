@@ -204,9 +204,9 @@ public class AIProxyController {
     @PostMapping("/deepfake-test")
     public void deepfakeTest(@RequestBody String jsonBody, HttpServletResponse response) throws IOException {
         try {
-            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
-            headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
-            org.springframework.http.HttpEntity<String> entity = new org.springframework.HttpEntity<>(jsonBody, headers);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<String> entity = new HttpEntity<>(jsonBody, headers);
             ResponseEntity<String> flaskResponse = restTemplate.postForEntity(flaskBaseUrl() + "/deepfake-test", entity, String.class);
             response.setStatus(flaskResponse.getStatusCode().value());
             response.setContentType("application/json");

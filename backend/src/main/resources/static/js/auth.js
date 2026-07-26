@@ -16,6 +16,44 @@ let emailOtpTimer = null;
 let regOtpVerified = false;
 let emailOtpVerified = false;
 
+// ====================== INLINE FIELD ERRORS ======================
+function clearFieldError(errorId) {
+    var el = document.getElementById(errorId);
+    if (el) { el.textContent = ''; el.style.display = 'none'; }
+}
+
+function showFieldError(errorId, message) {
+    var el = document.getElementById(errorId);
+    if (el) { el.textContent = message; el.style.display = 'block'; }
+}
+
+// ====================== OTP METHOD ======================
+let otpMethod = 'email';
+
+function setOtpMethod(method) {
+    otpMethod = method;
+    var emailBtn = document.getElementById('otpMethodEmail');
+    var smsBtn = document.getElementById('otpMethodSms');
+    var emailRow = document.getElementById('otpEmailRow');
+    var smsRow = document.getElementById('otpSmsRow');
+    if (method === 'email') {
+        emailBtn.className = 'btn btn-sm btn-primary';
+        emailBtn.style.border = '2px solid #2563eb';
+        smsBtn.className = 'btn btn-sm btn-outline';
+        smsBtn.style.border = '';
+        if (emailRow) emailRow.style.display = '';
+        if (smsRow) smsRow.style.display = 'none';
+    } else {
+        smsBtn.className = 'btn btn-sm btn-primary';
+        smsBtn.style.border = '2px solid #2563eb';
+        emailBtn.className = 'btn btn-sm btn-outline';
+        emailBtn.style.border = '';
+        if (emailRow) emailRow.style.display = 'none';
+        if (smsRow) smsRow.style.display = '';
+    }
+    clearFieldError('otpError');
+}
+
 // ====================== PASSWORD VALIDATION ======================
 function validateUserPassword(password) {
     if (password.length < 8) return 'Password must be at least 8 characters long';
@@ -83,11 +121,10 @@ async function handleLogin(event) {
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
 
-    if (!email || !password) {
-        showAlert('Please fill in all fields', 'error');
-        _loginLocked = false;
-        return;
-    }
+    clearFieldError('emailError');
+    clearFieldError('passwordError');
+    if (!email) { showFieldError('emailError', 'Email is required'); _loginLocked = false; return; }
+    if (!password) { showFieldError('passwordError', 'Password is required'); _loginLocked = false; return; }
 
     setLoading('loginForm', 'btnSpinner', 'btnText', true);
 
@@ -110,7 +147,7 @@ async function handleLogin(event) {
             showToast('Login successful!', 'success');
             setTimeout(() => window.location.href = 'dashboard.html', 500);
         } else {
-            showAlert(data.message || 'Invalid credentials. Please try again.', 'error');
+            showFieldError('passwordError', data.message || 'Invalid credentials. Please try again.');
             _loginLocked = false;
         }
     } catch (err) {
@@ -130,10 +167,15 @@ function handleForgotPassword() {
 
 // ====================== USER REGISTER (Email OTP) ======================
 async function sendRegOTP() {
-    var emailInput = document.getElementById('regOtpEmail');
-    var identifier = emailInput ? emailInput.value : document.getElementById('email').value;
+    var identifier;
+    if (otpMethod === 'sms') {
+        identifier = document.getElementById('regOtpPhone').value;
+    } else {
+        var emailInput = document.getElementById('regOtpEmail');
+        identifier = emailInput ? emailInput.value : document.getElementById('email').value;
+    }
     if (!identifier) {
-        showAlert('Please enter your email address', 'error');
+        showFieldError('otpError', otpMethod === 'sms' ? 'Please enter your phone number' : 'Please enter your email address');
         return;
     }
 
@@ -176,12 +218,17 @@ async function sendRegOTP() {
 async function verifyRegOTP() {
     const otp = document.getElementById('regOtp').value;
     if (!otp || otp.length !== 6) {
-        showAlert('Please enter a valid 6-digit OTP', 'error');
+        showFieldError('otpError', 'Please enter a valid 6-digit OTP');
         return false;
     }
 
-    var emailInput = document.getElementById('regOtpEmail');
-    var identifier = emailInput ? emailInput.value : document.getElementById('email').value;
+    var identifier;
+    if (otpMethod === 'sms') {
+        identifier = document.getElementById('regOtpPhone').value;
+    } else {
+        var emailInput = document.getElementById('regOtpEmail');
+        identifier = emailInput ? emailInput.value : document.getElementById('email').value;
+    }
 
     try {
         const res = await fetch(AUTH_API + '/otp/verify?identifier=' + encodeURIComponent(identifier) + '&otp=' + otp + '&purpose=REGISTER', { method: 'POST' });
@@ -210,24 +257,28 @@ async function handleRegister(event) {
     const confirmPassword = document.getElementById('confirmPassword').value;
     const terms = document.getElementById('terms').checked;
 
-    if (!firstName || !lastName || !email || !phone || !password || !confirmPassword) {
-        showAlert('Please fill in all fields', 'error');
-        return;
-    }
+    ['firstNameError','lastNameError','emailError','phoneError','passwordError','confirmPasswordError','termsError','otpError'].forEach(clearFieldError);
+
+    if (!firstName) { showFieldError('firstNameError', 'First name is required'); return; }
+    if (!lastName) { showFieldError('lastNameError', 'Last name is required'); return; }
+    if (!email) { showFieldError('emailError', 'Email is required'); return; }
+    if (!phone) { showFieldError('phoneError', 'Phone number is required'); return; }
+    if (!password) { showFieldError('passwordError', 'Password is required'); return; }
+    if (!confirmPassword) { showFieldError('confirmPasswordError', 'Please confirm your password'); return; }
 
     if (password !== confirmPassword) {
-        showAlert('Passwords do not match', 'error');
+        showFieldError('confirmPasswordError', 'Passwords do not match');
         return;
     }
 
     var passwordError = validateUserPassword(password);
     if (passwordError) {
-        showAlert(passwordError, 'error');
+        showFieldError('passwordError', passwordError);
         return;
     }
 
     if (!terms) {
-        showAlert('Please accept the Terms of Service', 'error');
+        showFieldError('termsError', 'Please accept the Terms of Service');
         return;
     }
 

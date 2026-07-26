@@ -37,6 +37,15 @@ public class OTPService {
     @Value("${spring.mail.username:}")
     private String gmailFromEmail;
 
+    @Value("${msg91.api-key:}")
+    private String msg91ApiKey;
+
+    @Value("${msg91.sender-id:IOBKYC}")
+    private String msg91SenderId;
+
+    @Value("${msg91.template-id:}")
+    private String msg91TemplateId;
+
     public OTPService(@Nullable JavaMailSender mailSender) {
         this.mailSender = mailSender;
     }
@@ -47,6 +56,36 @@ public class OTPService {
         String htmlContent = buildOtpEmailHtml(otp);
         String plainText = "Your IOB KYC verification OTP is: " + otp + "\n\nThis code expires in 5 minutes. Do not share it with anyone.";
         sendEmail(to, subject, htmlContent, plainText);
+    }
+
+    @Async
+    public void sendOtpSms(String phone, String otp) {
+        if (msg91ApiKey == null || msg91ApiKey.isEmpty()) {
+            log.warn("MSG91 API key not configured — skipping SMS to {}", phone);
+            return;
+        }
+        try {
+            String templateId = msg91TemplateId;
+            if (templateId == null || templateId.isEmpty()) {
+                templateId = "default";
+            }
+            String url = "https://api.msg91.com/api/v5/otp?otp=" + otp + "&mobile=" + phone + "&authkey=" + msg91ApiKey + "&template_id=" + templateId;
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString("{}"))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 200) {
+                log.info("SMS OTP sent to {} via MSG91", phone);
+            } else {
+                log.warn("MSG91 SMS failed ({}): {}", response.statusCode(), response.body());
+            }
+        } catch (Exception e) {
+            log.error("MSG91 SMS error for {}: {}", phone, e.getMessage());
+        }
     }
 
     @Async

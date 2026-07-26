@@ -243,6 +243,11 @@ public class AuthService {
 
         if (identifier.contains("@")) {
             otpService.sendOtpEmail(identifier, otpCode);
+        } else {
+            String phone = identifier.replaceAll("[^0-9+]", "");
+            if (phone.length() >= 10) {
+                otpService.sendOtpSms(phone, otpCode);
+            }
         }
 
         return ApiResponse.success("OTP sent successfully", null);

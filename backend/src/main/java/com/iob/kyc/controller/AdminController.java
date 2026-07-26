@@ -925,6 +925,12 @@ public class AdminController {
             panMap.put("match", qr.getPanNumberMatch() != null && qr.getPanNumberMatch());
             results.put("pan_number", panMap);
 
+            Map<String, Object> addrMap = new HashMap<>();
+            addrMap.put("ocr", app != null && app.getOcrAddress() != null ? app.getOcrAddress() : "");
+            addrMap.put("qr", qr.getQrAddress() != null ? qr.getQrAddress() : "");
+            addrMap.put("match", qr.getAddressMatch() != null && qr.getAddressMatch());
+            results.put("address", addrMap);
+
             result.put("results", results);
             result.put("qrRawData", qr.getQrRawData() != null ? qr.getQrRawData() : "");
             return ResponseEntity.ok(result);
@@ -1076,6 +1082,12 @@ public class AdminController {
         pm.put("match", bestResult.getPanNumberMatch() != null && bestResult.getPanNumberMatch());
         resultsMap.put("pan_number", pm);
 
+        Map<String, Object> am2 = new HashMap<>();
+        am2.put("ocr", app.getOcrAddress() != null ? app.getOcrAddress() : "");
+        am2.put("qr", bestResult.getQrAddress() != null ? bestResult.getQrAddress() : "");
+        am2.put("match", bestResult.getAddressMatch() != null && bestResult.getAddressMatch());
+        resultsMap.put("address", am2);
+
         response.put("results", resultsMap);
         response.put("message", "QR verification completed");
 
@@ -1171,6 +1183,11 @@ public class AdminController {
                     qrResult.setPanNumberMatch(results.path("pan_number").path("match").asBoolean(false));
                 } else {
                     qrResult.setOcrPanNumber(app.getOcrPanNumber() != null ? app.getOcrPanNumber() : "");
+                }
+                if (results.has("address")) {
+                    qrResult.setQrAddress(results.path("address").path("qr").asText(""));
+                    qrResult.setOcrAddress(results.path("address").path("ocr").asText(""));
+                    qrResult.setAddressMatch(results.path("address").path("match").asBoolean(false));
                 }
 
                 qrVerificationRepository.save(qrResult);

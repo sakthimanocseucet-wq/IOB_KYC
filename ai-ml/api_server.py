@@ -912,6 +912,57 @@ def api_verify_and_liveness():
 # QR CODE VERIFICATION
 # ============================================================
 
+@app.route('/api/ai/qr-extract', methods=['POST'])
+def api_qr_extract():
+    """Extract personal details from document QR codes.
+
+    Request (multipart form):
+        aadhaar_image: Aadhaar card image (optional)
+        pan_image: PAN card image (optional)
+
+    Response:
+        JSON with extracted fields: name, dob, gender, aadhaar_number, pan_number, address
+    """
+    try:
+        from qr_verification import detect_qr_code, parse_aadhaar_qr, parse_pan_qr
+
+        result = {'name': '', 'dob': '', 'gender': '', 'aadhaar_number': '', 'pan_number': '', 'address': ''}
+
+        aadhaar_file = request.files.get('aadhaar_image')
+        pan_file = request.files.get('pan_image')
+
+        if aadhaar_file:
+            aadhaar_bytes = aadhaar_file.read()
+            aadhaar_qr = detect_qr_code(aadhaar_bytes)
+            if aadhaar_qr['detected'] and aadhaar_qr['data']:
+                parsed = parse_aadhaar_qr(aadhaar_qr['data'])
+                result['name'] = parsed.get('name', '')
+                result['dob'] = parsed.get('dob', '')
+                result['gender'] = parsed.get('gender', '')
+                result['aadhaar_number'] = parsed.get('aadhaar_number', '')
+                result['address'] = parsed.get('address', '')
+                logger.info("[QR-EXTRACT] Aadhaar QR parsed: name=%s dob=%s uid=%s",
+                           bool(result['name']), bool(result['dob']), bool(result['aadhaar_number']))
+
+        if pan_file:
+            pan_bytes = pan_file.read()
+            pan_qr = detect_qr_code(pan_bytes)
+            if pan_qr['detected'] and pan_qr['data']:
+                parsed = parse_pan_qr(pan_qr['data'])
+                if parsed.get('name') and not result['name']:
+                    result['name'] = parsed['name']
+                if parsed.get('dob') and not result['dob']:
+                    result['dob'] = parsed['dob']
+                result['pan_number'] = parsed.get('pan_number', '')
+                logger.info("[QR-EXTRACT] PAN QR parsed: name=%s pan=%s",
+                           bool(parsed.get('name')), bool(parsed.get('pan_number')))
+
+        return jsonify({'success': True, 'data': result})
+    except Exception as e:
+        logger.exception('[QR-EXTRACT] Error: %s', e)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/ai/qr-verify', methods=['POST'])
 def api_qr_verify():
     """QR code verification for Aadhaar/PAN cards.

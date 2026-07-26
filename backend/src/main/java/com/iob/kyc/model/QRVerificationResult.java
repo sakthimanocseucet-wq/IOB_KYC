@@ -73,6 +73,15 @@ public class QRVerificationResult {
     @Column(name = "pan_number_match")
     private Boolean panNumberMatch;
 
+    @Column(name = "qr_address", length = 500)
+    private String qrAddress;
+
+    @Column(name = "ocr_address", length = 500)
+    private String ocrAddress;
+
+    @Column(name = "address_match")
+    private Boolean addressMatch;
+
     @Column(name = "qr_raw_data", length = 1000)
     private String qrRawData;
 
@@ -117,6 +126,12 @@ public class QRVerificationResult {
         panMap.put("qr", qrPanNumber != null ? qrPanNumber : "");
         panMap.put("match", panNumberMatch != null && panNumberMatch);
         results.put("pan_number", panMap);
+
+        Map<String, Object> addrMap = new HashMap<>();
+        addrMap.put("ocr", ocrAddress != null ? ocrAddress : "");
+        addrMap.put("qr", qrAddress != null ? qrAddress : "");
+        addrMap.put("match", addressMatch != null && addressMatch);
+        results.put("address", addrMap);
 
         return results;
     }

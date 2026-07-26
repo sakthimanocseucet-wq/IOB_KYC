@@ -680,17 +680,23 @@ function viewApplication(id) {
             if (hasVideo) {
                 var vid = app.challengeVideoBase64;
                 var vidBlobUrl = null;
-                if (vid && vid.indexOf('base64,') !== -1) {
+                if (vid) {
                     try {
-                        var parts = vid.split('base64,');
-                        var mime = parts[0].replace('data:', '').replace(';', '');
-                        var raw = atob(parts[1]);
-                        var arr = new Uint8Array(raw.length);
-                        for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+                        var rawBase64 = vid;
+                        var mime = 'video/webm';
+                        if (vid.indexOf('base64,') !== -1) {
+                            var parts = vid.split('base64,');
+                            mime = parts[0].replace('data:', '').replace(';', '').trim() || 'video/webm';
+                            rawBase64 = parts[1];
+                        }
+                        var byteChars = atob(rawBase64);
+                        var arr = new Uint8Array(byteChars.length);
+                        for (var i = 0; i < byteChars.length; i++) arr[i] = byteChars.charCodeAt(i);
                         vidBlobUrl = URL.createObjectURL(new Blob([arr], { type: mime }));
-                    } catch(e) { vidBlobUrl = vid; }
-                } else if (vid) {
-                    vidBlobUrl = vid;
+                    } catch(e) {
+                        console.warn('[VIDEO] Failed to decode base64, trying direct URL:', e);
+                        vidBlobUrl = vid;
+                    }
                 }
                 challengeHtml += '<div style="margin-bottom:16px">' +
                     '<p style="font-weight:600;font-size:13px;margin-bottom:8px">&#127909; Challenge Response Video</p>' +
@@ -1378,6 +1384,7 @@ function renderQrResult(data, appId) {
     var docType = (data.documentType || '').toLowerCase();
     fieldConfig.push({ key: 'aadhaar_number', label: 'Aadhaar Number' });
     fieldConfig.push({ key: 'pan_number', label: 'PAN Number' });
+    fieldConfig.push({ key: 'address', label: 'Address' });
 
     for (var i = 0; i < fieldConfig.length; i++) {
         var f = fieldConfig[i];

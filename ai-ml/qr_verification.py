@@ -222,7 +222,7 @@ def parse_aadhaar_qr(qr_data):
     - URL with embedded data (e.g. https://uidai.gov.in/qr?data=...)
     - Base64-encoded JSON/XML
     """
-    result = {'name': '', 'dob': '', 'aadhaar_number': ''}
+    result = {'name': '', 'dob': '', 'aadhaar_number': '', 'gender': '', 'address': ''}
 
     if not qr_data:
         return result
@@ -275,6 +275,12 @@ def parse_aadhaar_qr(qr_data):
         dob_m = re.search(r'\bdob\s*=\s*["\']([^"\']+)["\']', attrs_str, re.IGNORECASE)
         if dob_m:
             result['dob'] = dob_m.group(1).strip()
+        gender_m = re.search(r'\bgender\s*=\s*["\']([MF])["\']', attrs_str, re.IGNORECASE)
+        if gender_m:
+            result['gender'] = 'Male' if gender_m.group(1).upper() == 'M' else 'Female'
+        addr_m = re.search(r'\b(?:address|house|street|loc|vtc|dist|state|pc)\s*=\s*["\']([^"\']+)["\']', attrs_str, re.IGNORECASE)
+        if addr_m:
+            result['address'] = addr_m.group(1).strip()
         if any(result.values()):
             logger.info("[QR-PARSE-Aadhaar] PLC parsed: name=%s dob=%s uid=%s", bool(result['name']), bool(result['dob']), bool(result['aadhaar_number']))
             return result

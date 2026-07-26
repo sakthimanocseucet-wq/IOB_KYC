@@ -275,12 +275,13 @@ def _extract_aadhaar(left_items, right_items, top_items, bottom_items,
     if gender:
         details['gender'] = gender
 
-    addr_result = _extract_address(all_items, mid_x, img_w)
+    addr_result = _extract_address(back_items, mid_x, img_w)
     details['address'] = addr_result.get('full_address', '')
     details['address_components'] = addr_result
 
     debug['extracted_name'] = name
     debug['extracted_gender'] = gender
+    debug['back_items_count'] = len(back_items)
     return details
 
 
@@ -535,85 +536,79 @@ NON_ADDRESS_KEYWORDS = [
 
 def _extract_address(all_items, mid_x=None, img_w=None):
     """
-    Extract postal address from ALL OCR items.
-    Searches entire text for address markers (S/o, D/o, C/o, Address).
-    Extracts everything after the marker until PIN code.
+    Extract postal address from OCR items (back side of Aadhaar).
+    Finds English S/O or D/O marker, includes name before marker through PIN code.
+    Skips Hindi text entirely to avoid confusion with Hindi S/O.
     """
-    address_items = []
+    eng_items = []
     for it in all_items:
         t = it['text']
         cleaned = _clean_ocr_text(t)
         if not cleaned or len(cleaned) < 2:
             continue
-        is_eng = _is_english_text(t)
-        is_hindi = not is_eng and any('\u0900' <= c <= '\u097F' for c in t)
+        if not _is_english_text(t):
+            continue
         has_alpha = any(c.isalpha() for c in cleaned)
-        if has_alpha and (is_eng or is_hindi):
-            address_items.append({'text': cleaned, 'raw': t, 'cy': it['cy'], 'cx': it['cx']})
+        if has_alpha:
+            eng_items.append({'text': cleaned, 'raw': t, 'cy': it['cy'], 'cx': it['cx']})
 
-    address_items = _merge_split_lines_wide(address_items)
-    address_items.sort(key=lambda x: (x['cy'], x['cx']))
+    eng_items = _merge_split_lines_wide(eng_items)
+    eng_items.sort(key=lambda x: (x['cy'], x['cx']))
 
-    full_text = ' '.join(it['text'] for it in address_items)
-    full_text = _fix_ocr_errors(full_text)
+    eng_sdo = re.compile(r'\b(S[/.]o|D[/.]o|W[/.]o|C[/.]o)\b', re.IGNORECASE)
 
-    addr_marker = re.compile(
-        r'(?:S[/.]o|D[/.]o|W[/.]o|C[/.]o)\s*[:.\s,]*',
-        re.IGNORECASE
-    )
-    addr_label = re.compile(
-        r'(?:^|\s)Address\s*[:.\s,]*',
-        re.IGNORECASE
-    )
+    start_item_idx = -1
+    start_offset = 0
 
-    address_start_idx = -1
-
-    m = addr_label.search(full_text)
-    if m:
-        address_start_idx = m.end()
-
-    if address_start_idx == -1:
-        m = addr_marker.search(full_text)
+    for i, it in enumerate(eng_items):
+        m = eng_sdo.search(it['text'])
         if m:
-            address_start_idx = m.end()
+            before = it['text'][:m.start()].strip()
+            if before:
+                start_item_idx = i
+                start_offset = m.start()
+                break
+            else:
+                start_item_idx = max(0, i - 1)
+                start_offset = 0
+                break
 
-    if address_start_idx == -1:
-        for it in address_items:
-            raw = it['text']
-            m = addr_label.search(raw)
+    if start_item_idx == -1:
+        for i, it in enumerate(eng_items):
+            m = re.search(r'Address\s*[:.\s,]*', it['text'], re.IGNORECASE)
             if m:
-                idx = full_text.find(raw)
-                if idx >= 0:
-                    address_start_idx = idx + m.end()
-                    break
+                start_item_idx = i
+                start_offset = m.end()
+                break
 
-    if address_start_idx == -1:
-        for it in address_items:
-            raw = it['text']
-            m = addr_marker.search(raw)
-            if m:
-                idx = full_text.find(raw)
-                if idx >= 0:
-                    address_start_idx = idx + m.end()
-                    break
+    if start_item_idx == -1:
+        full_text = ' '.join(it['text'] for it in eng_items)
+        pin_match = re.search(r'\b(\d{6})\b', full_text)
+        if pin_match and len(full_text) > 10:
+            start_item_idx = 0
+            start_offset = 0
 
-    if address_start_idx == -1:
-        hindi_marker = re.compile(r'(?:\u0938\u094d/\u0913|\u0926\u094d/\u0913|\u0935\u094d/\u0913|\u0938\u0939\u093f)', re.IGNORECASE)
-        m = hindi_marker.search(full_text)
-        if m:
-            address_start_idx = m.end()
+    if start_item_idx == -1:
+        return {'full_address': '', 'house_number': '', 'street': '', 'locality': '',
+                'city_or_village': '', 'district': '', 'state': '', 'pin_code': '', 'confidence_score': 0.0}
 
-    if address_start_idx >= 0:
-        address_text = full_text[address_start_idx:]
-    else:
-        address_text = full_text
+    address_parts = []
+    for i in range(start_item_idx, len(eng_items)):
+        it = eng_items[i]
+        text = it['text']
+        if i == start_item_idx:
+            text = text[start_offset:].strip()
+        if text:
+            address_parts.append(text)
+
+    address_text = ' '.join(address_parts)
+    address_text = _fix_ocr_errors(address_text)
 
     for kw in NON_ADDRESS_KEYWORDS:
         address_text = re.sub(r'\b' + kw + r'\b', '', address_text, flags=re.IGNORECASE)
 
     address_text = re.sub(r'\b\d{2}[/-]\d{2}[/-]\d{4}\b', '', address_text)
     address_text = re.sub(r'\b\d{10}\b', '', address_text)
-    address_text = re.sub(r'\bS[/.]o\b.*?(?=Ward|Post|Plot|House|Flat|No\.|District|Village|City|Town)', '', address_text, flags=re.IGNORECASE)
     address_text = re.sub(r'\b(Blood\s*Group|Mobile\s*No|Gender|Male|Female|DOB|Date\s*of\s*Birth)\b', '', address_text, flags=re.IGNORECASE)
     address_text = re.sub(r'[^A-Za-z0-9\u0900-\u097F\s,/\-]', ' ', address_text)
     address_text = re.sub(r'\s{2,}', ' ', address_text).strip()

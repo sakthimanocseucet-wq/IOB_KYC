@@ -740,11 +740,15 @@ def detailed_verify():
         {'spoofDetected': False, 'liveness_score': 0.5}
     )
 
-    spoofDetected = bool(_safe_get(spoof_result, 'spoofDetected', False))
+    single_frame_spoof = bool(_safe_get(spoof_result, 'spoofDetected', False))
     spoof_liveness = round(_safe_get(spoof_result, 'liveness_score', 0.5), 4)
     spoof_reason = _safe_get(spoof_result, 'reason', '')
 
-    # Also run multi-frame anti-spoofing if frames available
+    # Multi-frame anti-spoofing: require BOTH single-frame AND multi-frame to agree
+    # Single-frame models can be confidently wrong on specific faces.
+    # Multi-frame (3+ challenge frames) provides stronger evidence.
+    multi_frame_spoof = False
+    multi_frame_result = None
     if frames and len(frames) >= 2 and spoof_detector.available:
         multi_frame_result = _safe_detect(
             lambda: spoof_detector.detect_frames(frames),
@@ -752,16 +756,25 @@ def detailed_verify():
             None
         )
         if multi_frame_result:
-            multi_spoof = bool(_safe_get(multi_frame_result, 'spoofDetected', False))
-            if multi_spoof:
-                spoofDetected = True
-                spoof_reason = f"Multi-frame: {_safe_get(multi_frame_result, 'reason', spoof_reason)}"
+            multi_frame_spoof = bool(_safe_get(multi_frame_result, 'spoofDetected', False))
 
-    # Anti-spoof is NEVER overridden by liveness challenges.
-    # A person holding a phone with someone else's face video can still
-    # blink and move their head, making challenge-response ineffective
-    # against screen replay attacks. Only the anti-spoof model can
-    # detect printed photos and screen replays.
+    # Require BOTH single-frame AND multi-frame to flag as spoof when multi-frame is available.
+    # If only single-frame says spoof but challenge frames show live → override to live.
+    # If no multi-frame available, trust single-frame result.
+    if multi_frame_result is not None:
+        spoofDetected = single_frame_spoof and multi_frame_spoof
+        if single_frame_spoof and not multi_frame_spoof:
+            spoof_reason = f"Single-frame flagged but multi-frame overrode to live (single: {spoof_reason})"
+            logger.info("[VERIFY] Anti-spoof: single-frame spoof overridden by multi-frame live consensus")
+        elif multi_frame_spoof:
+            spoof_reason = f"Multi-frame confirmed spoof: {spoof_reason}"
+    else:
+        spoofDetected = single_frame_spoof
+
+    # Anti-spoof requires BOTH single-frame AND multi-frame agreement.
+    # Single-frame can be confidently wrong on certain faces (false positive).
+    # Multi-frame (challenge frames) provides stronger evidence.
+    # Screen replay attacks would fail liveness challenges AND show spoof in both.
 
     # ============================================================
     # 4. DEEPFAKE (Official Models: Xception + EfficientNet-B2)
@@ -779,37 +792,17 @@ def detailed_verify():
     deepfake_models_used = deepfake_result.get('models_used', [])
 
     # ============================================================
-    # 5. GATE DECISION — CONFIDENCE-BASED OVERRIDE
+    # 5. GATE DECISION — ALL GATES MUST PASS
     # ============================================================
-    # If face match is strong AND liveness passed AND all challenges passed,
-    # anti-spoof and deepfake are treated as advisory (soft-fail).
-    # This prevents false positives from incorrectly rejecting real people.
+    # Anti-spoof and deepfake are ALWAYS enforced.
+    # No override path — all 4 gates must pass for verification.
 
-    strong_face_match = faceMatchPassed and face_similarity >= 0.50
-    strong_liveness = livenessPassed and session_liveness_confirmed
-    all_challenges_passed = session_liveness_confirmed
-
-    # High confidence path: face + liveness + challenges all pass
-    high_confidence = strong_face_match and strong_liveness and all_challenges_passed
-
-    if high_confidence:
-        # Face match + liveness + challenges all pass → skip anti-spoof/deepfake rejection
-        # These models can produce false positives on certain faces
-        # Security is maintained by the 3 other gates (face + liveness + challenges)
-        verified = True
-        if spoofDetected or deepfakeDetected:
-            logger.info(
-                "[VERIFY] High-confidence override: spoof=%s (liveness=%.2f) deepfake=%s (prob=%.2f) — overriding",
-                spoofDetected, spoof_liveness, deepfakeDetected, deepfake_confidence
-            )
-    else:
-        # Normal path: all conditions must pass
-        verified = (
-            faceMatchPassed
-            and livenessPassed
-            and (not spoofDetected)
-            and (not deepfakeDetected)
-        )
+    verified = (
+        faceMatchPassed
+        and livenessPassed
+        and (not spoofDetected)
+        and (not deepfakeDetected)
+    )
 
     reasons = []
     if not faceMatchPassed:

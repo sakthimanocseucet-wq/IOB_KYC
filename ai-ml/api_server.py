@@ -819,9 +819,9 @@ def detailed_verify():
     elapsed_total = round((time.time() - start_total) * 1000, 1)
 
     logger.info(
-        "[VERIFY] face=%s live=%s spoof=%s deepfake=%s screen_replay=%s high_conf=%s → %s (%.1fms)",
+        "[VERIFY] face=%s live=%s spoof=%s deepfake=%s screen_replay=%s → %s (%.1fms)",
         faceMatchPassed, livenessPassed, spoofDetected, deepfakeDetected,
-        screenReplayDetected, high_confidence, verdict, elapsed_total,
+        screenReplayDetected, verdict, elapsed_total,
     )
     if not verified:
         logger.warning("[VERIFY_REJECTED] reasons=%s", reasons)

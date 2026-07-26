@@ -363,6 +363,71 @@ def diagnose():
     return jsonify(results)
 
 
+@app.route('/test-deepfake', methods=['GET'])
+def test_deepfake():
+    """Test deepfake detection with synthetic images.
+
+    Generates a noise image (should be detected as fake) and checks model response.
+    Returns per-model fake_prob scores.
+    """
+    import cv2
+    import base64
+
+    results = {'models': {}, 'overall': {}}
+
+    # Generate random noise image (should look 'fake' to the model)
+    np.random.seed(42)
+    noise_img = np.random.randint(0, 255, (224, 224, 3), dtype=np.uint8)
+    _, buf = cv2.imencode('.jpg', noise_img)
+    noise_b64 = 'data:image/jpeg;base64,' + base64.b64encode(buf.tobytes()).decode()
+
+    # Generate solid color image (also fake-looking)
+    solid_img = np.ones((224, 224, 3), dtype=np.uint8) * 128
+    cv2.circle(solid_img, (112, 112), 80, (200, 180, 160), -1)
+    cv2.circle(solid_img, (95, 95), 15, (50, 50, 50), -1)
+    cv2.circle(solid_img, (129, 95), 15, (50, 50, 50), -1)
+    cv2.ellipse(solid_img, (112, 130), (30, 15), 0, 0, 180, (100, 80, 80), 2)
+    _, buf2 = cv2.imencode('.jpg', solid_img)
+    solid_b64 = 'data:image/jpeg;base64,' + base64.b64encode(buf2.tobytes()).decode()
+
+    if deepfake_detector and deepfake_detector.available:
+        # Test with noise
+        try:
+            r1 = deepfake_detector.detect(noise_b64)
+            results['models']['noise_test'] = {
+                'is_deepfake': r1.get('is_deepfake'),
+                'fake_prob': round(r1.get('fake_prob', 0), 4),
+                'reason': r1.get('reason', ''),
+                'per_model': r1.get('per_model', {}),
+            }
+        except Exception as e:
+            results['models']['noise_test'] = {'error': str(e)}
+
+        # Test with synthetic face
+        try:
+            r2 = deepfake_detector.detect(solid_b64)
+            results['models']['synthetic_face_test'] = {
+                'is_deepfake': r2.get('is_deepfake'),
+                'fake_prob': round(r2.get('fake_prob', 0), 4),
+                'reason': r2.get('reason', ''),
+                'per_model': r2.get('per_model', {}),
+            }
+        except Exception as e:
+            results['models']['synthetic_face_test'] = {'error': str(e)}
+
+        results['overall'] = {
+            'status': 'OK',
+            'models_loaded': deepfake_detector.models_loaded,
+            'models_disabled': deepfake_detector.models_disabled,
+            'threshold': DEEPFAKE_THRESHOLD,
+            'note': 'Noise/synthetic images should have high fake_prob (>0.7). Real faces should have low fake_prob (<0.5).',
+        }
+    else:
+        results['overall'] = {'status': 'UNAVAILABLE', 'error': 'Deepfake detector not loaded'}
+
+    return jsonify(results)
+
+
 @app.route('/face-detect', methods=['POST'])
 def face_detect():
     """Detect faces in an image.

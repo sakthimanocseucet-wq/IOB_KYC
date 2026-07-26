@@ -257,10 +257,30 @@ def _extract_aadhaar(left_items, right_items, top_items, bottom_items,
     if name:
         details['name'] = name
 
-    details['address'] = ''
-    details['address_components'] = {}
+    gender = None
+    for it in all_items:
+        t = it['text'].strip().upper()
+        if t == 'MALE' or t == 'FEMALE' or t == 'OTHER':
+            gender = t.title()
+            break
+    if not gender:
+        for it in all_items:
+            t = it['text'].strip().upper()
+            if 'MALE' in t and 'FEMALE' not in t:
+                gender = 'Male'
+                break
+            elif 'FEMALE' in t:
+                gender = 'Female'
+                break
+    if gender:
+        details['gender'] = gender
+
+    addr_result = _extract_address(all_items, mid_x, img_w)
+    details['address'] = addr_result.get('full_address', '')
+    details['address_components'] = addr_result
 
     debug['extracted_name'] = name
+    debug['extracted_gender'] = gender
     return details
 
 
@@ -1053,7 +1073,30 @@ def _extract_pan(items, all_text, img_h, img_w, debug):
         pan_candidates.sort(key=lambda x: -x[0])
         details['name'] = pan_candidates[0][1]
 
+    gender = None
+    for it in items:
+        t = it['text'].strip().upper()
+        if t == 'MALE' or t == 'FEMALE' or t == 'OTHER':
+            gender = t.title()
+            break
+    if not gender:
+        for it in items:
+            t = it['text'].strip().upper()
+            if 'MALE' in t and 'FEMALE' not in t:
+                gender = 'Male'
+                break
+            elif 'FEMALE' in t:
+                gender = 'Female'
+                break
+    if gender:
+        details['gender'] = gender
+
+    addr_result = _extract_address(items, None, img_w)
+    details['address'] = addr_result.get('full_address', '')
+    details['address_components'] = addr_result
+
     debug['extracted_name'] = details.get('name')
+    debug['extracted_gender'] = gender
     return details
 
 

@@ -447,6 +447,7 @@ async function startOCR() {
         panNumber: data.pan_number || '',
         address: data.address || '',
         addressComponents: data.address_components || null,
+        gender: data.gender || '',
         branch: data.branch || ''
     };
     document.getElementById('ocrName').value = kycData.ocrData.name;
@@ -455,6 +456,9 @@ async function startOCR() {
     idField.value = kycData.ocrData.idNumber;
     if (kycData.ocrData.panNumber) document.getElementById('ocrPanNumber').value = kycData.ocrData.panNumber;
     document.getElementById('ocrAddress').value = kycData.ocrData.address;
+    if (kycData.ocrData.gender && document.getElementById('ocrGender')) {
+        document.getElementById('ocrGender').value = kycData.ocrData.gender;
+    }
     document.getElementById('ocrBranch').value = kycData.ocrData.branch;
 
     const user = getUser();

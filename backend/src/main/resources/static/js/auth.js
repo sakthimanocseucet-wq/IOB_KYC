@@ -29,6 +29,22 @@ function showFieldError(errorId, message) {
 
 // ====================== OTP METHOD ======================
 let otpMethod = 'email';
+let regFirebaseConfirmation = null;
+let regFirebaseInitialized = false;
+
+async function initRegFirebase() {
+    if (regFirebaseInitialized) return;
+    try {
+        var res = await fetch('/api/config/firebase');
+        var cfg = await res.json();
+        if (cfg.apiKey && cfg.projectId) {
+            firebase.initializeApp({ apiKey: cfg.apiKey, authDomain: cfg.authDomain, projectId: cfg.projectId }, 'regFirebase');
+            regFirebaseInitialized = true;
+        }
+    } catch (e) {
+        console.warn('[Firebase] Reg init failed:', e);
+    }
+}
 
 function setOtpMethod(method) {
     otpMethod = method;
@@ -51,6 +67,7 @@ function setOtpMethod(method) {
         if (emailRow) emailRow.style.display = 'none';
         if (smsRow) smsRow.style.display = '';
     }
+}
     clearFieldError('otpError');
 }
 
@@ -183,20 +200,36 @@ async function sendRegOTP() {
     const btn = document.getElementById('sendOtpBtn');
     btn.disabled = true;
 
-    try {
-        const res = await fetch(AUTH_API + '/otp/generate?identifier=' + encodeURIComponent(identifier) + '&purpose=REGISTER', { method: 'POST' });
-        const data = await res.json();
-        if (data.success) {
+    if (otpMethod === 'sms') {
+        if (!/^\+[0-9]/.test(identifier)) { showFieldError('otpError', 'Phone must start with country code (e.g., +91)'); btn.disabled = false; return; }
+        await initRegFirebase();
+        if (!regFirebaseInitialized) { showFieldError('otpError', 'Firebase not configured. Use email OTP.'); btn.disabled = false; return; }
+        try {
+            var recaptchaVerifier = new firebase.auth.RecaptchaVerifier('sendOtpBtn', { size: 'invisible' });
+            var app = regFirebaseInitialized ? firebase.app('regFirebase') : firebase.app();
+            regFirebaseConfirmation = await app.auth().signInWithPhoneNumber(identifier, recaptchaVerifier);
             showToast('OTP sent to ' + identifier, 'success');
-        } else {
-            showAlert(data.message || 'Failed to send OTP. Please try again.', 'error');
+        } catch (e) {
+            showFieldError('otpError', 'Failed to send SMS: ' + e.message);
             btn.disabled = false;
             return;
         }
-    } catch (err) {
-        showAlert('Failed to send OTP. Please try again.', 'error');
-        btn.disabled = false;
-        return;
+    } else {
+        try {
+            const res = await fetch(AUTH_API + '/otp/generate?identifier=' + encodeURIComponent(identifier) + '&purpose=REGISTER', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                showToast('OTP sent to ' + identifier, 'success');
+            } else {
+                showAlert(data.message || 'Failed to send OTP. Please try again.', 'error');
+                btn.disabled = false;
+                return;
+            }
+        } catch (err) {
+            showAlert('Failed to send OTP. Please try again.', 'error');
+            btn.disabled = false;
+            return;
+        }
     }
 
     let seconds = 30;
@@ -222,27 +255,26 @@ async function verifyRegOTP() {
         return false;
     }
 
-    var identifier;
-    if (otpMethod === 'sms') {
-        identifier = document.getElementById('regOtpPhone').value;
-    } else {
-        var emailInput = document.getElementById('regOtpEmail');
-        identifier = emailInput ? emailInput.value : document.getElementById('email').value;
-    }
-
     try {
-        const res = await fetch(AUTH_API + '/otp/verify?identifier=' + encodeURIComponent(identifier) + '&otp=' + otp + '&purpose=REGISTER', { method: 'POST' });
-        const data = await res.json();
-        if (data.success) {
-            regOtpVerified = true;
-            showToast('Email verified!', 'success');
-            return true;
+        if (otpMethod === 'sms') {
+            if (!regFirebaseConfirmation) { showFieldError('otpError', 'Please send OTP first'); return false; }
+            await regFirebaseConfirmation.confirm(otp);
         } else {
-            showAlert(data.message || 'Invalid OTP. Please try again.', 'error');
-            return false;
+            var identifier;
+            var emailInput = document.getElementById('regOtpEmail');
+            identifier = emailInput ? emailInput.value : document.getElementById('email').value;
+            const res = await fetch(AUTH_API + '/otp/verify?identifier=' + encodeURIComponent(identifier) + '&otp=' + otp + '&purpose=REGISTER', { method: 'POST' });
+            const data = await res.json();
+            if (!data.success) {
+                showAlert(data.message || 'Invalid OTP. Please try again.', 'error');
+                return false;
+            }
         }
+        regOtpVerified = true;
+        showToast('Phone verified!', 'success');
+        return true;
     } catch (err) {
-        showAlert('OTP verification failed. Please try again.', 'error');
+        showAlert('OTP verification failed: ' + err.message, 'error');
         return false;
     }
 }

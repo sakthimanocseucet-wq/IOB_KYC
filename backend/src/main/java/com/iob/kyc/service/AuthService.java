@@ -8,6 +8,8 @@ import com.iob.kyc.model.OtpCode;
 import com.iob.kyc.model.User;
 import com.iob.kyc.repository.EmployeeRepository;
 import com.iob.kyc.repository.OtpCodeRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.iob.kyc.repository.UserRepository;
 import com.iob.kyc.security.JwtTokenProvider;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -24,6 +26,8 @@ import java.util.Map;
 
 @Service
 public class AuthService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     private final UserRepository userRepository;
     private final EmployeeRepository employeeRepository;

@@ -228,17 +228,28 @@ class FaceVerifier:
 
     def _enhance_for_detection(self, img):
         """Enhance image for better face detection (CLAHE + sharpening)."""
-        # CLAHE on luminance channel
         lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
         l, a, b = cv2.split(lab)
         clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
         l = clahe.apply(l)
         enhanced = cv2.merge([l, a, b])
         enhanced = cv2.cvtColor(enhanced, cv2.COLOR_LAB2BGR)
-        # Mild sharpening
         kernel = np.array([[-1,-1,-1],[-1,9,-1],[-1,-1,-1]], dtype=np.float32)
         enhanced = cv2.filter2D(enhanced, -1, kernel)
         return enhanced
+
+    def _enhance_face_for_quality(self, face_img):
+        """Enhance face image for better quality assessment in low light."""
+        if face_img is None or face_img.size == 0:
+            return face_img
+        lab = cv2.cvtColor(face_img, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(4, 4))
+        l = clahe.apply(l)
+        enhanced = cv2.merge([l, a, b])
+        enhanced = cv2.cvtColor(enhanced, cv2.COLOR_LAB2BGR)
+        denoised = cv2.fastNlMeansDenoisingColored(enhanced, None, h=5, hForColoredImage=5)
+        return denoised
 
     def _cosine_similarity(self, emb1, emb2):
         """Compute cosine similarity between two embedding vectors."""
@@ -348,14 +359,16 @@ class FaceVerifier:
         selfie_face_roi = img_selfie[max(0, selfie_bbox[1]):selfie_bbox[3], max(0, selfie_bbox[0]):selfie_bbox[2]]
 
         if id_face_roi.size > 0:
+            enhanced_id_roi = self._enhance_face_for_quality(id_face_roi)
             result['id_face_quality'] = FaceQuality.compute_overall_quality(
-                id_face_roi,
+                enhanced_id_roi,
                 (id_bbox[0], id_bbox[1], id_bbox[2] - id_bbox[0], id_bbox[3] - id_bbox[1]),
                 img_id.shape
             )
         if selfie_face_roi.size > 0:
+            enhanced_selfie_roi = self._enhance_face_for_quality(selfie_face_roi)
             result['selfie_face_quality'] = FaceQuality.compute_overall_quality(
-                selfie_face_roi,
+                enhanced_selfie_roi,
                 (selfie_bbox[0], selfie_bbox[1], selfie_bbox[2] - selfie_bbox[0], selfie_bbox[3] - selfie_bbox[1]),
                 img_selfie.shape
             )
@@ -376,6 +389,25 @@ class FaceVerifier:
 
             threshold = self.COSINE_THRESHOLD_STRICT if strict else self.COSINE_THRESHOLD
             logger.info("[FaceVerify] Similarity=%.4f threshold=%.2f strict=%s", similarity, threshold, strict)
+
+            if similarity < threshold:
+                logger.info("[FaceVerify] Low similarity, trying enhanced images...")
+                try:
+                    enhanced_id = self._enhance_for_detection(img_id)
+                    enhanced_selfie = self._enhance_for_detection(img_selfie)
+                    faces_id_enh = self._get_faces(enhanced_id)
+                    faces_selfie_enh = self._get_faces(enhanced_selfie)
+                    if faces_id_enh and faces_selfie_enh:
+                        emb_id_enh = np.array(faces_id_enh[0].embedding, dtype=np.float32)
+                        emb_selfie_enh = np.array(faces_selfie_enh[0].embedding, dtype=np.float32)
+                        similarity_enh = self._cosine_similarity(emb_id_enh, emb_selfie_enh)
+                        if similarity_enh > similarity:
+                            logger.info("[FaceVerify] Enhanced similarity %.4f > raw %.4f", similarity_enh, similarity)
+                            similarity = similarity_enh
+                            result['cosine_similarity'] = round(similarity, 4)
+                            result['enhanced_comparison'] = True
+                except Exception as e:
+                    logger.warning("[FaceVerify] Enhanced comparison failed: %s", e)
             if similarity >= threshold:
                 confidence = round(min(100, (similarity - threshold) / (1.0 - threshold) * 40 + 60), 2)
             else:

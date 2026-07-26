@@ -620,15 +620,19 @@ async function sendKycOtp() {
     }, 1000);
 }
 
+let kycOtpVerifying = false;
+
 async function autoVerifyKycOtp() {
     var otp = document.getElementById('emailOtp').value.trim();
     if (otp.length !== 6 || !/^[0-9]{6}$/.test(otp)) return;
+    if (kycOtpVerifying || kycData.emailOtpVerified) return;
+    kycOtpVerifying = true;
 
     var tick = document.getElementById('kycOtpTick');
 
     if (kycOtpMethod === 'email') {
         var email = document.getElementById('kycEmail').value.trim();
-        if (!email) { showToast('Enter email first', 'error'); return; }
+        if (!email) { showToast('Enter email first', 'error'); kycOtpVerifying = false; return; }
         try {
             var res = await fetch('/api/auth/otp/verify?identifier=' + encodeURIComponent(email) + '&otp=' + otp + '&purpose=KYC', { method: 'POST' });
             var data = await res.json();
@@ -639,15 +643,17 @@ async function autoVerifyKycOtp() {
                 showToast('Email verified!', 'success');
             } else {
                 kycData.emailOtpVerified = false;
+                kycOtpVerifying = false;
                 tick.style.display = 'none';
                 document.getElementById('emailOtp').style.borderColor = '#dc2626';
                 showToast(data.message || 'Invalid OTP', 'error');
             }
         } catch (err) {
+            kycOtpVerifying = false;
             showToast('Verification failed', 'error');
         }
     } else {
-        if (!firebaseConfirmationResult) { showToast('Send OTP first', 'error'); return; }
+        if (!firebaseConfirmationResult) { showToast('Send OTP first', 'error'); kycOtpVerifying = false; return; }
         try {
             await firebaseConfirmationResult.confirm(otp);
             kycData.emailOtpVerified = true;
@@ -656,6 +662,7 @@ async function autoVerifyKycOtp() {
             showToast('Phone verified!', 'success');
         } catch (err) {
             kycData.emailOtpVerified = false;
+            kycOtpVerifying = false;
             tick.style.display = 'none';
             document.getElementById('emailOtp').style.borderColor = '#dc2626';
             showToast('Invalid OTP: ' + err.message, 'error');

@@ -54,20 +54,34 @@ def _is_date_text(text):
 
 
 def _preprocess_for_ocr(img):
-    """Enhance image for better OCR accuracy."""
+    """Enhance image for better OCR accuracy using adaptive methods."""
+    h, w = img.shape[:2]
+
+    if max(h, w) < 800:
+        scale = 800 / max(h, w)
+        img = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+        h, w = img.shape[:2]
+
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    denoised = cv2.fastNlMeansDenoising(gray, h=10)
+    denoised = cv2.fastNlMeansDenoising(gray, h=7)
 
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    clahe = cv2.createCLAHE(clipLimit=1.5, tileGridSize=(8, 8))
     enhanced = clahe.apply(denoised)
 
-    kernel = np.array([[-1, -1, -1], [-1, 9, -1], [-1, -1, -1]])
-    sharpened = cv2.filter2D(enhanced, -1, kernel)
+    kernel_sharp = np.array([[0, -0.5, 0], [-0.5, 3, -0.5], [0, -0.5, 0]])
+    sharpened = cv2.filter2D(enhanced, -1, kernel_sharp)
 
-    _, binary = cv2.threshold(sharpened, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    adaptive_bin = cv2.adaptiveThreshold(
+        sharpened, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY, 31, 10
+    )
 
-    result = cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
+    kernel_morph = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 1))
+    cleaned = cv2.morphologyEx(adaptive_bin, cv2.MORPH_CLOSE, kernel_morph)
+    cleaned = cv2.morphologyEx(cleaned, cv2.MORPH_OPEN, kernel_morph)
+
+    result = cv2.cvtColor(cleaned, cv2.COLOR_GRAY2BGR)
     return result
 
 
@@ -88,10 +102,19 @@ def ocr_image(image_bytes, doc_type='AADHAAR'):
     result, elapse = engine(enhanced_img)
 
     if not result or len(result) == 0:
-        result2, elapse2 = engine(img)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        _, otsu_bin = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        otsu_img = cv2.cvtColor(otsu_bin, cv2.COLOR_GRAY2BGR)
+        result2, elapse2 = engine(otsu_img)
         if result2 and len(result2) > 0:
             result = result2
             elapse = elapse2
+
+    if not result or len(result) == 0:
+        result3, elapse3 = engine(img)
+        if result3 and len(result3) > 0:
+            result = result3
+            elapse = elapse3
 
     items = []
     if result:

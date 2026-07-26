@@ -563,15 +563,9 @@ def _extract_address(all_items, mid_x=None, img_w=None):
     for i, it in enumerate(eng_items):
         m = eng_sdo.search(it['text'])
         if m:
-            before = it['text'][:m.start()].strip()
-            if before:
-                start_item_idx = i
-                start_offset = m.start()
-                break
-            else:
-                start_item_idx = max(0, i - 1)
-                start_offset = 0
-                break
+            start_item_idx = i
+            start_offset = m.end()
+            break
 
     if start_item_idx == -1:
         for i, it in enumerate(eng_items):
@@ -603,6 +597,12 @@ def _extract_address(all_items, mid_x=None, img_w=None):
 
     address_text = ' '.join(address_parts)
     address_text = _fix_ocr_errors(address_text)
+
+    address_text = re.sub(r'^\s*/\s*(?:S[/.]o|D[/.]o|W[/.]o|C[/.]o)', r'\1', address_text, flags=re.IGNORECASE)
+    address_text = re.sub(r'\s*/\s*(?:S[/.]o|D[/.]o|W[/.]o|C[/.]o)', r' \1', address_text, flags=re.IGNORECASE)
+    address_text = re.sub(r'\bq/\s*', ' ', address_text, flags=re.IGNORECASE)
+    address_text = re.sub(r'\bQ/\s*', ' ', address_text, flags=re.IGNORECASE)
+    address_text = re.sub(r'\s+', ' ', address_text).strip()
 
     for kw in NON_ADDRESS_KEYWORDS:
         address_text = re.sub(r'\b' + kw + r'\b', '', address_text, flags=re.IGNORECASE)

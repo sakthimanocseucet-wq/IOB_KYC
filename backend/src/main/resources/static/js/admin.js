@@ -1307,31 +1307,7 @@ async function createEmployeeAccount() {
 async function loadQrVerification(appId) {
     var container = document.getElementById('qrVerificationSection');
     if (!container) return;
-
-    try {
-        var token = getAuthToken();
-        if (!token) return;
-
-        var res = await fetch(ADMIN_API + '/applications/' + appId + '/qr-verify', {
-            headers: { 'Authorization': 'Bearer ' + token }
-        });
-
-        if (!res.ok) {
-            container.innerHTML = renderQrNotPerformed(appId);
-            return;
-        }
-
-        var data = await res.json();
-        if (data.results && data.verificationStatus) {
-            container.innerHTML = renderQrResult(data, appId);
-        } else if (data.verificationStatus === 'SKIPPED') {
-            container.innerHTML = renderQrResult(data, appId);
-        } else {
-            container.innerHTML = renderQrNotPerformed(appId);
-        }
-    } catch (e) {
-        container.innerHTML = renderQrNotPerformed(appId);
-    }
+    container.innerHTML = renderQrNotPerformed(appId);
 }
 
 function renderQrNotPerformed(appId) {
@@ -1490,7 +1466,7 @@ async function triggerQrVerification(appId) {
                 var status = data.status || 'Unknown';
                 if (container) {
                     container.innerHTML = '<div style="text-align:center;padding:12px"><p style="font-size:13px;color:var(--success)">QR verification completed: ' + status + '</p>' +
-                        '<button class="btn btn-sm btn-outline" onclick="loadQrVerification(' + appId + ')" style="margin-top:8px;font-size:12px;padding:6px 12px;cursor:pointer">&#128260; Re-run</button></div>';
+                        '<button class="btn btn-sm btn-outline" onclick="triggerQrVerification(' + appId + ')" style="margin-top:8px;font-size:12px;padding:6px 12px;cursor:pointer">&#128260; Re-run</button></div>';
                 }
                 showToast('QR verification completed: ' + status, status === 'PASSED' ? 'success' : status === 'FAILED' ? 'error' : 'info');
             }

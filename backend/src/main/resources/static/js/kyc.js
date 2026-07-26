@@ -469,13 +469,45 @@ async function startQRExtraction() {
     }
 }
 
-// ====================== EMAIL OTP ======================
+// ====================== KYC OTP (Email or SMS) ======================
 let kycEmailOtpTimer = null;
+let kycOtpMethod = 'email';
 
-async function sendEmailOTP() {
-    const email = document.getElementById('kycEmail').value;
-    if (!email) {
-        showAlert('Please enter your email first', 'error');
+function setKycOtpMethod(method) {
+    kycOtpMethod = method;
+    var emailBtn = document.getElementById('kycOtpMethodEmail');
+    var smsBtn = document.getElementById('kycOtpMethodSms');
+    var emailRow = document.getElementById('kycOtpEmailRow');
+    var smsRow = document.getElementById('kycOtpSmsRow');
+    if (method === 'email') {
+        emailBtn.className = 'btn btn-sm btn-primary';
+        emailBtn.style.border = '2px solid #2563eb';
+        smsBtn.className = 'btn btn-sm btn-outline';
+        smsBtn.style.border = '';
+        if (emailRow) emailRow.style.display = '';
+        if (smsRow) smsRow.style.display = 'none';
+    } else {
+        smsBtn.className = 'btn btn-sm btn-primary';
+        smsBtn.style.border = '2px solid #2563eb';
+        emailBtn.className = 'btn btn-sm btn-outline';
+        emailBtn.style.border = '';
+        if (emailRow) emailRow.style.display = 'none';
+        if (smsRow) smsRow.style.display = '';
+    }
+}
+
+async function sendKycOtp() {
+    var identifier;
+    var displayTarget;
+    if (kycOtpMethod === 'sms') {
+        identifier = document.getElementById('kycMobile').value.trim();
+        displayTarget = identifier;
+    } else {
+        identifier = document.getElementById('kycEmail').value.trim();
+        displayTarget = identifier;
+    }
+    if (!identifier) {
+        showAlert('Please enter your ' + (kycOtpMethod === 'sms' ? 'mobile number' : 'email address') + ' first', 'error');
         return;
     }
     kycData.emailOtpVerified = false;
@@ -483,10 +515,10 @@ async function sendEmailOTP() {
     btn.disabled = true;
 
     try {
-        const otpRes = await fetch('/api/auth/otp/generate?identifier=' + encodeURIComponent(email) + '&purpose=KYC', { method: 'POST' });
+        const otpRes = await fetch('/api/auth/otp/generate?identifier=' + encodeURIComponent(identifier) + '&purpose=KYC', { method: 'POST' });
         const otpData = await otpRes.json();
         if (otpData.success) {
-            showToast('OTP sent to ' + email, 'success');
+            showToast('OTP sent to ' + displayTarget, 'success');
         } else {
             showToast(otpData.message || 'Failed to send OTP', 'error');
             btn.disabled = false;
@@ -500,16 +532,16 @@ async function sendEmailOTP() {
 
     let seconds = 30;
     const timerEl = document.getElementById('emailOtpTimer');
-    timerEl.textContent = 'Resend OTP in ' + seconds + 's';
+    if (timerEl) timerEl.textContent = 'Resend OTP in ' + seconds + 's';
     if (kycEmailOtpTimer) clearInterval(kycEmailOtpTimer);
     kycEmailOtpTimer = setInterval(() => {
         seconds--;
-        timerEl.textContent = 'Resend OTP in ' + seconds + 's';
+        if (timerEl) timerEl.textContent = 'Resend OTP in ' + seconds + 's';
         if (seconds <= 0) {
             clearInterval(kycEmailOtpTimer);
             btn.disabled = false;
             btn.textContent = 'Resend OTP';
-            timerEl.textContent = '';
+            if (timerEl) timerEl.textContent = '';
         }
     }, 1000);
 }
@@ -538,10 +570,12 @@ async function verifyDetails() {
     if (!mobile || mobile.length < 10) { showAlert('Please enter a valid mobile number with country code (e.g., +91 9876543210)', 'error'); return; }
     if (!/^\+[0-9]/.test(mobile)) { showAlert('Mobile number must start with country code (e.g., +91)', 'error'); return; }
     if (!email) { showAlert('Please enter your email address', 'error'); return; }
-    if (!emailOtp || emailOtp.length !== 6) { showAlert('Please enter the 6-digit OTP sent to your email', 'error'); return; }
+    if (!emailOtp || emailOtp.length !== 6) { showAlert('Please enter the 6-digit OTP sent to your ' + (kycOtpMethod === 'sms' ? 'mobile number' : 'email'), 'error'); return; }
+
+    var otpIdentifier = kycOtpMethod === 'sms' ? mobile : email;
 
     try {
-        var otpRes = await fetch('/api/auth/otp/verify?identifier=' + encodeURIComponent(email) + '&otp=' + emailOtp + '&purpose=KYC', { method: 'POST' });
+        var otpRes = await fetch('/api/auth/otp/verify?identifier=' + encodeURIComponent(otpIdentifier) + '&otp=' + emailOtp + '&purpose=KYC', { method: 'POST' });
         var otpResult = await otpRes.json();
         if (!otpResult.success) {
             showAlert(otpResult.message || 'Invalid email OTP. Please try again.', 'error');

@@ -212,6 +212,8 @@ async function handleSendResetOtp(event) {
         try {
             var app = fpFirebaseApp || firebase.app();
             if (fpRecaptchaVerifier) { fpRecaptchaVerifier.clear(); fpRecaptchaVerifier = null; }
+            var oldContainer = document.getElementById('fp-recaptcha-container');
+            if (oldContainer) oldContainer.remove();
             var container = document.createElement('div');
             container.id = 'fp-recaptcha-container';
             container.style.display = 'none';
@@ -256,6 +258,8 @@ function resendResetOtp() {
             if (!fpFirebaseInitialized) { fpShowAlert('Firebase not configured.'); return; }
             var app = fpFirebaseApp || firebase.app();
             if (fpRecaptchaVerifier) { fpRecaptchaVerifier.clear(); fpRecaptchaVerifier = null; }
+            var oldContainer2 = document.getElementById('fp-recaptcha-container-resend');
+            if (oldContainer2) oldContainer2.remove();
             var container = document.createElement('div');
             container.id = 'fp-recaptcha-container-resend';
             container.style.display = 'none';

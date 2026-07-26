@@ -210,6 +210,8 @@ async function sendRegOTP() {
         try {
             var app = regFirebaseApp || firebase.app();
             if (regRecaptchaVerifier) { regRecaptchaVerifier.clear(); regRecaptchaVerifier = null; }
+            var oldContainer = document.getElementById('reg-recaptcha-container');
+            if (oldContainer) oldContainer.remove();
             var container = document.createElement('div');
             container.id = 'reg-recaptcha-container';
             container.style.display = 'none';

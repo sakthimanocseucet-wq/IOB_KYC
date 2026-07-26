@@ -567,6 +567,8 @@ async function sendKycOtp() {
         try {
             var app = kycFirebaseApp || firebase.app();
             if (kycRecaptchaVerifier) { kycRecaptchaVerifier.clear(); kycRecaptchaVerifier = null; }
+            var oldContainer = document.getElementById('recaptcha-container');
+            if (oldContainer) oldContainer.remove();
             var container = document.createElement('div');
             container.id = 'recaptcha-container';
             container.style.display = 'none';

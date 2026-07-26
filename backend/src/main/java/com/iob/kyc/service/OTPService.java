@@ -68,12 +68,21 @@ public class OTPService {
     private void sendEmail(String to, String subject, String htmlContent, String plainText) {
         boolean sent = false;
 
+        log.info("sendEmail called: to={}, resendApiKeySet={}, gmailUserSet={}",
+                to,
+                resendApiKey != null && !resendApiKey.isEmpty(),
+                gmailFromEmail != null && !gmailFromEmail.isEmpty());
+
         if (resendApiKey != null && !resendApiKey.isEmpty()) {
             sent = sendViaResend(to, subject, htmlContent, plainText);
+        } else {
+            log.warn("RESEND_API_KEY is empty - skipping Resend");
         }
 
         if (!sent && gmailFromEmail != null && !gmailFromEmail.isEmpty()) {
             sendViaGmail(to, subject, htmlContent, plainText);
+        } else if (!sent) {
+            log.error("Both Resend and Gmail failed/unavailable - OTP email NOT SENT to {}", to);
         }
     }
 
@@ -100,15 +109,17 @@ public class OTPService {
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
+            log.info("Resend API response: status={}, body={}", response.statusCode(), response.body());
+
             if (response.statusCode() == 200) {
                 log.info("Email sent to {} via Resend", to);
                 return true;
             } else {
-                log.warn("Resend failed ({}): {}, falling back to Gmail", response.statusCode(), response.body());
+                log.error("Resend FAILED for {}: status={}, body={}", to, response.statusCode(), response.body());
                 return false;
             }
         } catch (Exception e) {
-            log.warn("Resend error: {}, falling back to Gmail", e.getMessage());
+            log.error("Resend EXCEPTION for {}: {}", to, e.getMessage(), e);
             return false;
         }
     }

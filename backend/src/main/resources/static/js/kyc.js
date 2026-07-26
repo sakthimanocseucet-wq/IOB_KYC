@@ -478,14 +478,20 @@ let firebaseInitialized = false;
 async function initFirebase() {
     if (firebaseInitialized) return;
     try {
+        var existingApp = firebase.apps.find(function(app) { return app.name === '[DEFAULT]'; });
+        if (existingApp) { firebaseInitialized = true; return; }
         var res = await fetch('/api/config/firebase');
         var cfg = await res.json();
+        console.log('[Firebase] Config:', cfg);
         if (cfg.apiKey && cfg.projectId) {
             firebase.initializeApp({ apiKey: cfg.apiKey, authDomain: cfg.authDomain, projectId: cfg.projectId });
             firebaseInitialized = true;
+            console.log('[Firebase] Initialized OK');
+        } else {
+            console.warn('[Firebase] Empty config:', cfg);
         }
     } catch (e) {
-        console.warn('[Firebase] Init failed:', e);
+        console.error('[Firebase] Init failed:', e);
     }
 }
 

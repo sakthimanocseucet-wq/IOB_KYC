@@ -16,6 +16,8 @@ let isEmployeePage = (function() {
 async function initFpFirebase() {
     if (fpFirebaseInitialized) return;
     try {
+        var existingApp = firebase.apps.find(function(app) { return app.name === 'fpFirebase'; });
+        if (existingApp) { fpFirebaseInitialized = true; return; }
         var res = await fetch('/api/config/firebase');
         var cfg = await res.json();
         if (cfg.apiKey && cfg.projectId) {

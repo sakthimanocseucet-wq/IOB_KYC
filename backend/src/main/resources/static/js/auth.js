@@ -35,6 +35,8 @@ let regFirebaseInitialized = false;
 async function initRegFirebase() {
     if (regFirebaseInitialized) return;
     try {
+        var existingApp = firebase.apps.find(function(app) { return app.name === 'regFirebase'; });
+        if (existingApp) { regFirebaseInitialized = true; return; }
         var res = await fetch('/api/config/firebase');
         var cfg = await res.json();
         if (cfg.apiKey && cfg.projectId) {

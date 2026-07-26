@@ -151,8 +151,6 @@ def ocr_image(image_bytes, doc_type='AADHAAR'):
         img = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
         h, w = img.shape[:2]
 
-    GOOD_SCORE = 50
-
     def _run_ocr_on(preprocessed):
         result, elapse = engine(preprocessed)
         if not result or len(result) == 0:
@@ -174,45 +172,47 @@ def ocr_image(image_bytes, doc_type='AADHAAR'):
             })
         return items
 
-    best_items = []
-    best_score = 0
-    best_strategy = None
+    def _has_meaningful_text(items):
+        if len(items) < 3:
+            return False
+        for it in items:
+            t = it['text']
+            if re.search(r'\b\d{4}\s?\d{4}\s?\d{4}\b', t):
+                return True
+            if re.search(r'\b\d{2}[/-]\d{2}[/-]\d{4}\b', t):
+                return True
+            if re.search(r'\b(S/O|D/O|W/O|C/O)\b', t, re.IGNORECASE):
+                return True
+            if re.search(r'\b\d{6}\b', t):
+                return True
+        return False
 
-    processed = _preprocess_adaptive(img)
-    best_items = _run_ocr_on(processed)
-    best_score = _score_ocr_result(best_items)
-    best_strategy = 'adaptive'
-    logger.info(f"OCR strategy=adaptive items={len(best_items)} score={best_score:.1f}")
+    best_items = _run_ocr_on(img)
+    best_strategy = 'raw'
+    logger.info(f"OCR strategy=raw items={len(best_items)} meaningful={_has_meaningful_text(best_items)}")
 
-    if best_score < GOOD_SCORE and best_items:
+    if not _has_meaningful_text(best_items) and best_items:
         best_items = []
-        best_score = 0
 
-    if best_score < GOOD_SCORE:
-        for name, preprocess_fn in [('otsu', _preprocess_otsu), ('unsharp', _preprocess_unsharp)]:
+    if not best_items:
+        for name, preprocess_fn in [('adaptive', _preprocess_adaptive), ('otsu', _preprocess_otsu), ('unsharp', _preprocess_unsharp)]:
             try:
                 processed = preprocess_fn(img)
                 items = _run_ocr_on(processed)
-                score = _score_ocr_result(items)
-                logger.info(f"OCR strategy={name} items={len(items)} score={score:.1f}")
-                if score > best_score:
-                    best_score = score
+                meaningful = _has_meaningful_text(items)
+                logger.info(f"OCR strategy={name} items={len(items)} meaningful={meaningful}")
+                if meaningful:
                     best_items = items
                     best_strategy = name
-                if best_score >= GOOD_SCORE:
                     break
+                if len(items) > len(best_items):
+                    best_items = items
+                    best_strategy = name
             except Exception as e:
                 logger.warning(f"OCR strategy {name} failed: {e}")
                 continue
 
-    if not best_items:
-        try:
-            best_items = _run_ocr_on(img)
-            best_strategy = 'raw'
-        except Exception as e:
-            logger.warning(f"OCR raw fallback failed: {e}")
-
-    logger.info(f"OCR best strategy={best_strategy} items={len(best_items)} score={best_score:.1f}")
+    logger.info(f"OCR best strategy={best_strategy} items={len(best_items)}")
 
     items = best_items
     items.sort(key=lambda x: x['cy'])

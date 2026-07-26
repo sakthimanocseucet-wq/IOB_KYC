@@ -332,9 +332,29 @@ def parse_aadhaar_qr(qr_data):
             result['dob'] = dob_match.group(1).strip()
 
     if not result['dob']:
+        lines = qr_data.split('\n')
+        for line in lines:
+            label_m = re.match(r'^dob\s*:\s*(.+)', line, re.IGNORECASE)
+            if label_m:
+                result['dob'] = label_m.group(1).strip()
+                break
+
+    if not result['dob']:
         dob_match = re.search(r'\b(\d{2}[/-]\d{2}[/-]\d{4})\b', qr_data)
         if dob_match:
             result['dob'] = dob_match.group(1)
+
+    if not result['gender']:
+        lines = qr_data.split('\n')
+        for line in lines:
+            label_m = re.match(r'^gender\s*:\s*(.+)', line, re.IGNORECASE)
+            if label_m:
+                val = label_m.group(1).strip().lower()
+                if 'male' in val and 'female' not in val:
+                    result['gender'] = 'Male'
+                elif 'female' in val:
+                    result['gender'] = 'Female'
+                break
 
     if not result['name']:
         parts = qr_data.split('|')
@@ -348,6 +368,12 @@ def parse_aadhaar_qr(qr_data):
         lines = qr_data.split('\n')
         for line in lines:
             line = line.strip()
+            label_m = re.match(r'^name\s*:\s*(.+)', line, re.IGNORECASE)
+            if label_m:
+                val = label_m.group(1).strip()
+                if re.match(r'^[A-Za-z\s]+$', val) and len(val) > 3:
+                    result['name'] = val
+                    break
             if re.match(r'^[A-Za-z\s]+$', line) and len(line) > 3:
                 result['name'] = line
                 break
@@ -363,6 +389,14 @@ def parse_aadhaar_qr(qr_data):
         all_dates = re.findall(r'\b(\d{2}[/-]\d{2}[/-]\d{4})\b', qr_data)
         if all_dates:
             result['dob'] = all_dates[0]
+
+    if not result['address']:
+        lines = qr_data.split('\n')
+        for line in lines:
+            label_m = re.match(r'^address\s*:\s*(.+)', line, re.IGNORECASE)
+            if label_m:
+                result['address'] = label_m.group(1).strip()
+                break
 
     logger.info("[QR-PARSE-Aadhaar] name=%s dob=%s aadhaar=%s",
                 bool(result['name']), bool(result['dob']), bool(result['aadhaar_number']))

@@ -75,11 +75,6 @@ public class AIProxyController {
         proxyJson(flaskBaseUrl() + "/api/ai/face-verify", jsonBody, response);
     }
 
-    @PostMapping("/liveness")
-    public void liveness(@RequestBody String jsonBody, HttpServletResponse response) throws IOException {
-        proxyJson(flaskBaseUrl() + "/api/ai/liveness", jsonBody, response);
-    }
-
     @PostMapping("/liveness/challenge")
     public void livenessChallenge(@RequestBody(required = false) String jsonBody, HttpServletResponse response) throws IOException {
         String body = Optional.ofNullable(jsonBody).orElse("{}");

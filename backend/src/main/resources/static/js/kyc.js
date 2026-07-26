@@ -98,7 +98,7 @@ function goToStep(step) {
             });
         }
         // Reset liveness check icons
-        var checkIds = ['livenessBlink', 'livenessSpoof', 'livenessDeepfake', 'livenessChallenge', 'livenessDepth'];
+        var checkIds = ['livenessBlink', 'livenessDeepfake', 'livenessChallenge', 'livenessDepth'];
         checkIds.forEach(function(id) {
             var el = document.getElementById(id);
             if (el) { el.innerHTML = '&#10060;'; el.style.color = ''; }
@@ -781,7 +781,7 @@ function retryFaceVerification() {
     var faceResult = document.getElementById('faceResult');
     if (faceResult) {
         faceResult.style.display = 'none';
-        var checks = ['livenessBlink', 'livenessSpoof', 'livenessDeepfake', 'livenessDepth'];
+        var checks = ['livenessBlink', 'livenessDeepfake', 'livenessDepth'];
         checks.forEach(function(id) {
             var el = document.getElementById(id);
             if (el) { el.innerHTML = '&#10060;'; el.style.color = ''; }
@@ -1449,15 +1449,13 @@ async function performFaceVerification() {
     const submitBtn = document.getElementById('submitKycBtn');
     if (!faceResult) return;
     faceResult.style.display = 'block';
-    document.getElementById('faceMatchText').textContent = 'Running AI verification (face match, liveness, anti-spoofing, deepfake)...';
+    document.getElementById('faceMatchText').textContent = 'Running AI verification (face match, liveness, deepfake)...';
     document.getElementById('faceMatchPercent').textContent = '0%';
     const blinkEl = document.getElementById('livenessBlink');
-    const spoofEl = document.getElementById('livenessSpoof');
     const deepfakeEl = document.getElementById('livenessDeepfake');
     const challengeEl = document.getElementById('livenessChallenge');
     const depthEl = document.getElementById('livenessDepth');
     if (blinkEl) { blinkEl.innerHTML = '&#10060;'; blinkEl.style.color = ''; }
-    if (spoofEl) { spoofEl.innerHTML = '&#10060;'; spoofEl.style.color = ''; }
     if (deepfakeEl) { deepfakeEl.innerHTML = '&#10060;'; deepfakeEl.style.color = ''; }
     if (challengeEl) { challengeEl.innerHTML = '&#10060;'; challengeEl.style.color = ''; }
     if (depthEl) { depthEl.innerHTML = '&#10060;'; depthEl.style.color = ''; }
@@ -1647,20 +1645,18 @@ async function performFaceVerification() {
 
         var fm = Math.round(((data.confidence && data.confidence.face_similarity !== undefined) ? data.confidence.face_similarity : (data.face_match_score || 0)) * 100) || 0;
         var lv = Math.round(((data.confidence && data.confidence.liveness !== undefined) ? data.confidence.liveness : (data.liveness_score || 0)) * 100) || 0;
-        var sl = Math.round(((data.confidence && data.confidence.spoof !== undefined) ? data.confidence.spoof : (data.spoof_risk_score || 0)) * 100) || 0;
         var df = Math.round(((data.confidence && data.confidence.deepfake !== undefined) ? data.confidence.deepfake : 0) * 100) || 0;
         var status = data.status || data.verdict || 'REJECTED';
 
         // Trust backend verdict — no frontend override
-        // Backend enforces: faceMatchPassed AND livenessPassed AND NOT spoofDetected AND NOT deepfakeDetected
+        // Backend enforces: faceMatchPassed AND livenessPassed AND NOT deepfakeDetected
         var serverLivenessConfirmed = data.sessionLivenessConfirmed || false;
 
         var sLivenessPassed = (challengePassed || serverLivenessConfirmed) || (lv >= 60);
-        var sAntiSpoofPassed = data.spoofDetected ? false : (sl > 0 || lv > 20);
         var sDeepfake = (data.deepfakeDetected !== undefined) ? data.deepfakeDetected : (df > 50);
         var isReKycResponse = data.rekyc === true;
         var sFaceMatchPassed = isReKycResponse ? (fm >= 40) : (fm >= 60);
-        var fs = data.final_score || Math.round((fm * 0.3 + lv * 0.3 + (100 - (data.spoofDetected ? 100 : sl)) * 0.2 + (100 - df) * 0.2));
+        var fs = data.final_score || Math.round((fm * 0.4 + lv * 0.3 + (100 - df) * 0.3));
 
         animateMatchPercent(fm);
 
@@ -1668,7 +1664,6 @@ async function performFaceVerification() {
         function col(pass) { return pass ? 'var(--success)' : 'var(--danger)'; }
 
         if (blinkEl) { blinkEl.innerHTML = icon(sLivenessPassed); blinkEl.style.color = col(sLivenessPassed); }
-        if (spoofEl) { spoofEl.innerHTML = icon(sAntiSpoofPassed); spoofEl.style.color = col(sAntiSpoofPassed); }
         if (deepfakeEl) { deepfakeEl.innerHTML = icon(!sDeepfake); deepfakeEl.style.color = col(!sDeepfake); }
         if (challengeEl) { challengeEl.innerHTML = icon(challengePassed); challengeEl.style.color = col(challengePassed); }
         if (challengeCount > 0) {
@@ -1705,7 +1700,6 @@ async function performFaceVerification() {
             scoreDetails.innerHTML =
                 faceSection +
                 '<div class="score-row"><span>Liveness:</span><strong>' + lv + '%</strong></div>' +
-                '<div class="score-row"><span>Anti-Spoof:</span><strong>' + (data.spoofDetected ? 'FAIL' : sl + '%') + '</strong></div>' +
                 '<div class="score-row"><span>Deepfake:</span><strong>' + (data.deepfakeDetected ? 'DETECTED' : df + '%') + '</strong></div>' +
                 challengeInfo +
                 '<hr style="margin:8px 0;opacity:0.3">' +

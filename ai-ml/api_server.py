@@ -11,11 +11,10 @@ Verification Flow:
   1. Face Detection   → InsightFace ArcFace
   2. Face Verification → ArcFace embeddings + cosine similarity
    3. Liveness         → MediaPipe challenge-response (wink, mouth open, look up/down)
-  4. Anti-Spoofing    → MiniFASNet V2 (printed photo, screen replay)
-  5. Deepfake         → EfficientNet-B2 (AI-generated faces)
+  4. Deepfake         → EfficientNet-B2 (AI-generated faces)
 
 Gate Decision:
-  verified = faceMatchPassed AND livenessPassed AND NOT spoofDetected AND NOT deepfakeDetected
+  verified = faceMatchPassed AND livenessPassed AND NOT deepfakeDetected
 """
 
 from flask import Flask, request, jsonify
@@ -135,7 +134,6 @@ logger.info("Initializing AI/ML modules (production pipeline)...")
 
 face_verifier = None
 challenge_liveness = None
-spoof_detector = None
 deepfake_detector = None
 
 try:
@@ -155,29 +153,14 @@ except Exception as e:
     logger.warning("Liveness detection unavailable: %s", e)
 
 try:
-    from minifasnet_detector import MiniFASNetDetector
-    shared_insightface = getattr(face_verifier, 'insightface_app', None) if face_verifier else None
-    shared_lock = getattr(face_verifier, '_lock', None) if face_verifier else None
-    spoof_detector = MiniFASNetDetector(shared_insightface_app=shared_insightface, shared_lock=shared_lock)
-    if shared_insightface:
-        logger.info("Anti-spoofing using shared InsightFace for face detection")
-    else:
-        logger.info("Anti-spoofing using Haar Cascade fallback for face detection")
-except Exception as e:
-    logger.warning("Anti-spoofing unavailable: %s", e)
-
-try:
     from deepfake_detector import DeepfakeDetector, DEEPFAKE_THRESHOLD
-    shared_insightface_df = getattr(face_verifier, 'insightface_app', None) if face_verifier else None
-    shared_lock_df = getattr(face_verifier, '_lock', None) if face_verifier else None
-    deepfake_detector = DeepfakeDetector(shared_insightface_app=shared_insightface_df, shared_lock=shared_lock_df)
+    deepfake_detector = DeepfakeDetector()
 except Exception as e:
     logger.warning("Deepfake detection unavailable: %s", e)
 
 logger.info("Detectors initialized (some may be unavailable):")
 logger.info("  Face verification: %s", "OK" if face_verifier else "UNAVAILABLE")
 logger.info("  Liveness: %s", "OK" if challenge_liveness else "UNAVAILABLE")
-logger.info("  Anti-spoofing: %s", "OK" if spoof_detector else "UNAVAILABLE")
 logger.info("  Deepfake: %s", "OK" if deepfake_detector else "UNAVAILABLE")
 
 # ============================================================
@@ -204,13 +187,6 @@ def _run_startup_diagnostic():
                     logger.info("[StartupDiag] InsightFace embedding dim=%d", len(faces[0].embedding))
             except Exception as e:
                 logger.error("[StartupDiag] InsightFace FAILED: %s", e)
-
-        if spoof_detector and spoof_detector.available:
-            try:
-                result = spoof_detector.detect(test_b64)
-                logger.info("[StartupDiag] Anti-spoof: liveness=%.2f", result.get('liveness_score', 0))
-            except Exception as e:
-                logger.error("[StartupDiag] Anti-spoof FAILED: %s", e)
 
         if deepfake_detector and deepfake_detector.available:
             try:
@@ -265,10 +241,6 @@ def health():
                 'available': challenge_liveness is not None and not getattr(challenge_liveness, 'FALLBACK_MODE', True),
                 'model': 'MediaPipe FaceLandmarker',
                 'fallback_mode': getattr(challenge_liveness, 'FALLBACK_MODE', True),
-            },
-            'anti_spoofing': {
-                'available': spoof_detector is not None and getattr(spoof_detector, 'available', False),
-                'model': 'EfficientNet-B0/CASIA-FASD' if spoof_detector and getattr(spoof_detector, 'model_type', '') == 'efficientnet_b0' else 'MiniFASNet V2',
             },
             'deepfake': {
                 'available': deepfake_detector is not None and getattr(deepfake_detector, 'available', False),
@@ -335,24 +307,6 @@ def diagnose():
     except Exception as e:
         import traceback
         results['insightface'] = {'status': 'ERROR', 'error': str(e), 'traceback': traceback.format_exc()}
-
-    # 2. Anti-spoof test
-    try:
-        if spoof_detector and spoof_detector.available:
-            r = spoof_detector.detect(test_b64)
-            results['anti_spoof'] = {
-                'status': 'OK',
-                'model_type': spoof_detector.model_type,
-                'liveness_score': r.get('liveness_score'),
-                'spoofDetected': r.get('spoofDetected'),
-                'reason': r.get('reason'),
-                'has_shared_insightface': spoof_detector._shared_insightface is not None,
-            }
-        else:
-            results['anti_spoof'] = {'status': 'NOT_LOADED'}
-    except Exception as e:
-        import traceback
-        results['anti_spoof'] = {'status': 'ERROR', 'error': str(e), 'traceback': traceback.format_exc()}
 
     # 3. Deepfake test
     try:
@@ -730,52 +684,7 @@ def detailed_verify():
         screen_replay_conf = round(replay_det.get('confidence', 0.0), 4)
 
     # ============================================================
-    # 3. ANTI-SPOOFING (MiniFASNet V2)
-    # ============================================================
-    spoof_result = _safe_detect(
-        lambda: spoof_detector.detect(selfie),
-        'minifasnet_detect',
-        {'spoofDetected': False, 'liveness_score': 0.5}
-    )
-
-    single_frame_spoof = bool(_safe_get(spoof_result, 'spoofDetected', False))
-    spoof_liveness = round(_safe_get(spoof_result, 'liveness_score', 0.5), 4)
-    spoof_reason = _safe_get(spoof_result, 'reason', '')
-
-    # Multi-frame anti-spoofing: require BOTH single-frame AND multi-frame to agree
-    # Single-frame models can be confidently wrong on specific faces.
-    # Multi-frame (3+ challenge frames) provides stronger evidence.
-    multi_frame_spoof = False
-    multi_frame_result = None
-    if frames and len(frames) >= 2 and spoof_detector.available:
-        multi_frame_result = _safe_detect(
-            lambda: spoof_detector.detect_frames(frames),
-            'minifasnet_detect_frames',
-            None
-        )
-        if multi_frame_result:
-            multi_frame_spoof = bool(_safe_get(multi_frame_result, 'spoofDetected', False))
-
-    # Require BOTH single-frame AND multi-frame to flag as spoof when multi-frame is available.
-    # If only single-frame says spoof but challenge frames show live → override to live.
-    # If no multi-frame available, trust single-frame result.
-    if multi_frame_result is not None:
-        spoofDetected = single_frame_spoof and multi_frame_spoof
-        if single_frame_spoof and not multi_frame_spoof:
-            spoof_reason = f"Single-frame flagged but multi-frame overrode to live (single: {spoof_reason})"
-            logger.info("[VERIFY] Anti-spoof: single-frame spoof overridden by multi-frame live consensus")
-        elif multi_frame_spoof:
-            spoof_reason = f"Multi-frame confirmed spoof: {spoof_reason}"
-    else:
-        spoofDetected = single_frame_spoof
-
-    # Anti-spoof requires BOTH single-frame AND multi-frame agreement.
-    # Single-frame can be confidently wrong on certain faces (false positive).
-    # Multi-frame (challenge frames) provides stronger evidence.
-    # Screen replay attacks would fail liveness challenges AND show spoof in both.
-
-    # ============================================================
-    # 4. DEEPFAKE (Official Models: Xception + EfficientNet-B2)
+    # 3. DEEPFAKE (Official Models: Xception + EfficientNet-B2)
     # ============================================================
     deepfake_result = _safe_detect(
         lambda: deepfake_detector.detect(selfie),
@@ -790,15 +699,13 @@ def detailed_verify():
     deepfake_models_used = deepfake_result.get('models_used', [])
 
     # ============================================================
-    # 5. GATE DECISION — ALL GATES MUST PASS
+    # 4. GATE DECISION — ALL GATES MUST PASS
     # ============================================================
-    # Anti-spoof and deepfake are ALWAYS enforced.
-    # No override path — all 4 gates must pass for verification.
+    # All 3 gates must pass for verification.
 
     verified = (
         faceMatchPassed
         and livenessPassed
-        and (not spoofDetected)
         and (not deepfakeDetected)
     )
 
@@ -807,8 +714,6 @@ def detailed_verify():
         reasons.append(f"Face match failed (similarity={face_similarity})")
     if not livenessPassed:
         reasons.append(f"Liveness challenge failed: {liveness_reason}")
-    if spoofDetected:
-        reasons.append(f"Anti-spoof check FAILED: {spoof_reason}")
     if deepfakeDetected:
         reasons.append(f"Deepfake detected: {deepfake_reason}")
     if screenReplayDetected:
@@ -819,8 +724,8 @@ def detailed_verify():
     elapsed_total = round((time.time() - start_total) * 1000, 1)
 
     logger.info(
-        "[VERIFY] face=%s live=%s spoof=%s deepfake=%s screen_replay=%s → %s (%.1fms)",
-        faceMatchPassed, livenessPassed, spoofDetected, deepfakeDetected,
+        "[VERIFY] face=%s live=%s deepfake=%s screen_replay=%s → %s (%.1fms)",
+        faceMatchPassed, livenessPassed, deepfakeDetected,
         screenReplayDetected, verdict, elapsed_total,
     )
     if not verified:
@@ -831,7 +736,6 @@ def detailed_verify():
         'faceMatchPassed': bool(faceMatchPassed),
         'livenessPassed': bool(livenessPassed),
         'sessionLivenessConfirmed': bool(session_liveness_confirmed),
-        'spoofDetected': bool(spoofDetected),
         'deepfakeDetected': bool(deepfakeDetected),
         'screenReplayDetected': bool(screenReplayDetected),
         'rekyc': is_rekyc,
@@ -841,7 +745,6 @@ def detailed_verify():
         'confidence': {
             'face_similarity': face_similarity,
             'liveness': liveness_confidence,
-            'spoof': spoof_liveness,
             'deepfake': deepfake_confidence,
             'screen_replay': screen_replay_conf,
         },
@@ -900,23 +803,6 @@ def api_face_verify():
             lambda: face_verifier.verify(data['id_face'], data['selfie']),
             'face_verify',
             {'verified': False, 'reason': 'Verification failed'}
-        )
-        return jsonify({'success': True, 'data': result})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@app.route('/api/ai/liveness', methods=['POST'])
-def api_liveness():
-    """Static liveness check. Called by Spring Boot /api/ai/liveness."""
-    data = request.json
-    if not data or 'image' not in data:
-        return jsonify({'success': False, 'error': 'image required'}), 400
-    try:
-        result = _safe_detect(
-            lambda: spoof_detector.detect(data['image']),
-            'liveness',
-            {'spoofDetected': False, 'liveness_score': 0.5}
         )
         return jsonify({'success': True, 'data': result})
     except Exception as e:

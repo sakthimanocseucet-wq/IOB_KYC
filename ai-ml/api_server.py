@@ -283,11 +283,132 @@ def health():
         },
         'endpoints': {
             'GET /health': 'System status',
+            'GET /diagnose': 'Detailed model diagnosis',
             'POST /face-detect': 'Detect faces in image',
             'POST /liveness/challenge': 'Generate challenge sequence',
             'POST /detailed-verify': 'Full verification pipeline',
         }
     })
+
+
+@app.route('/diagnose', methods=['GET'])
+def diagnose():
+    """Detailed diagnostic endpoint — tests every model with a synthetic image.
+
+    Hit GET /diagnose from browser to see exactly what's broken.
+    No auth required. Returns JSON with per-model status.
+    """
+    import cv2
+    import base64
+    results = {}
+
+    # Create test image: 200x200 gradient with skin-tone center
+    test_img = np.zeros((200, 200, 3), dtype=np.uint8)
+    test_img[50:150, 50:150] = (140, 160, 200)  # BGR skin-tone block
+    cv2.circle(test_img, (100, 90), 25, (160, 180, 210), -1)  # face-like ellipse
+    _, buf = cv2.imencode('.jpg', test_img)
+    test_b64 = 'data:image/jpeg;base64,' + base64.b64encode(buf.tobytes()).decode()
+
+    # 1. InsightFace test
+    try:
+        if face_verifier and getattr(face_verifier, 'insightface_app', None):
+            img = face_verifier.decode_image(test_b64)
+            with face_verifier._lock:
+                faces = face_verifier.insightface_app.get(img)
+            if faces:
+                f = faces[0]
+                has_emb = f.embedding is not None
+                emb_len = len(f.embedding) if has_emb else 0
+                results['insightface'] = {
+                    'status': 'OK' if has_emb else 'DETECTION_ONLY',
+                    'faces_found': len(faces),
+                    'has_embedding': has_emb,
+                    'embedding_dim': emb_len,
+                    'det_score': round(float(f.det_score), 3),
+                }
+            else:
+                results['insightface'] = {
+                    'status': 'NO_FACES_DETECTED',
+                    'faces_found': 0,
+                    'note': 'Synthetic image has no real face — this is expected',
+                }
+        else:
+            results['insightface'] = {'status': 'NOT_LOADED', 'error': 'InsightFace app is None'}
+    except Exception as e:
+        import traceback
+        results['insightface'] = {'status': 'ERROR', 'error': str(e), 'traceback': traceback.format_exc()}
+
+    # 2. Anti-spoof test
+    try:
+        if spoof_detector and spoof_detector.available:
+            r = spoof_detector.detect(test_b64)
+            results['anti_spoof'] = {
+                'status': 'OK',
+                'model_type': spoof_detector.model_type,
+                'liveness_score': r.get('liveness_score'),
+                'spoofDetected': r.get('spoofDetected'),
+                'reason': r.get('reason'),
+                'has_shared_insightface': spoof_detector._shared_insightface is not None,
+            }
+        else:
+            results['anti_spoof'] = {'status': 'NOT_LOADED'}
+    except Exception as e:
+        import traceback
+        results['anti_spoof'] = {'status': 'ERROR', 'error': str(e), 'traceback': traceback.format_exc()}
+
+    # 3. Deepfake test
+    try:
+        if deepfake_detector and deepfake_detector.available:
+            r = deepfake_detector.detect(test_b64)
+            results['deepfake'] = {
+                'status': 'OK',
+                'models_loaded': deepfake_detector.models_loaded,
+                'models_disabled': deepfake_detector.models_disabled,
+                'is_deepfake': r.get('is_deepfake'),
+                'fake_prob': r.get('fake_prob'),
+                'reason': r.get('reason'),
+                'has_shared_insightface': getattr(deepfake_detector, '_shared_insightface', None) is not None,
+            }
+        else:
+            results['deepfake'] = {'status': 'NOT_LOADED'}
+    except Exception as e:
+        import traceback
+        results['deepfake'] = {'status': 'ERROR', 'error': str(e), 'traceback': traceback.format_exc()}
+
+    # 4. Model file check
+    import os
+    model_files = {}
+    model_dir = os.path.join(os.path.dirname(__file__), 'models')
+    for root, dirs, files in os.walk(model_dir):
+        for f in files:
+            fpath = os.path.join(root, f)
+            size_mb = os.path.getsize(fpath) / (1024 * 1024)
+            rel = os.path.relpath(fpath, model_dir)
+            model_files[rel] = f'{size_mb:.1f}MB'
+    results['model_files'] = model_files
+
+    # 5. Environment
+    import sys
+    results['environment'] = {
+        'python': sys.version,
+        'platform': sys.platform,
+        'numpy': np.__version__,
+    }
+    try:
+        import torch
+        results['environment']['torch'] = torch.__version__
+        results['environment']['cuda'] = torch.cuda.is_available()
+    except ImportError:
+        results['environment']['torch'] = 'NOT_INSTALLED'
+
+    try:
+        import onnxruntime
+        results['environment']['onnxruntime'] = onnxruntime.__version__
+        results['environment']['onnx_providers'] = onnxruntime.get_available_providers()
+    except ImportError:
+        results['environment']['onnxruntime'] = 'NOT_INSTALLED'
+
+    return jsonify(results)
 
 
 @app.route('/face-detect', methods=['POST'])

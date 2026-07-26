@@ -170,6 +170,24 @@ public class AIProxyController {
         }
     }
 
+    @GetMapping("/diagnose")
+    public void diagnose(HttpServletResponse response) throws IOException {
+        try {
+            ResponseEntity<String> flaskResponse = restTemplate.getForEntity(flaskBaseUrl() + "/diagnose", String.class);
+            response.setStatus(flaskResponse.getStatusCode().value());
+            response.setContentType("application/json");
+            response.getWriter().write(flaskResponse.getBody());
+        } catch (Exception e) {
+            response.setStatus(500);
+            response.setContentType("application/json");
+            Map<String, String> err = new java.util.HashMap<>();
+            err.put("status", "error");
+            err.put("service", "AI Proxy");
+            err.put("detail", e.getMessage());
+            response.getWriter().write(objectMapper.writeValueAsString(err));
+        }
+    }
+
     /**
      * Stable production-ready health check endpoint.
      * Returns a fixed JSON payload so the frontend can reliably decide if AI is reachable.

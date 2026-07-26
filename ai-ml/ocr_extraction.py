@@ -473,6 +473,11 @@ def _fix_ocr_errors(text):
     if not text:
         return text
 
+    text = re.sub(r'\bSIO\b', 'S/O', text)
+    text = re.sub(r'\bDIO\b', 'D/O', text)
+    text = re.sub(r'\bWIO\b', 'W/O', text)
+    text = re.sub(r'\bCIO\b', 'C/O', text)
+
     text = re.sub(r'(?<=[A-Za-z])\b0\b(?=[A-Za-z])', 'O', text)
     text = re.sub(r'\b0(?=[A-Za-z]{2,})', 'O', text)
     text = re.sub(r'(?<=[A-Za-z][A-Za-z])0\b', 'O', text)
@@ -613,6 +618,10 @@ def _extract_address(all_items, mid_x=None, img_w=None):
     address_text = ' '.join(address_parts)
     address_text = _fix_ocr_errors(address_text)
 
+    address_text = re.sub(r'\bSIO\b', 'S/O', address_text)
+    address_text = re.sub(r'\bDIO\b', 'D/O', address_text)
+    address_text = re.sub(r'\bWIO\b', 'W/O', address_text)
+    address_text = re.sub(r'\bCIO\b', 'C/O', address_text)
     address_text = re.sub(r'\bS\s*[/.]?\s*O\b', 'S/O', address_text)
     address_text = re.sub(r'\bD\s*[/.]?\s*O\b', 'D/O', address_text)
     address_text = re.sub(r'\bW\s*[/.]?\s*O\b', 'W/O', address_text)
@@ -622,7 +631,12 @@ def _extract_address(all_items, mid_x=None, img_w=None):
 
     address_text = re.sub(r'(\d)\s+(?=[A-Za-z])', r'\1, ', address_text)
     address_text = re.sub(r'(?<=\w)\s+(?=S/O|D/O|W/O|C/O)', ', ', address_text)
-    address_text = re.sub(r'(Colony|Nagar|Park|Road|Street|Lane|Phase|Sector|Block|Ward)\s+(?=[A-Za-z0-9])', r'\1, ', address_text, flags=re.IGNORECASE)
+    _ADDR_MARKERS = r'(?:Colony|Nagar|Park|Road|Street|Lane|Phase|Sector|Block|Ward|Layout|Enclave|Vihar|Puram|Bad|Garden|Heights)'
+    address_text = re.sub(
+        _ADDR_MARKERS + r'\s+(?=[A-Z][a-z]+(?!\s+' + _ADDR_MARKERS + r'))',
+        lambda m: m.group(0).rstrip() + ', ',
+        address_text, flags=re.IGNORECASE
+    )
     address_text = re.sub(r'(Ramnagar|Coimbatore|Chennai|Bangalore|Mumbai|Delhi|Pune|Hyderabad)\s+(?=[A-Za-z])', r'\1, ', address_text, flags=re.IGNORECASE)
     address_text = re.sub(r',\s*,', ',', address_text)
     address_text = re.sub(r'\s+', ' ', address_text).strip()

@@ -67,7 +67,6 @@ function setOtpMethod(method) {
         if (emailRow) emailRow.style.display = 'none';
         if (smsRow) smsRow.style.display = '';
     }
-}
     clearFieldError('otpError');
 }
 
@@ -314,7 +313,7 @@ async function handleRegister(event) {
         return;
     }
 
-    if (!verifyRegOTP()) return;
+    if (!(await verifyRegOTP())) return;
 
     setLoading('registerForm', 'btnSpinner', 'btnText', true);
 
@@ -435,7 +434,7 @@ async function handleEmployeeRegister(event) {
         return;
     }
 
-    if (!verifyRegOTP()) return;
+    if (!(await verifyRegOTP())) return;
 
     setLoading('employeeRegisterForm', 'btnSpinner', 'btnText', true);
 

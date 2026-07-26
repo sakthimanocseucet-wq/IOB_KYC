@@ -1,12 +1,12 @@
 """
-OCR Extraction for Aadhaar/PAN cards using RapidOCR (ONNX Runtime).
+OCR Extraction for Aadhaar/PAN cards using PaddleOCR.
 
 Aadhaar card layouts:
   Side-by-side: LEFT=Front (Name, DOB, Gender), RIGHT=Back (Address)
   Top-bottom:   TOP=Front (Name, DOB, Gender), BOTTOM=Back (Address)
 """
 
-from rapidocr_onnxruntime import RapidOCR
+from paddleocr import PaddleOCR
 import cv2
 import numpy as np
 import re
@@ -22,7 +22,7 @@ ocr_engine = None
 def get_ocr():
     global ocr_engine
     if ocr_engine is None:
-        ocr_engine = RapidOCR()
+        ocr_engine = PaddleOCR(use_angle_cls=True, lang='en', show_log=False)
     return ocr_engine
 
 
@@ -99,39 +99,42 @@ def ocr_image(image_bytes, doc_type='AADHAAR'):
         h, w = img.shape[:2]
 
     enhanced_img = _preprocess_for_ocr(img)
-    result, elapse = engine(enhanced_img)
+    result = engine.ocr(enhanced_img, cls=True)
 
     if not result or len(result) == 0:
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         _, otsu_bin = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         otsu_img = cv2.cvtColor(otsu_bin, cv2.COLOR_GRAY2BGR)
-        result2, elapse2 = engine(otsu_img)
+        result2 = engine.ocr(otsu_img, cls=True)
         if result2 and len(result2) > 0:
             result = result2
-            elapse = elapse2
 
     if not result or len(result) == 0:
-        result3, elapse3 = engine(img)
+        result3 = engine.ocr(img, cls=True)
         if result3 and len(result3) > 0:
             result = result3
-            elapse = elapse3
 
     items = []
     if result:
         for line in result:
-            box, text, conf = line
-            text = text.strip()
-            if not text or len(text) < 2:
+            if not line:
                 continue
-            pts = box if isinstance(box, (list, np.ndarray)) else _box_pts(box)
-            xs = [float(p[0]) for p in pts]
-            ys = [float(p[1]) for p in pts]
-            items.append({
-                'text': text,
-                'conf': float(conf) if conf else 0.0,
-                'cx': (min(xs) + max(xs)) / 2,
-                'cy': (min(ys) + max(ys)) / 2,
-            })
+            for detection in line:
+                box = detection[0]
+                text = detection[1][0]
+                conf = detection[1][1]
+                text = text.strip()
+                if not text or len(text) < 2:
+                    continue
+                pts = box if isinstance(box, (list, np.ndarray)) else _box_pts(box)
+                xs = [float(p[0]) for p in pts]
+                ys = [float(p[1]) for p in pts]
+                items.append({
+                    'text': text,
+                    'conf': float(conf) if conf else 0.0,
+                    'cx': (min(xs) + max(xs)) / 2,
+                    'cy': (min(ys) + max(ys)) / 2,
+                })
 
     items.sort(key=lambda x: x['cy'])
 

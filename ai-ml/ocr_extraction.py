@@ -1,12 +1,12 @@
 """
-OCR Extraction for Aadhaar/PAN cards using PaddleOCR.
+OCR Extraction for Aadhaar/PAN cards using RapidOCR (ONNX Runtime).
 
 Aadhaar card layouts:
   Side-by-side: LEFT=Front (Name, DOB, Gender), RIGHT=Back (Address)
   Top-bottom:   TOP=Front (Name, DOB, Gender), BOTTOM=Back (Address)
 """
 
-from paddleocr import PaddleOCR
+from rapidocr_onnxruntime import RapidOCR
 import cv2
 import numpy as np
 import re
@@ -22,7 +22,7 @@ ocr_engine = None
 def get_ocr():
     global ocr_engine
     if ocr_engine is None:
-        ocr_engine = PaddleOCR(lang='en')
+        ocr_engine = RapidOCR()
     return ocr_engine
 
 
@@ -85,23 +85,6 @@ def _preprocess_for_ocr(img):
     return result
 
 
-def _run_paddle(engine, img):
-    """Run PaddleOCR 3.x (predict API, no cls kwarg)."""
-    try:
-        results = list(engine.predict(img))
-        out = []
-        for res in results:
-            texts = list(res.get('rec_text', [])) if hasattr(res, 'get') else list(res.rec_text) if hasattr(res, 'rec_text') else []
-            scores = list(res.get('rec_score', [])) if hasattr(res, 'get') else list(res.rec_score) if hasattr(res, 'rec_score') else []
-            polys = list(res.get('dt_polys', [])) if hasattr(res, 'get') else list(res.dt_polys) if hasattr(res, 'dt_polys') else []
-            if texts:
-                out.append({'rec_texts': texts, 'rec_scores': scores, 'dt_polys': polys})
-        return out
-    except Exception as e:
-        logger.warning("_run_paddle failed: %s", e)
-        return []
-
-
 def ocr_image(image_bytes, doc_type='AADHAAR'):
     engine = get_ocr()
     nparr = np.frombuffer(image_bytes, np.uint8)
@@ -116,42 +99,39 @@ def ocr_image(image_bytes, doc_type='AADHAAR'):
         h, w = img.shape[:2]
 
     enhanced_img = _preprocess_for_ocr(img)
-    result = _run_paddle(engine, enhanced_img)
+    result, elapse = engine(enhanced_img)
 
-    if not result:
+    if not result or len(result) == 0:
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         _, otsu_bin = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         otsu_img = cv2.cvtColor(otsu_bin, cv2.COLOR_GRAY2BGR)
-        result = _run_paddle(engine, otsu_img)
+        result2, elapse2 = engine(otsu_img)
+        if result2 and len(result2) > 0:
+            result = result2
+            elapse = elapse2
 
-    if not result:
-        result = _run_paddle(engine, img)
+    if not result or len(result) == 0:
+        result3, elapse3 = engine(img)
+        if result3 and len(result3) > 0:
+            result = result3
+            elapse = elapse3
 
     items = []
     if result:
-        for det in result:
-            texts = det.get('rec_texts', [])
-            scores = det.get('rec_scores', [])
-            polys = det.get('dt_polys', [])
-            for i in range(len(texts)):
-                text = str(texts[i]).strip()
-                conf = float(scores[i]) if i < len(scores) else 0.0
-                if not text or len(text) < 2:
-                    continue
-                if polys and i < len(polys):
-                    pts = polys[i]
-                else:
-                    pts = [(0, 0), (100, 0), (100, 100), (0, 100)]
-                if hasattr(pts, 'tolist'):
-                    pts = pts.tolist()
-                xs = [float(p[0]) for p in pts]
-                ys = [float(p[1]) for p in pts]
-                items.append({
-                    'text': text,
-                    'conf': conf,
-                    'cx': (min(xs) + max(xs)) / 2,
-                    'cy': (min(ys) + max(ys)) / 2,
-                })
+        for line in result:
+            box, text, conf = line
+            text = text.strip()
+            if not text or len(text) < 2:
+                continue
+            pts = box if isinstance(box, (list, np.ndarray)) else _box_pts(box)
+            xs = [float(p[0]) for p in pts]
+            ys = [float(p[1]) for p in pts]
+            items.append({
+                'text': text,
+                'conf': float(conf) if conf else 0.0,
+                'cx': (min(xs) + max(xs)) / 2,
+                'cy': (min(ys) + max(ys)) / 2,
+            })
 
     items.sort(key=lambda x: x['cy'])
 

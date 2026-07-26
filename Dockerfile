@@ -19,9 +19,6 @@ COPY ai-ml/requirements.txt ai-ml/requirements.txt
 RUN pip3 install --no-cache-dir --no-compile -r ai-ml/requirements.txt && \
     rm -rf /root/.cache/pip /tmp/*
 
-# Download PaddleOCR models (pre-cache for faster startup)
-RUN python3 -c "from paddleocr import PaddleOCR; PaddleOCR(use_angle_cls=True, lang='en')" 2>/dev/null || true
-
 # Download haarcascade files for opencv-python-headless
 RUN python3 -c "import cv2, os; print(cv2.data.haarcascades)" && \
     wget -q https://raw.githubusercontent.com/opencv/opencv/master/data/haarcascades/haarcascade_frontalface_default.xml -O /usr/local/lib/python3.11/site-packages/cv2/data/haarcascade_frontalface_default.xml && \

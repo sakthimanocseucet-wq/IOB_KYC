@@ -615,6 +615,7 @@ def _extract_address(all_items, mid_x=None, img_w=None):
             address_parts.append(text)
 
     address_text = ' '.join(address_parts)
+    address_text = re.sub(r'[\xa0\u2000-\u200b\u202f\u205f\u3000]+', ' ', address_text)
     address_text = _fix_ocr_errors(address_text)
 
     for _so_fix_old, _so_fix_new in [

@@ -146,70 +146,69 @@ def ocr_image(image_bytes, doc_type='AADHAAR'):
         img = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
         h, w = img.shape[:2]
 
-    img = _ensure_min_size(img)
+    if max(h, w) < 800:
+        scale = 800 / max(h, w)
+        img = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+        h, w = img.shape[:2]
 
-    strategies = [
-        ('adaptive', _preprocess_adaptive),
-        ('otsu', _preprocess_otsu),
-        ('unsharp', _preprocess_unsharp),
-    ]
+    GOOD_SCORE = 50
 
-    best_result = None
+    def _run_ocr_on(preprocessed):
+        result, elapse = engine(preprocessed)
+        if not result or len(result) == 0:
+            return []
+        items = []
+        for line in result:
+            box, text, conf = line
+            text = text.strip()
+            if not text or len(text) < 2:
+                continue
+            pts = box if isinstance(box, (list, np.ndarray)) else _box_pts(box)
+            xs = [float(p[0]) for p in pts]
+            ys = [float(p[1]) for p in pts]
+            items.append({
+                'text': text,
+                'conf': float(conf) if conf else 0.0,
+                'cx': (min(xs) + max(xs)) / 2,
+                'cy': (min(ys) + max(ys)) / 2,
+            })
+        return items
+
     best_items = []
     best_score = 0
     best_strategy = None
 
-    for name, preprocess_fn in strategies:
-        try:
-            processed = preprocess_fn(img)
-            result, elapse = engine(processed)
-            if not result or len(result) == 0:
+    processed = _preprocess_adaptive(img)
+    best_items = _run_ocr_on(processed)
+    best_score = _score_ocr_result(best_items)
+    best_strategy = 'adaptive'
+    logger.info(f"OCR strategy=adaptive items={len(best_items)} score={best_score:.1f}")
+
+    if best_score < GOOD_SCORE and best_items:
+        best_items = []
+        best_score = 0
+
+    if best_score < GOOD_SCORE:
+        for name, preprocess_fn in [('otsu', _preprocess_otsu), ('unsharp', _preprocess_unsharp)]:
+            try:
+                processed = preprocess_fn(img)
+                items = _run_ocr_on(processed)
+                score = _score_ocr_result(items)
+                logger.info(f"OCR strategy={name} items={len(items)} score={score:.1f}")
+                if score > best_score:
+                    best_score = score
+                    best_items = items
+                    best_strategy = name
+                if best_score >= GOOD_SCORE:
+                    break
+            except Exception as e:
+                logger.warning(f"OCR strategy {name} failed: {e}")
                 continue
-            items = []
-            for line in result:
-                box, text, conf = line
-                text = text.strip()
-                if not text or len(text) < 2:
-                    continue
-                pts = box if isinstance(box, (list, np.ndarray)) else _box_pts(box)
-                xs = [float(p[0]) for p in pts]
-                ys = [float(p[1]) for p in pts]
-                items.append({
-                    'text': text,
-                    'conf': float(conf) if conf else 0.0,
-                    'cx': (min(xs) + max(xs)) / 2,
-                    'cy': (min(ys) + max(ys)) / 2,
-                })
-            score = _score_ocr_result(items)
-            logger.info(f"OCR strategy={name} items={len(items)} score={score:.1f}")
-            if score > best_score:
-                best_score = score
-                best_result = result
-                best_items = items
-                best_strategy = name
-        except Exception as e:
-            logger.warning(f"OCR strategy {name} failed: {e}")
-            continue
 
     if not best_items:
         try:
-            result_raw, elapse_raw = engine(img)
-            if result_raw:
-                for line in result_raw:
-                    box, text, conf = line
-                    text = text.strip()
-                    if not text or len(text) < 2:
-                        continue
-                    pts = box if isinstance(box, (list, np.ndarray)) else _box_pts(box)
-                    xs = [float(p[0]) for p in pts]
-                    ys = [float(p[1]) for p in pts]
-                    best_items.append({
-                        'text': text,
-                        'conf': float(conf) if conf else 0.0,
-                        'cx': (min(xs) + max(xs)) / 2,
-                        'cy': (min(ys) + max(ys)) / 2,
-                    })
-                best_strategy = 'raw'
+            best_items = _run_ocr_on(img)
+            best_strategy = 'raw'
         except Exception as e:
             logger.warning(f"OCR raw fallback failed: {e}")
 

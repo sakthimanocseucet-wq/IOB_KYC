@@ -1122,7 +1122,6 @@ async function startLivenessChallenge() {
     let currentChallenge = challengeData;
     let maxRetries = 0;
     let lastChallengeFrames = [];
-    let allCapturedFrames = [];
 
     // Start recording challenge-response video
     challengeVideoChunks = [];
@@ -1231,8 +1230,6 @@ async function startLivenessChallenge() {
             }
 
             lastChallengeFrames = capturedFrames;
-            // Accumulate all frames for best selfie selection
-            allCapturedFrames = allCapturedFrames.concat(capturedFrames);
 
             if (!challengeActive) break;
 
@@ -1399,12 +1396,12 @@ async function startLivenessChallenge() {
     actionRingFill.setAttribute('stroke-dasharray', '100, 100');
     actionPercent.textContent = '100%';
 
-    // Pick the best selfie frame from ALL challenges
-    // Use frame from early in the first challenge — user is centered and still
-    if (allCapturedFrames.length > 0) {
+    // Pick the best selfie frame from last challenge captures
+    // Use frame early in the challenge — user is centered and still
+    if (lastChallengeFrames && lastChallengeFrames.length > 0) {
         // Pick frame ~3 captures in (about 450ms) — user is centered before moving
-        var bestIdx = Math.min(3, Math.floor(allCapturedFrames.length / 2));
-        kycData.selfieImage = allCapturedFrames[bestIdx];
+        var bestIdx = Math.min(3, Math.floor(lastChallengeFrames.length / 2));
+        kycData.selfieImage = lastChallengeFrames[bestIdx];
     }
 
     setTimeout(() => {
@@ -1593,9 +1590,6 @@ async function performFaceVerification() {
         }
         if (profilePhotoBase64) {
             payload.profile_photo = profilePhotoBase64;
-        }
-        if (allCapturedFrames && allCapturedFrames.length > 0) {
-            payload.frames = allCapturedFrames;
         }
         if (isReKyc) {
             payload.rekyc = true;

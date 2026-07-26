@@ -629,6 +629,8 @@ async function autoVerifyKycOtp() {
     kycOtpVerifying = true;
 
     var tick = document.getElementById('kycOtpTick');
+    var alertContainer = document.getElementById('alertContainer');
+    if (alertContainer) alertContainer.innerHTML = '';
 
     if (kycOtpMethod === 'email') {
         var email = document.getElementById('kycEmail').value.trim();
@@ -640,6 +642,7 @@ async function autoVerifyKycOtp() {
                 kycData.emailOtpVerified = true;
                 tick.style.display = 'inline';
                 document.getElementById('emailOtp').style.borderColor = '#16a34a';
+                if (alertContainer) alertContainer.innerHTML = '';
                 showToast('Email verified!', 'success');
             } else {
                 kycData.emailOtpVerified = false;
@@ -659,6 +662,7 @@ async function autoVerifyKycOtp() {
             kycData.emailOtpVerified = true;
             tick.style.display = 'inline';
             document.getElementById('emailOtp').style.borderColor = '#16a34a';
+            if (alertContainer) alertContainer.innerHTML = '';
             showToast('Phone verified!', 'success');
         } catch (err) {
             kycData.emailOtpVerified = false;
@@ -715,6 +719,8 @@ async function verifyDetails() {
         }
     }
 
+    var alertContainer = document.getElementById('alertContainer');
+    if (alertContainer) alertContainer.innerHTML = '';
     kycData.emailOtpVerified = true;
     kycData.mobile = mobile;
     kycData.email = email;

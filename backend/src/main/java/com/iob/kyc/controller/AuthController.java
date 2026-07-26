@@ -131,7 +131,8 @@ public class AuthController {
         }
         try {
             FirebaseToken token = FirebaseAuth.getInstance().verifyIdToken(idToken);
-            String firebasePhone = token.getPhoneNumber();
+            Object phoneClaim = token.getClaims().get("phone_number");
+            String firebasePhone = phoneClaim != null ? phoneClaim.toString() : null;
             if (firebasePhone == null) {
                 return ResponseEntity.badRequest().body(ApiResponse.error("Token does not contain phone number", 400));
             }

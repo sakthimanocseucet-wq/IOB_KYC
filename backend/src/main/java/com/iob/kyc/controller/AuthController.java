@@ -5,6 +5,8 @@ import com.iob.kyc.dto.LoginRequest;
 import com.iob.kyc.dto.RegisterRequest;
 import com.iob.kyc.model.OtpCode;
 import com.iob.kyc.service.AuthService;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseToken;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -116,6 +118,27 @@ public class AuthController {
         }
         ApiResponse response = authService.verifyOTP(identifier, otp, otpPurpose);
         return ResponseEntity.status(response.getStatusCode()).body(response);
+    }
+
+    // ====================== FIREBASE PHONE VERIFICATION ======================
+
+    @PostMapping("/otp/verify-firebase")
+    public ResponseEntity<ApiResponse> verifyFirebaseOtp(@RequestBody Map<String, String> body) {
+        String idToken = body.get("idToken");
+        String phone = body.get("phone");
+        if (idToken == null || idToken.isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Missing Firebase ID token", 400));
+        }
+        try {
+            FirebaseToken token = FirebaseAuth.getInstance().verifyIdToken(idToken);
+            String firebasePhone = token.getPhone();
+            if (firebasePhone == null) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Token does not contain phone number", 400));
+            }
+            return ResponseEntity.ok(ApiResponse.success("Phone verified: " + firebasePhone, null));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Invalid Firebase token: " + e.getMessage(), 400));
+        }
     }
 
 }

@@ -37,24 +37,6 @@ public class OTPService {
     @Value("${spring.mail.username:}")
     private String gmailFromEmail;
 
-    @Value("${twilio.account-sid:}")
-    private String twilioAccountSid;
-
-    @Value("${twilio.auth-token:}")
-    private String twilioAuthToken;
-
-    @Value("${twilio.from-number:}")
-    private String twilioFromNumber;
-
-    @Value("${msg91.api-key:}")
-    private String msg91ApiKey;
-
-    @Value("${msg91.sender-id:IOBKYC}")
-    private String msg91SenderId;
-
-    @Value("${msg91.template-id:}")
-    private String msg91TemplateId;
-
     public OTPService(@Nullable JavaMailSender mailSender) {
         this.mailSender = mailSender;
     }
@@ -65,84 +47,6 @@ public class OTPService {
         String htmlContent = buildOtpEmailHtml(otp);
         String plainText = "Your IOB KYC verification OTP is: " + otp + "\n\nThis code expires in 5 minutes. Do not share it with anyone.";
         sendEmail(to, subject, htmlContent, plainText);
-    }
-
-    @Async
-    public void sendOtpSms(String phone, String otp) {
-        boolean sent = false;
-
-        if (twilioAccountSid != null && !twilioAccountSid.isEmpty()
-                && twilioAuthToken != null && !twilioAuthToken.isEmpty()
-                && twilioFromNumber != null && !twilioFromNumber.isEmpty()) {
-            sent = sendViaTwilio(phone, otp);
-        }
-
-        if (!sent && msg91ApiKey != null && !msg91ApiKey.isEmpty()) {
-            sendViaMsg91(phone, otp);
-        }
-
-        if (!sent && (msg91ApiKey == null || msg91ApiKey.isEmpty())
-                && (twilioAccountSid == null || twilioAccountSid.isEmpty())) {
-            log.warn("No SMS provider configured (Twilio or MSG91) — skipping SMS to {}", phone);
-        }
-    }
-
-    private boolean sendViaTwilio(String phone, String otp) {
-        try {
-            String smsBody = "Your IOB KYC verification code is: " + otp + ". Do not share this code.";
-            String url = "https://api.twilio.com/2010-04-01/Accounts/" + twilioAccountSid + "/Messages.json";
-
-            String formBody = "To=" + java.net.URLEncoder.encode(phone, "UTF-8")
-                    + "&From=" + java.net.URLEncoder.encode(twilioFromNumber, "UTF-8")
-                    + "&Body=" + java.net.URLEncoder.encode(smsBody, "UTF-8");
-
-            String auth = java.util.Base64.getEncoder()
-                    .encodeToString((twilioAccountSid + ":" + twilioAuthToken).getBytes());
-
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .header("Authorization", "Basic " + auth)
-                    .header("Content-Type", "application/x-www-form-urlencoded")
-                    .POST(HttpRequest.BodyPublishers.ofString(formBody))
-                    .build();
-
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() == 200 || response.statusCode() == 201) {
-                log.info("SMS OTP sent to {} via Twilio", phone);
-                return true;
-            } else {
-                log.warn("Twilio SMS failed ({}): {}", response.statusCode(), response.body());
-                return false;
-            }
-        } catch (Exception e) {
-            log.error("Twilio SMS error for {}: {}", phone, e.getMessage());
-            return false;
-        }
-    }
-
-    private void sendViaMsg91(String phone, String otp) {
-        try {
-            String templateId = msg91TemplateId;
-            if (templateId == null || templateId.isEmpty()) {
-                templateId = "default";
-            }
-            String url = "https://api.msg91.com/api/v5/otp?otp=" + otp + "&mobile=" + phone + "&authkey=" + msg91ApiKey + "&template_id=" + templateId;
-
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString("{}"))
-                    .build();
-
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() == 200) {
-                log.info("SMS OTP sent to {} via MSG91", phone);
-            } else {
-                log.warn("MSG91 SMS failed ({}): {}", response.statusCode(), response.body());
-            }
-        } catch (Exception e) {
-            log.error("MSG91 SMS error for {}: {}", phone, e.getMessage());
-        }
     }
 
     @Async

@@ -472,6 +472,22 @@ async function startQRExtraction() {
 // ====================== KYC OTP (Email or SMS) ======================
 let kycEmailOtpTimer = null;
 let kycOtpMethod = 'email';
+let firebaseConfirmationResult = null;
+let firebaseInitialized = false;
+
+async function initFirebase() {
+    if (firebaseInitialized) return;
+    try {
+        var res = await fetch('/api/config/firebase');
+        var cfg = await res.json();
+        if (cfg.apiKey && cfg.projectId) {
+            firebase.initializeApp({ apiKey: cfg.apiKey, authDomain: cfg.authDomain, projectId: cfg.projectId });
+            firebaseInitialized = true;
+        }
+    } catch (e) {
+        console.warn('[Firebase] Init failed:', e);
+    }
+}
 
 function setKycOtpMethod(method) {
     kycOtpMethod = method;
@@ -497,41 +513,52 @@ function setKycOtpMethod(method) {
 }
 
 async function sendKycOtp() {
-    var identifier;
-    var displayTarget;
-    if (kycOtpMethod === 'sms') {
-        identifier = document.getElementById('kycMobile').value.trim();
-        displayTarget = identifier;
-    } else {
-        identifier = document.getElementById('kycEmail').value.trim();
-        displayTarget = identifier;
-    }
-    if (!identifier) {
-        showAlert('Please enter your ' + (kycOtpMethod === 'sms' ? 'mobile number' : 'email address') + ' first', 'error');
-        return;
-    }
-    kycData.emailOtpVerified = false;
     const btn = document.getElementById('sendEmailOtpBtn');
-    btn.disabled = true;
+    const timerEl = document.getElementById('emailOtpTimer');
 
-    try {
-        const otpRes = await fetch('/api/auth/otp/generate?identifier=' + encodeURIComponent(identifier) + '&purpose=KYC', { method: 'POST' });
-        const otpData = await otpRes.json();
-        if (otpData.success) {
-            showToast('OTP sent to ' + displayTarget, 'success');
-        } else {
-            showToast(otpData.message || 'Failed to send OTP', 'error');
+    if (kycOtpMethod === 'sms') {
+        var phone = document.getElementById('kycMobile').value.trim();
+        if (!phone) { showAlert('Please enter your mobile number first', 'error'); return; }
+        if (!/^\+[0-9]/.test(phone)) { showAlert('Mobile must start with country code (e.g., +91)', 'error'); return; }
+
+        btn.disabled = true;
+        await initFirebase();
+        if (!firebaseInitialized) { showAlert('Firebase not configured. Use email OTP.', 'error'); btn.disabled = false; return; }
+
+        try {
+            var recaptchaVerifier = new firebase.auth.RecaptchaVerifier('sendEmailOtpBtn', { size: 'invisible' });
+            firebaseConfirmationResult = await firebase.auth().signInWithPhoneNumber(phone, recaptchaVerifier);
+            showToast('OTP sent to ' + phone, 'success');
+        } catch (e) {
+            console.error('[Firebase] SMS error:', e);
+            showToast('Failed to send SMS OTP: ' + e.message, 'error');
             btn.disabled = false;
             return;
         }
-    } catch (err) {
-        showToast('Failed to send OTP. Please try again.', 'error');
-        btn.disabled = false;
-        return;
+    } else {
+        var email = document.getElementById('kycEmail').value.trim();
+        if (!email) { showAlert('Please enter your email address first', 'error'); return; }
+
+        kycData.emailOtpVerified = false;
+        btn.disabled = true;
+        try {
+            var otpRes = await fetch('/api/auth/otp/generate?identifier=' + encodeURIComponent(email) + '&purpose=KYC', { method: 'POST' });
+            var otpData = await otpRes.json();
+            if (otpData.success) {
+                showToast('OTP sent to ' + email, 'success');
+            } else {
+                showToast(otpData.message || 'Failed to send OTP', 'error');
+                btn.disabled = false;
+                return;
+            }
+        } catch (err) {
+            showToast('Failed to send OTP. Please try again.', 'error');
+            btn.disabled = false;
+            return;
+        }
     }
 
     let seconds = 30;
-    const timerEl = document.getElementById('emailOtpTimer');
     if (timerEl) timerEl.textContent = 'Resend OTP in ' + seconds + 's';
     if (kycEmailOtpTimer) clearInterval(kycEmailOtpTimer);
     kycEmailOtpTimer = setInterval(() => {
@@ -572,14 +599,17 @@ async function verifyDetails() {
     if (!email) { showAlert('Please enter your email address', 'error'); return; }
     if (!emailOtp || emailOtp.length !== 6) { showAlert('Please enter the 6-digit OTP sent to your ' + (kycOtpMethod === 'sms' ? 'mobile number' : 'email'), 'error'); return; }
 
-    var otpIdentifier = kycOtpMethod === 'sms' ? mobile : email;
-
     try {
-        var otpRes = await fetch('/api/auth/otp/verify?identifier=' + encodeURIComponent(otpIdentifier) + '&otp=' + emailOtp + '&purpose=KYC', { method: 'POST' });
-        var otpResult = await otpRes.json();
-        if (!otpResult.success) {
-            showAlert(otpResult.message || 'Invalid email OTP. Please try again.', 'error');
-            return;
+        if (kycOtpMethod === 'sms') {
+            if (!firebaseConfirmationResult) { showAlert('Please send OTP first', 'error'); return; }
+            await firebaseConfirmationResult.confirm(emailOtp);
+        } else {
+            var otpRes = await fetch('/api/auth/otp/verify?identifier=' + encodeURIComponent(email) + '&otp=' + emailOtp + '&purpose=KYC', { method: 'POST' });
+            var otpResult = await otpRes.json();
+            if (!otpResult.success) {
+                showAlert(otpResult.message || 'Invalid email OTP. Please try again.', 'error');
+                return;
+            }
         }
     } catch (err) {
         showAlert('OTP verification failed. Please try again.', 'error');

@@ -244,10 +244,8 @@ public class AuthService {
         if (identifier.contains("@")) {
             otpService.sendOtpEmail(identifier, otpCode);
         } else {
-            String phone = identifier.replaceAll("[^0-9+]", "");
-            if (phone.length() >= 10) {
-                otpService.sendOtpSms(phone, otpCode);
-            }
+            // SMS OTP is handled by Firebase JS SDK on the frontend
+            log.info("Phone OTP generated for {} (Firebase handles SMS delivery)", identifier);
         }
 
         return ApiResponse.success("OTP sent successfully", null);

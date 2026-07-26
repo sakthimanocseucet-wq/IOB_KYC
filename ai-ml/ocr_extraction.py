@@ -53,36 +53,84 @@ def _is_date_text(text):
     return False
 
 
-def _preprocess_for_ocr(img):
-    """Enhance image for better OCR accuracy using adaptive methods."""
+def _ensure_min_size(img, min_dim=1000):
     h, w = img.shape[:2]
-
-    if max(h, w) < 800:
-        scale = 800 / max(h, w)
+    if max(h, w) < min_dim:
+        scale = min_dim / max(h, w)
         img = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
-        h, w = img.shape[:2]
+    return img
 
+
+def _preprocess_adaptive(img):
+    """Strategy 1: Adaptive Gaussian thresholding — best for uneven lighting."""
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-    denoised = cv2.fastNlMeansDenoising(gray, h=7)
-
-    clahe = cv2.createCLAHE(clipLimit=1.5, tileGridSize=(8, 8))
+    denoised = cv2.fastNlMeansDenoising(gray, h=8)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
     enhanced = clahe.apply(denoised)
-
-    kernel_sharp = np.array([[0, -0.5, 0], [-0.5, 3, -0.5], [0, -0.5, 0]])
-    sharpened = cv2.filter2D(enhanced, -1, kernel_sharp)
-
+    kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]], dtype=np.float32)
+    sharpened = cv2.filter2D(enhanced, -1, kernel)
     adaptive_bin = cv2.adaptiveThreshold(
         sharpened, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv2.THRESH_BINARY, 31, 10
+        cv2.THRESH_BINARY, 25, 12
     )
-
-    kernel_morph = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 1))
+    kernel_morph = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
     cleaned = cv2.morphologyEx(adaptive_bin, cv2.MORPH_CLOSE, kernel_morph)
-    cleaned = cv2.morphologyEx(cleaned, cv2.MORPH_OPEN, kernel_morph)
+    return cv2.cvtColor(cleaned, cv2.COLOR_GRAY2BGR)
 
-    result = cv2.cvtColor(cleaned, cv2.COLOR_GRAY2BGR)
-    return result
+
+def _preprocess_otsu(img):
+    """Strategy 2: Otsu binarization — best for clean scans with good contrast."""
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    denoised = cv2.fastNlMeansDenoising(gray, h=6)
+    clahe = cv2.createCLAHE(clipLimit=1.5, tileGridSize=(8, 8))
+    enhanced = clahe.apply(denoised)
+    blurred = cv2.GaussianBlur(enhanced, (3, 3), 0)
+    _, binary = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    return cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
+
+
+def _preprocess_unsharp(img):
+    """Strategy 3: Unsharp mask — best for low-contrast photos with faint text."""
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    denoised = cv2.fastNlMeansDenoising(gray, h=10)
+    blurred = cv2.GaussianBlur(denoised, (0, 0), 3)
+    sharpened = cv2.addWeighted(denoised, 1.5, blurred, -0.5, 0)
+    clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
+    enhanced = clahe.apply(sharpened)
+    _, binary = cv2.threshold(enhanced, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    return cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
+
+
+def _preprocess_for_ocr(img):
+    """Enhance image for better OCR accuracy."""
+    return _preprocess_adaptive(img)
+
+
+def _score_ocr_result(items):
+    """Score an OCR result by quality: more readable items = higher score."""
+    if not items:
+        return 0
+    score = 0
+    for it in items:
+        text = it['text']
+        conf = it.get('conf', 0)
+        score += conf * 10
+        alpha_count = sum(1 for c in text if c.isalpha())
+        digit_count = sum(1 for c in text if c.isdigit())
+        if alpha_count > 0:
+            score += min(alpha_count, 20)
+        if digit_count > 0:
+            score += min(digit_count, 10)
+        has_name_like = bool(re.search(r'[A-Z][a-z]{2,}', text))
+        if has_name_like:
+            score += 5
+        has_pin = bool(re.search(r'\b\d{6}\b', text))
+        if has_pin:
+            score += 10
+        has_address = bool(re.search(r'\b(S/O|D/O|W/O|C/O|Road|Nagar|Colony|Street)\b', text, re.IGNORECASE))
+        if has_address:
+            score += 8
+    return score
 
 
 def ocr_image(image_bytes, doc_type='AADHAAR'):
@@ -98,41 +146,76 @@ def ocr_image(image_bytes, doc_type='AADHAAR'):
         img = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
         h, w = img.shape[:2]
 
-    enhanced_img = _preprocess_for_ocr(img)
-    result, elapse = engine(enhanced_img)
+    img = _ensure_min_size(img)
 
-    if not result or len(result) == 0:
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        _, otsu_bin = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        otsu_img = cv2.cvtColor(otsu_bin, cv2.COLOR_GRAY2BGR)
-        result2, elapse2 = engine(otsu_img)
-        if result2 and len(result2) > 0:
-            result = result2
-            elapse = elapse2
+    strategies = [
+        ('adaptive', _preprocess_adaptive),
+        ('otsu', _preprocess_otsu),
+        ('unsharp', _preprocess_unsharp),
+    ]
 
-    if not result or len(result) == 0:
-        result3, elapse3 = engine(img)
-        if result3 and len(result3) > 0:
-            result = result3
-            elapse = elapse3
+    best_result = None
+    best_items = []
+    best_score = 0
+    best_strategy = None
 
-    items = []
-    if result:
-        for line in result:
-            box, text, conf = line
-            text = text.strip()
-            if not text or len(text) < 2:
+    for name, preprocess_fn in strategies:
+        try:
+            processed = preprocess_fn(img)
+            result, elapse = engine(processed)
+            if not result or len(result) == 0:
                 continue
-            pts = box if isinstance(box, (list, np.ndarray)) else _box_pts(box)
-            xs = [float(p[0]) for p in pts]
-            ys = [float(p[1]) for p in pts]
-            items.append({
-                'text': text,
-                'conf': float(conf) if conf else 0.0,
-                'cx': (min(xs) + max(xs)) / 2,
-                'cy': (min(ys) + max(ys)) / 2,
-            })
+            items = []
+            for line in result:
+                box, text, conf = line
+                text = text.strip()
+                if not text or len(text) < 2:
+                    continue
+                pts = box if isinstance(box, (list, np.ndarray)) else _box_pts(box)
+                xs = [float(p[0]) for p in pts]
+                ys = [float(p[1]) for p in pts]
+                items.append({
+                    'text': text,
+                    'conf': float(conf) if conf else 0.0,
+                    'cx': (min(xs) + max(xs)) / 2,
+                    'cy': (min(ys) + max(ys)) / 2,
+                })
+            score = _score_ocr_result(items)
+            logger.info(f"OCR strategy={name} items={len(items)} score={score:.1f}")
+            if score > best_score:
+                best_score = score
+                best_result = result
+                best_items = items
+                best_strategy = name
+        except Exception as e:
+            logger.warning(f"OCR strategy {name} failed: {e}")
+            continue
 
+    if not best_items:
+        try:
+            result_raw, elapse_raw = engine(img)
+            if result_raw:
+                for line in result_raw:
+                    box, text, conf = line
+                    text = text.strip()
+                    if not text or len(text) < 2:
+                        continue
+                    pts = box if isinstance(box, (list, np.ndarray)) else _box_pts(box)
+                    xs = [float(p[0]) for p in pts]
+                    ys = [float(p[1]) for p in pts]
+                    best_items.append({
+                        'text': text,
+                        'conf': float(conf) if conf else 0.0,
+                        'cx': (min(xs) + max(xs)) / 2,
+                        'cy': (min(ys) + max(ys)) / 2,
+                    })
+                best_strategy = 'raw'
+        except Exception as e:
+            logger.warning(f"OCR raw fallback failed: {e}")
+
+    logger.info(f"OCR best strategy={best_strategy} items={len(best_items)} score={best_score:.1f}")
+
+    items = best_items
     items.sort(key=lambda x: x['cy'])
 
     all_text = ' '.join(it['text'] for it in items)
@@ -179,7 +262,7 @@ def ocr_image(image_bytes, doc_type='AADHAAR'):
 
     details['raw_text'] = all_text
     details['extracted_at'] = datetime.now().isoformat()
-    details['ocr_method'] = 'rapidocr'
+    details['ocr_method'] = f'rapidocr-{best_strategy}'
     details['debug'] = debug
     details['confidence'] = _calc_confidence(details, doc_type)
     return {'success': True, 'data': _sanitize(details)}
@@ -513,6 +596,7 @@ def _fix_ocr_errors(text):
     """Fix common OCR character confusion errors."""
     if not text:
         return text
+
     text = re.sub(r'(?<=[A-Za-z])\b0\b(?=[A-Za-z])', 'O', text)
     text = re.sub(r'\b0(?=[A-Za-z]{2,})', 'O', text)
     text = re.sub(r'(?<=[A-Za-z][A-Za-z])0\b', 'O', text)
@@ -522,7 +606,12 @@ def _fix_ocr_errors(text):
     text = re.sub(r'(?<=\d)o(?=\d)', '0', text)
     text = re.sub(r'(?<=[A-Za-z])1(?=[A-Za-z][A-Za-z][A-Za-z])', 'l', text)
     text = re.sub(r'(?<=[A-Za-z][A-Za-z][A-Za-z])1(?=[A-Za-z])', 'l', text)
+
+    text = re.sub(r'(?<=[a-z])/(?=[a-z])', 'l', text)
+    text = re.sub(r'(?<=[A-Z])/(?=[A-Z])', 'I', text)
+
     text = re.sub(r'\b(\d{1,3})\s+(\d{3})\s+(\d{4})\b', r'\1\2\3', text)
+
     return text
 
 
@@ -681,6 +770,8 @@ def _extract_address(all_items, mid_x=None, img_w=None):
 
     def _is_garbage_part(part):
         words = part.split()
+        if not words:
+            return True
         clean_words = []
         for w in words:
             cleaned = re.sub(r'[^A-Za-z]', '', w)
@@ -688,17 +779,12 @@ def _extract_address(all_items, mid_x=None, img_w=None):
                 continue
             if len(cleaned) < 2:
                 continue
-            vowels = sum(1 for c in cleaned.lower() if c in 'aeiou')
-            if len(cleaned) >= 3 and vowels == 0:
-                continue
-            if re.match(r'^[A-Z]{2,4}$', cleaned) and vowels <= 1:
-                continue
-            if len(cleaned) <= 3 and vowels == 0:
+            if cleaned.upper() in ('Q', 'QQ', 'S', 'D', 'W', 'C'):
                 continue
             clean_words.append(w)
         if not clean_words:
             return True
-        if len(clean_words) < len(words) * 0.4:
+        if len(clean_words) < len(words) * 0.3:
             return True
         return False
 

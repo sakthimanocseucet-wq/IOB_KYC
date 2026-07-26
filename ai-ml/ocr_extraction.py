@@ -547,6 +547,7 @@ NON_ADDRESS_KEYWORDS = [
     r'dob', r'date\s*of\s*birth', r'blood\s*group', r'mobile',
     r'male', r'female', r'year\s*of\s*birth',
     r'govt\.?\s*of\s*india', r'income\s*tax',
+    r'email', r'phone', r'contact', r'website', r'www', r'gov', r'help',
     r'\u0906\u0927\u093e\u0930', r'\u091c\u0938\u094d\u091f', r'\u092a\u0939\u093f\u0939\u093e\u0928',
 ]
 
@@ -627,15 +628,31 @@ def _extract_address(all_items, mid_x=None, img_w=None):
         ('C O', 'C/O'), ('c o', 'C/O'),
     ]:
         address_text = address_text.replace(_so_fix_old, _so_fix_new)
+    address_text = re.sub(r'(S/O|D/O|W/O|C/O)(?=[A-Za-z])', r'\1 ', address_text)
     address_text = re.sub(r'^\s*/\s*(S/O|D/O|W/O|C/O)', r'\1', address_text)
 
-    address_text = address_text.replace(' / ', ' ')
+    address_text = re.sub(r'\s*/\s*', ' ', address_text)
     address_text = re.sub(r'(?<=[a-zA-Z])\s*q\s*/?\s*(?=[a-zA-Z])', ' ', address_text, flags=re.IGNORECASE)
+    address_text = re.sub(r'/\s*(Email|Mobile|Phone|Contact|Website|Help|Govt|Government)\b', r' \1', address_text, flags=re.IGNORECASE)
+    address_text = re.sub(r'\b(Dist|District)\s*(?=[A-Z][a-z])', r'\1, ', address_text, flags=re.IGNORECASE)
+    address_text = re.sub(r'\bAB\s*/\s*No\b', '', address_text, flags=re.IGNORECASE)
 
     address_text = re.sub(r'Tamil\s*Nadu', 'Tamil Nadu', address_text, flags=re.IGNORECASE)
     address_text = re.sub(r'Andhra\s*Pradesh', 'Andhra Pradesh', address_text, flags=re.IGNORECASE)
     address_text = re.sub(r'Uttar\s*Pradesh', 'Uttar Pradesh', address_text, flags=re.IGNORECASE)
     address_text = re.sub(r'West\s*Bengal', 'West Bengal', address_text, flags=re.IGNORECASE)
+    address_text = re.sub(r'Rajasthan', 'Rajasthan', address_text, flags=re.IGNORECASE)
+    address_text = re.sub(r'Karnataka', 'Karnataka', address_text, flags=re.IGNORECASE)
+    address_text = re.sub(r'Gujarat', 'Gujarat', address_text, flags=re.IGNORECASE)
+    address_text = re.sub(r'Maharashtra', 'Maharashtra', address_text, flags=re.IGNORECASE)
+    address_text = re.sub(r'Kerala', 'Kerala', address_text, flags=re.IGNORECASE)
+    address_text = re.sub(r'Punjab', 'Punjab', address_text, flags=re.IGNORECASE)
+    address_text = re.sub(r'Bihar', 'Bihar', address_text, flags=re.IGNORECASE)
+    address_text = re.sub(r'Odisha', 'Odisha', address_text, flags=re.IGNORECASE)
+    address_text = re.sub(r'Chhattisgarh', 'Chhattisgarh', address_text, flags=re.IGNORECASE)
+    address_text = re.sub(r'Jharkhand', 'Jharkhand', address_text, flags=re.IGNORECASE)
+    address_text = re.sub(r'Assam', 'Assam', address_text, flags=re.IGNORECASE)
+    address_text = re.sub(r'Goa', 'Goa', address_text, flags=re.IGNORECASE)
 
     address_text = re.sub(r'(\d)\s+(?=[A-Za-z])', r'\1, ', address_text)
     address_text = re.sub(r'(?<=\w)\s+(?=S/O|D/O|W/O|C/O)', ', ', address_text)
@@ -649,7 +666,7 @@ def _extract_address(all_items, mid_x=None, img_w=None):
 
     address_text = re.sub(r'\b\d{2}[/-]\d{2}[/-]\d{4}\b', '', address_text)
     address_text = re.sub(r'\b\d{10}\b', '', address_text)
-    address_text = re.sub(r'\b(Blood\s*Group|Mobile\s*No|Gender|Male|Female|DOB|Date\s*of\s*Birth)\b', '', address_text, flags=re.IGNORECASE)
+    address_text = re.sub(r'\b(Blood\s*Group|Mobile\s*No|Gender|Male|Female|DOB|Date\s*of\s*Birth|Email|Phone|Contact|Website|Help)\b', '', address_text, flags=re.IGNORECASE)
     address_text = re.sub(r'[^A-Za-z0-9\u0900-\u097F\s,/\-]', ' ', address_text)
     address_text = re.sub(r'\s{2,}', ' ', address_text).strip()
 
@@ -657,7 +674,7 @@ def _extract_address(all_items, mid_x=None, img_w=None):
     pin_match = re.search(r'\b(\d{6})\b', address_text)
     if pin_match:
         pin = pin_match.group(1)
-        address_text = address_text[:pin_match.end()]
+        address_text = address_text[:pin_match.start()].rstrip(',').strip()
 
     parts = [p.strip() for p in re.split(r',\s*', address_text) if p.strip()]
 

@@ -467,14 +467,15 @@ def _fix_ocr_errors(text):
     if not text:
         return text
 
-    text = re.sub(r'\bSIO\b', 'S/O', text, flags=re.IGNORECASE)
-    text = re.sub(r'\bDIO\b', 'D/O', text, flags=re.IGNORECASE)
-    text = re.sub(r'\bWIO\b', 'W/O', text, flags=re.IGNORECASE)
-    text = re.sub(r'\bCIO\b', 'C/O', text, flags=re.IGNORECASE)
-    text = re.sub(r'S\s+O', 'S/O', text, flags=re.IGNORECASE)
-    text = re.sub(r'D\s+O', 'D/O', text, flags=re.IGNORECASE)
-    text = re.sub(r'W\s+O', 'W/O', text, flags=re.IGNORECASE)
-    text = re.sub(r'C\s+O', 'C/O', text, flags=re.IGNORECASE)
+    for _so_fix_old, _so_fix_new in [
+        ('SIO', 'S/O'), ('DIO', 'D/O'), ('WIO', 'W/O'), ('CIO', 'C/O'),
+        ('S O', 'S/O'), ('s o', 'S/O'), ('S o', 'S/O'), ('s O', 'S/O'),
+        ('S  O', 'S/O'), ('s  o', 'S/O'),
+        ('D O', 'D/O'), ('d o', 'D/O'),
+        ('W O', 'W/O'), ('w o', 'W/O'),
+        ('C O', 'C/O'), ('c o', 'C/O'),
+    ]:
+        text = text.replace(_so_fix_old, _so_fix_new)
 
     text = re.sub(r'(?<=[A-Za-z])\b0\b(?=[A-Za-z])', 'O', text)
     text = re.sub(r'\b0(?=[A-Za-z]{2,})', 'O', text)
@@ -616,28 +617,28 @@ def _extract_address(all_items, mid_x=None, img_w=None):
     address_text = ' '.join(address_parts)
     address_text = _fix_ocr_errors(address_text)
 
-    address_text = re.sub(r'\bSIO\b', 'S/O', address_text, flags=re.IGNORECASE)
-    address_text = re.sub(r'\bDIO\b', 'D/O', address_text, flags=re.IGNORECASE)
-    address_text = re.sub(r'\bWIO\b', 'W/O', address_text, flags=re.IGNORECASE)
-    address_text = re.sub(r'\bCIO\b', 'C/O', address_text, flags=re.IGNORECASE)
-    address_text = re.sub(r'S\s+O', 'S/O', address_text, flags=re.IGNORECASE)
-    address_text = re.sub(r'D\s+O', 'D/O', address_text, flags=re.IGNORECASE)
-    address_text = re.sub(r'W\s+O', 'W/O', address_text, flags=re.IGNORECASE)
-    address_text = re.sub(r'C\s+O', 'C/O', address_text, flags=re.IGNORECASE)
+    for _so_fix_old, _so_fix_new in [
+        ('SIO', 'S/O'), ('DIO', 'D/O'), ('WIO', 'W/O'), ('CIO', 'C/O'),
+        ('S O', 'S/O'), ('s o', 'S/O'), ('S o', 'S/O'), ('s O', 'S/O'),
+        ('S  O', 'S/O'), ('s  o', 'S/O'),
+        ('D O', 'D/O'), ('d o', 'D/O'),
+        ('W O', 'W/O'), ('w o', 'W/O'),
+        ('C O', 'C/O'), ('c o', 'C/O'),
+    ]:
+        address_text = address_text.replace(_so_fix_old, _so_fix_new)
     address_text = re.sub(r'^\s*/\s*(S/O|D/O|W/O|C/O)', r'\1', address_text)
 
-    address_text = re.sub(r'\s*/\s*', ' ', address_text)
-    address_text = re.sub(r'(?<=[a-zA-Z])\s+q\s+(?=[a-zA-Z])', ' ', address_text)
-    address_text = re.sub(r'(?<=[a-zA-Z])\s+Q\s+(?=[a-zA-Z])', ' ', address_text)
+    address_text = address_text.replace(' / ', ' ')
+    address_text = re.sub(r'(?<=[a-zA-Z])\s+q\s+(?=[a-zA-Z])', ' ', address_text, flags=re.IGNORECASE)
 
     address_text = re.sub(r'Tamil\s*Nadu', 'Tamil Nadu', address_text, flags=re.IGNORECASE)
     address_text = re.sub(r'Andhra\s*Pradesh', 'Andhra Pradesh', address_text, flags=re.IGNORECASE)
     address_text = re.sub(r'Uttar\s*Pradesh', 'Uttar Pradesh', address_text, flags=re.IGNORECASE)
     address_text = re.sub(r'West\s*Bengal', 'West Bengal', address_text, flags=re.IGNORECASE)
-    address_text = re.sub(r'North\s*East', 'North East', address_text, flags=re.IGNORECASE)
 
     address_text = re.sub(r'(\d)\s+(?=[A-Za-z])', r'\1, ', address_text)
     address_text = re.sub(r'(?<=\w)\s+(?=S/O|D/O|W/O|C/O)', ', ', address_text)
+    address_text = re.sub(r'Colony\s+(?=Ramnagar|[A-Z][a-z]+\s*,)', 'Colony, ', address_text, flags=re.IGNORECASE)
     address_text = re.sub(r'(Coimbatore|Chennai|Bangalore|Mumbai|Delhi|Pune|Hyderabad)\s+(?=[A-Za-z])', r'\1, ', address_text, flags=re.IGNORECASE)
     address_text = re.sub(r',\s*,', ',', address_text)
     address_text = re.sub(r'\s+', ' ', address_text).strip()

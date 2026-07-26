@@ -608,6 +608,7 @@ def _extract_address(all_items, mid_x=None, img_w=None):
     address_text = re.sub(r'\s*/\s*(S/O|D/O|W/O|C/O)', r' \1', address_text)
     address_text = re.sub(r'(?<=\w)\s+(?=[A-Za-z]{0,2}\s*(?:,|Ramnagar|Ward|No|Coimbatore|Tamil|Colony|Park|Green|Road|Street|Nagar))', ' ', address_text)
     address_text = re.sub(r'\b[qQ]\b(?!\s*[/.]?\s*(?:O|o))', '', address_text)
+    address_text = re.sub(r'\s*/\s*', ' ', address_text)
     address_text = re.sub(r'\s+', ' ', address_text).strip()
 
     for kw in NON_ADDRESS_KEYWORDS:

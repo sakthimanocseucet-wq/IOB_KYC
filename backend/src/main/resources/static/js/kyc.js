@@ -210,33 +210,55 @@ function handleDocSelect(input, type) {
             return;
         }
 
-        var uploadId, fileNameId, removeId;
+        var uploadId, fileNameId, removeId, previewId;
         if (type === 'aadhaar') {
             kycData.aadhaarFile = file;
             kycData.ocrData = null;
             uploadId = 'aadhaarUpload';
             fileNameId = 'aadhaarFileName';
             removeId = 'aadhaarRemove';
+            previewId = 'aadhaarPreview';
         } else if (type === 'pan') {
             kycData.panFile = file;
             kycData.ocrData = null;
             uploadId = 'panUpload';
             fileNameId = 'panFileName';
             removeId = 'panRemove';
+            previewId = 'panPreview';
         } else if (type === 'photo') {
             kycData.profilePhoto = file;
             uploadId = 'photoUpload';
             fileNameId = 'photoFileName';
             removeId = 'photoRemove';
+            previewId = 'photoPreview';
         }
 
         var uploadEl = document.getElementById(uploadId);
         var fileNameEl = document.getElementById(fileNameId);
         var removeEl = document.getElementById(removeId);
+        var previewEl = document.getElementById(previewId);
 
-        if (fileNameEl) fileNameEl.textContent = '\u2705 ' + file.name;
+        if (fileNameEl) { fileNameEl.textContent = '\u2705 ' + file.name; fileNameEl.style.display = 'block'; }
         if (removeEl) removeEl.style.display = 'inline-block';
-        if (uploadEl) uploadEl.classList.add('uploaded');
+
+        if (previewEl && file.type && file.type.startsWith('image/')) {
+            var reader = new FileReader();
+            reader.onload = function(e) { previewEl.src = e.target.result; previewEl.style.display = 'block'; };
+            reader.readAsDataURL(file);
+        } else if (previewEl) {
+            previewEl.src = '';
+            previewEl.style.display = 'none';
+        }
+
+        if (uploadEl) {
+            uploadEl.classList.add('uploaded');
+            var icon = uploadEl.querySelector('.upload-icon');
+            var p = uploadEl.querySelector('p');
+            var sm = uploadEl.querySelector('small');
+            if (icon) icon.style.display = 'none';
+            if (p) p.style.display = 'none';
+            if (sm) sm.style.display = 'none';
+        }
 
         input.style.display = 'none';
         checkUploadReady();
@@ -262,34 +284,34 @@ function resetUploadEl(el) {
 }
 
 function removeFile(type) {
-    var uploadEl, fileNameEl, removeEl, inputEl;
+    var uploadEl, fileNameEl, removeEl, inputEl, previewEl;
     if (type === 'aadhaar') {
         kycData.aadhaarFile = null;
         inputEl = document.getElementById('aadhaarFile');
         uploadEl = document.getElementById('aadhaarUpload');
         fileNameEl = document.getElementById('aadhaarFileName');
         removeEl = document.getElementById('aadhaarRemove');
+        previewEl = document.getElementById('aadhaarPreview');
     } else if (type === 'pan') {
         kycData.panFile = null;
         inputEl = document.getElementById('panFile');
         uploadEl = document.getElementById('panUpload');
         fileNameEl = document.getElementById('panFileName');
         removeEl = document.getElementById('panRemove');
+        previewEl = document.getElementById('panPreview');
     } else if (type === 'photo') {
         kycData.profilePhoto = null;
         inputEl = document.getElementById('profilePhoto');
         uploadEl = document.getElementById('photoUpload');
         fileNameEl = document.getElementById('photoFileName');
         removeEl = document.getElementById('photoRemove');
+        previewEl = document.getElementById('photoPreview');
     }
     if (inputEl) { inputEl.value = ''; inputEl.style.display = ''; }
     if (fileNameEl) { fileNameEl.textContent = ''; fileNameEl.innerHTML = ''; fileNameEl.style.display = 'none'; }
     if (removeEl) removeEl.style.display = 'none';
+    if (previewEl) { previewEl.src = ''; previewEl.style.display = 'none'; }
     resetUploadEl(uploadEl);
-    if (uploadEl) {
-        var preview = uploadEl.querySelector('.file-preview');
-        if (preview) preview.remove();
-    }
     checkUploadReady();
     showToast('File removed', 'info');
 }

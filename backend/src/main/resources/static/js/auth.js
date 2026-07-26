@@ -11,10 +11,6 @@
 
 // ====================== AUTH STATE ======================
 const AUTH_API = '/api/auth';
-let regOtpTimer = null;
-let emailOtpTimer = null;
-let regOtpVerified = false;
-let emailOtpVerified = false;
 
 // ====================== INLINE FIELD ERRORS ======================
 function clearFieldError(errorId) {
@@ -33,8 +29,10 @@ let regFirebaseConfirmation = null;
 let regFirebaseInitialized = false;
 let regFirebaseApp = null;
 let regRecaptchaVerifier = null;
-
-async function initRegFirebase() {
+let emailOtpVerified = false;
+let smsOtpVerified = false;
+let emailOtpTimer = null;
+let smsOtpTimer = null;async function initRegFirebase() {
     if (regFirebaseInitialized) return;
     try {
         var existingApp = firebase.apps.find(function(app) { return app.name === 'regFirebase'; });
@@ -52,26 +50,153 @@ async function initRegFirebase() {
 
 function setOtpMethod(method) {
     otpMethod = method;
-    var emailBtn = document.getElementById('otpMethodEmail');
-    var smsBtn = document.getElementById('otpMethodSms');
-    var emailRow = document.getElementById('otpEmailRow');
-    var smsRow = document.getElementById('otpSmsRow');
-    if (method === 'email') {
-        emailBtn.className = 'btn btn-sm btn-primary';
-        emailBtn.style.border = '2px solid #2563eb';
-        smsBtn.className = 'btn btn-sm btn-outline';
-        smsBtn.style.border = '';
-        if (emailRow) emailRow.style.display = '';
-        if (smsRow) smsRow.style.display = 'none';
-    } else {
-        smsBtn.className = 'btn btn-sm btn-primary';
-        smsBtn.style.border = '2px solid #2563eb';
-        emailBtn.className = 'btn btn-sm btn-outline';
-        emailBtn.style.border = '';
-        if (emailRow) emailRow.style.display = 'none';
-        if (smsRow) smsRow.style.display = '';
+}
+
+// ====================== EMAIL OTP ======================
+async function sendEmailOtp() {
+    var email = document.getElementById('email').value.trim();
+    if (!email) { showFieldError('emailError', 'Enter email first'); return; }
+
+    emailOtpVerified = false;
+    document.getElementById('emailOtpTick').style.display = 'none';
+    const btn = document.getElementById('sendEmailOtpBtn');
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(AUTH_API + '/otp/generate?identifier=' + encodeURIComponent(email) + '&purpose=REGISTER', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            showToast('OTP sent to ' + email, 'success');
+        } else {
+            showFieldError('emailOtpError', data.message || 'Failed to send OTP');
+            btn.disabled = false;
+            return;
+        }
+    } catch (err) {
+        showFieldError('emailOtpError', 'Failed to send OTP. Try again.');
+        btn.disabled = false;
+        return;
     }
-    clearFieldError('otpError');
+
+    let seconds = 30;
+    const timerEl = document.getElementById('emailOtpTimer');
+    timerEl.textContent = 'Resend in ' + seconds + 's';
+    if (emailOtpTimer) clearInterval(emailOtpTimer);
+    emailOtpTimer = setInterval(() => {
+        seconds--;
+        timerEl.textContent = 'Resend in ' + seconds + 's';
+        if (seconds <= 0) {
+            clearInterval(emailOtpTimer);
+            btn.disabled = false;
+            btn.textContent = 'Resend OTP';
+            timerEl.textContent = '';
+        }
+    }, 1000);
+}
+
+async function autoVerifyEmailOtp() {
+    var otp = document.getElementById('emailOtpInput').value.trim();
+    if (otp.length !== 6 || !/^[0-9]{6}$/.test(otp)) return;
+
+    var email = document.getElementById('email').value.trim();
+    if (!email) { showFieldError('emailOtpError', 'Enter email first'); return; }
+
+    try {
+        const res = await fetch(AUTH_API + '/otp/verify?identifier=' + encodeURIComponent(email) + '&otp=' + otp + '&purpose=REGISTER', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            emailOtpVerified = true;
+            document.getElementById('emailOtpTick').style.display = 'inline';
+            document.getElementById('emailOtpInput').style.borderColor = '#16a34a';
+            clearFieldError('emailOtpError');
+            showToast('Email verified!', 'success');
+        } else {
+            emailOtpVerified = false;
+            document.getElementById('emailOtpTick').style.display = 'none';
+            document.getElementById('emailOtpInput').style.borderColor = '#dc2626';
+            showFieldError('emailOtpError', data.message || 'Invalid OTP');
+        }
+    } catch (err) {
+        showFieldError('emailOtpError', 'Verification failed');
+    }
+}
+
+// ====================== SMS OTP ======================
+async function sendSmsOtp() {
+    var phone = document.getElementById('phone').value.trim();
+    if (!phone) { showFieldError('phoneError', 'Enter phone number first'); return; }
+    if (!/^\+[0-9]/.test(phone)) { showFieldError('phoneError', 'Phone must start with country code (e.g., +91)'); return; }
+
+    smsOtpVerified = false;
+    document.getElementById('smsOtpTick').style.display = 'none';
+    const btn = document.getElementById('sendSmsOtpBtn');
+    btn.disabled = true;
+
+    await initRegFirebase();
+    if (!regFirebaseInitialized) { showFieldError('smsOtpError', 'Firebase not configured. Use email OTP.'); btn.disabled = false; return; }
+
+    try {
+        var app = regFirebaseApp || firebase.app();
+        if (regRecaptchaVerifier) { regRecaptchaVerifier.clear(); regRecaptchaVerifier = null; }
+        var oldContainer = document.getElementById('reg-recaptcha-container');
+        if (oldContainer) oldContainer.remove();
+        var container = document.createElement('div');
+        container.id = 'reg-recaptcha-container';
+        container.style.display = 'none';
+        document.body.appendChild(container);
+        regRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('reg-recaptcha-container', { size: 'invisible' }, app);
+        regFirebaseConfirmation = await app.auth().signInWithPhoneNumber(phone, regRecaptchaVerifier);
+        showToast('OTP sent to ' + phone, 'success');
+    } catch (e) {
+        showFieldError('smsOtpError', 'Failed to send SMS: ' + e.message);
+        btn.disabled = false;
+        return;
+    }
+
+    let seconds = 30;
+    const timerEl = document.getElementById('smsOtpTimer');
+    timerEl.textContent = 'Resend in ' + seconds + 's';
+    if (smsOtpTimer) clearInterval(smsOtpTimer);
+    smsOtpTimer = setInterval(() => {
+        seconds--;
+        timerEl.textContent = 'Resend in ' + seconds + 's';
+        if (seconds <= 0) {
+            clearInterval(smsOtpTimer);
+            btn.disabled = false;
+            btn.textContent = 'Resend OTP';
+            timerEl.textContent = '';
+        }
+    }, 1000);
+}
+
+async function autoVerifySmsOtp() {
+    var otp = document.getElementById('smsOtpInput').value.trim();
+    if (otp.length !== 6 || !/^[0-9]{6}$/.test(otp)) return;
+
+    if (!regFirebaseConfirmation) { showFieldError('smsOtpError', 'Send OTP first'); return; }
+
+    try {
+        await regFirebaseConfirmation.confirm(otp);
+        smsOtpVerified = true;
+        document.getElementById('smsOtpTick').style.display = 'inline';
+        document.getElementById('smsOtpInput').style.borderColor = '#16a34a';
+        clearFieldError('smsOtpError');
+        showToast('Phone verified!', 'success');
+    } catch (err) {
+        smsOtpVerified = false;
+        document.getElementById('smsOtpTick').style.display = 'none';
+        document.getElementById('smsOtpInput').style.borderColor = '#dc2626';
+        showFieldError('smsOtpError', 'Invalid OTP: ' + err.message);
+    }
+}
+
+// ====================== LEGACY COMPAT ======================
+async function sendRegOTP() {
+    if (otpMethod === 'sms') { sendSmsOtp(); } else { sendEmailOtp(); }
+}
+
+async function verifyRegOTP() {
+    if (otpMethod === 'sms') { return smsOtpVerified; } else { return emailOtpVerified; }
 }
 
 // ====================== PASSWORD VALIDATION ======================
@@ -185,110 +310,6 @@ function handleForgotPassword() {
     showToast('If an account exists with ' + email + ', a password reset link has been sent.', 'success');
 }
 
-// ====================== USER REGISTER (Email OTP) ======================
-async function sendRegOTP() {
-    var identifier;
-    if (otpMethod === 'sms') {
-        identifier = document.getElementById('regOtpPhone').value;
-    } else {
-        var emailInput = document.getElementById('regOtpEmail');
-        identifier = emailInput ? emailInput.value : document.getElementById('email').value;
-    }
-    if (!identifier) {
-        showFieldError('otpError', otpMethod === 'sms' ? 'Please enter your phone number' : 'Please enter your email address');
-        return;
-    }
-
-    regOtpVerified = false;
-    const btn = document.getElementById('sendOtpBtn');
-    btn.disabled = true;
-
-    if (otpMethod === 'sms') {
-        if (!/^\+[0-9]/.test(identifier)) { showFieldError('otpError', 'Phone must start with country code (e.g., +91)'); btn.disabled = false; return; }
-        await initRegFirebase();
-        if (!regFirebaseInitialized) { showFieldError('otpError', 'Firebase not configured. Use email OTP.'); btn.disabled = false; return; }
-        try {
-            var app = regFirebaseApp || firebase.app();
-            if (regRecaptchaVerifier) { regRecaptchaVerifier.clear(); regRecaptchaVerifier = null; }
-            var oldContainer = document.getElementById('reg-recaptcha-container');
-            if (oldContainer) oldContainer.remove();
-            var container = document.createElement('div');
-            container.id = 'reg-recaptcha-container';
-            container.style.display = 'none';
-            document.body.appendChild(container);
-            regRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('reg-recaptcha-container', { size: 'invisible' }, app);
-            regFirebaseConfirmation = await app.auth().signInWithPhoneNumber(identifier, regRecaptchaVerifier);
-            showToast('OTP sent to ' + identifier, 'success');
-        } catch (e) {
-            showFieldError('otpError', 'Failed to send SMS: ' + e.message);
-            btn.disabled = false;
-            return;
-        }
-    } else {
-        try {
-            const res = await fetch(AUTH_API + '/otp/generate?identifier=' + encodeURIComponent(identifier) + '&purpose=REGISTER', { method: 'POST' });
-            const data = await res.json();
-            if (data.success) {
-                showToast('OTP sent to ' + identifier, 'success');
-            } else {
-                showAlert(data.message || 'Failed to send OTP. Please try again.', 'error');
-                btn.disabled = false;
-                return;
-            }
-        } catch (err) {
-            showAlert('Failed to send OTP. Please try again.', 'error');
-            btn.disabled = false;
-            return;
-        }
-    }
-
-    let seconds = 30;
-    const timerEl = document.getElementById('otpTimer');
-    timerEl.textContent = 'Resend OTP in ' + seconds + 's';
-    if (regOtpTimer) clearInterval(regOtpTimer);
-    regOtpTimer = setInterval(() => {
-        seconds--;
-        timerEl.textContent = 'Resend OTP in ' + seconds + 's';
-        if (seconds <= 0) {
-            clearInterval(regOtpTimer);
-            btn.disabled = false;
-            btn.textContent = 'Resend OTP';
-            timerEl.textContent = '';
-        }
-    }, 1000);
-}
-
-async function verifyRegOTP() {
-    const otp = document.getElementById('regOtp').value;
-    if (!otp || otp.length !== 6) {
-        showFieldError('otpError', 'Please enter a valid 6-digit OTP');
-        return false;
-    }
-
-    try {
-        if (otpMethod === 'sms') {
-            if (!regFirebaseConfirmation) { showFieldError('otpError', 'Please send OTP first'); return false; }
-            await regFirebaseConfirmation.confirm(otp);
-        } else {
-            var identifier;
-            var emailInput = document.getElementById('regOtpEmail');
-            identifier = emailInput ? emailInput.value : document.getElementById('email').value;
-            const res = await fetch(AUTH_API + '/otp/verify?identifier=' + encodeURIComponent(identifier) + '&otp=' + otp + '&purpose=REGISTER', { method: 'POST' });
-            const data = await res.json();
-            if (!data.success) {
-                showAlert(data.message || 'Invalid OTP. Please try again.', 'error');
-                return false;
-            }
-        }
-        regOtpVerified = true;
-        showToast('Phone verified!', 'success');
-        return true;
-    } catch (err) {
-        showAlert('OTP verification failed: ' + err.message, 'error');
-        return false;
-    }
-}
-
 async function handleRegister(event) {
     event.preventDefault();
     const firstName = document.getElementById('firstName').value;
@@ -324,7 +345,10 @@ async function handleRegister(event) {
         return;
     }
 
-    if (!(await verifyRegOTP())) return;
+    if (!emailOtpVerified) {
+        showFieldError('emailOtpError', 'Please verify your email with OTP');
+        return;
+    }
 
     setLoading('registerForm', 'btnSpinner', 'btnText', true);
 
@@ -445,7 +469,10 @@ async function handleEmployeeRegister(event) {
         return;
     }
 
-    if (!(await verifyRegOTP())) return;
+    if (!emailOtpVerified) {
+        showFieldError('emailOtpError', 'Please verify your email with OTP');
+        return;
+    }
 
     setLoading('employeeRegisterForm', 'btnSpinner', 'btnText', true);
 

@@ -59,24 +59,21 @@
                 <div class="form-group">
                     <label for="email">Email Address</label>
                     <input type="email" id="email" placeholder="john@iobank.com" required>
+                    <div id="emailOtpSection" style="margin-top:8px;padding:10px;background:var(--gray-50,#f8fafc);border-radius:8px;border:1px solid var(--gray-200,#e2e8f0)">
+                        <div style="display:flex;gap:6px;align-items:center">
+                            <input type="text" id="emailOtpInput" placeholder="Enter 6-digit OTP" maxlength="6" pattern="[0-9]{6}" style="flex:1;padding:8px 12px;border:1px solid var(--gray-300,#d1d5db);border-radius:6px;font-size:14px" oninput="clearFieldError('emailOtpError');autoVerifyEmailOtp()">
+                            <button type="button" class="btn btn-sm btn-primary" onclick="sendEmailOtp()" id="sendEmailOtpBtn" style="white-space:nowrap;padding:8px 14px">Send OTP</button>
+                            <span id="emailOtpTick" style="display:none;color:#16a34a;font-size:20px;font-weight:bold" title="Email verified">&#10003;</span>
+                        </div>
+                        <small class="field-error" id="emailOtpError" style="color:#dc2626;font-size:12px;margin-top:4px;display:none"></small>
+                        <small id="emailOtpTimer" style="color:var(--gray-500,#6b7280);font-size:12px;margin-top:4px;display:block"></small>
+                        <p style="color:#dc2626;font-weight:bold;font-size:12px;margin:4px 0 0">Check Spam/Junk folder if not received</p>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="phone">Phone Number</label>
                     <input type="tel" id="phone" placeholder="+91 9876543210" pattern="\+[0-9]{1,4}\s?[0-9]{7,12}" required>
                     <small style="color:var(--gray-500)">Include country code (e.g., +91 for India)</small>
-                </div>
-                <div class="form-group otp-group" id="otpGroup">
-                    <label for="regOtp">OTP Verification</label>
-                    <div class="otp-row" id="otpEmailRow">
-                        <input type="email" id="regOtpEmail" placeholder="Enter email for OTP">
-                    </div>
-                    <div class="otp-row" style="margin-top:8px">
-                        <input type="text" id="regOtp" placeholder="6-digit OTP" maxlength="6" pattern="[0-9]{6}">
-                        <button type="button" class="btn btn-sm btn-primary" onclick="sendRegOTP()" id="sendOtpBtn">Send OTP</button>
-                    </div>
-                    <small class="otp-timer" id="otpTimer" style="color:var(--gray-500);margin-top:4px;display:block"></small>
-                    <p style="color:#dc2626;font-weight:bold;font-size:13px;margin:4px 0 0">If you do not receive the OTP in your inbox, please check your Spam or Junk folder</p>
-
                 </div>
                 <div class="form-group">
                     <label for="password">Password</label>

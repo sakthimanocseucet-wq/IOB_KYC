@@ -53,6 +53,24 @@ def _is_date_text(text):
     return False
 
 
+def _preprocess_for_ocr(img):
+    """Enhance image for better OCR accuracy."""
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    denoised = cv2.fastNlMeansDenoising(gray, h=10)
+
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    enhanced = clahe.apply(denoised)
+
+    kernel = np.array([[-1, -1, -1], [-1, 9, -1], [-1, -1, -1]])
+    sharpened = cv2.filter2D(enhanced, -1, kernel)
+
+    _, binary = cv2.threshold(sharpened, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+    result = cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
+    return result
+
+
 def ocr_image(image_bytes, doc_type='AADHAAR'):
     engine = get_ocr()
     nparr = np.frombuffer(image_bytes, np.uint8)
@@ -66,7 +84,14 @@ def ocr_image(image_bytes, doc_type='AADHAAR'):
         img = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
         h, w = img.shape[:2]
 
-    result, elapse = engine(img)
+    enhanced_img = _preprocess_for_ocr(img)
+    result, elapse = engine(enhanced_img)
+
+    if not result or len(result) == 0:
+        result2, elapse2 = engine(img)
+        if result2 and len(result2) > 0:
+            result = result2
+            elapse = elapse2
 
     items = []
     if result:

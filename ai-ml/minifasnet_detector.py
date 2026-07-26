@@ -345,36 +345,25 @@ class MiniFASNetDetector:
         probs = self._run_inference(face_crop)
 
         # Detection strategy (conservative — minimize false positives on real faces):
-        # 1. Require model to be confident about spoof AND liveness below threshold
-        # 2. Require combined spoof probability to be very high (> 0.85)
-        # 3. No "very low liveness" shortcut — the model can be confidently wrong
+        # The MiniFASNet model can be confidently wrong on certain faces.
+        # Single-frame alone is NOT enough to reject — require multi-frame consensus.
+        # Single-frame only flags spoof if combined probability is extremely high (> 0.95).
         max_spoof_prob = max(probs['print_prob'], probs['replay_prob'])
         combined_spoof = probs['print_prob'] + probs['replay_prob']
 
-        # Model confident about spoof — require higher confidence to reduce false positives
-        model_confident = max_spoof_prob > 0.60 or combined_spoof > 0.75
-
-        # Spoof detected ONLY if model is confident AND liveness is below threshold
-        # OR combined spoof probability is extremely high (> 0.85)
-        spoof_detected = (
-            (model_confident and probs['liveness_score'] < self.SPOOF_THRESHOLD)
-            or combined_spoof > 0.85
-        )
+        # Only flag as spoof if combined spoof probability is extreme (> 0.95)
+        # Multi-frame consensus (in api_server.py) provides the final verdict.
+        spoof_detected = combined_spoof > 0.95
 
         reasons = []
-        if not model_confident:
-            reasons.append(f"Anti-spoof model uncertain (print={probs['print_prob']:.2f}, replay={probs['replay_prob']:.2f})")
+        if combined_spoof > 0.75:
+            reasons.append(f"Combined spoof probability high ({combined_spoof:.2f})")
         if probs['print_prob'] > 0.65:
             reasons.append(f"Print attack detected (p={probs['print_prob']:.2f})")
         if probs['replay_prob'] > 0.65:
             reasons.append(f"Replay attack detected (p={probs['replay_prob']:.2f})")
-        if combined_spoof > 0.75:
-            reasons.append(f"Combined spoof probability high ({combined_spoof:.2f})")
-        if spoof_detected:
-            if model_confident and probs['liveness_score'] < self.SPOOF_THRESHOLD:
-                reasons.append(f"Liveness score {probs['liveness_score']:.2f} < {self.SPOOF_THRESHOLD}")
-            elif combined_spoof > 0.85:
-                reasons.append(f"Combined spoof probability extreme ({combined_spoof:.2f})")
+        if not spoof_detected and combined_spoof > 0.50:
+            reasons.append(f"Single-frame uncertain — needs multi-frame consensus ({combined_spoof:.2f})")
 
         return {
             'spoofDetected': spoof_detected,

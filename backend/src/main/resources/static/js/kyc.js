@@ -1596,6 +1596,9 @@ async function performFaceVerification() {
         if (profilePhotoBase64) {
             payload.profile_photo = profilePhotoBase64;
         }
+        if (allCapturedFrames && allCapturedFrames.length > 0) {
+            payload.frames = allCapturedFrames;
+        }
         if (isReKyc) {
             payload.rekyc = true;
         }

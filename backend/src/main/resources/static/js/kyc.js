@@ -1,5 +1,6 @@
 const KYC_API = '/api/kyc';
 const AI_API = '/api/ai';
+var uploadedVideoFile = null;
 
 window.addEventListener('error', function (e) {
     console.groupCollapsed('[Global Error] ' + e.message);
@@ -66,6 +67,14 @@ function goToStep(step) {
         challengeVideoBase64 = null;
         window.__finalChallengeResult = null;
         window.__localChallenges = null;
+        if (window.__uploadedVideoEl) {
+            window.__uploadedVideoEl.pause();
+            window.__uploadedVideoEl.src = '';
+            if (window.__uploadedVideoEl.parentNode) window.__uploadedVideoEl.parentNode.removeChild(window.__uploadedVideoEl);
+            window.__uploadedVideoEl = null;
+        }
+        var vp = document.getElementById('videoPreviewBox');
+        if (vp) vp.remove();
         if (challengeInterval) { clearInterval(challengeInterval); challengeInterval = null; }
         if (challengeTimerInterval) { clearInterval(challengeTimerInterval); challengeTimerInterval = null; }
         kycData.selfieImage = null;
@@ -77,7 +86,7 @@ function goToStep(step) {
         if (startBtn) {
             startBtn.style.display = '';
             startBtn.disabled = false;
-            startBtn.textContent = '\u{1F50D} Start Live Verification';
+            startBtn.textContent = uploadedVideoFile ? ('\u{1F3AC} Start Verification with Video (' + uploadedVideoFile.name + ')') : '\u{1F50D} Start Live Verification';
         }
         const instruction = document.getElementById('challengeInstruction');
         if (instruction) instruction.style.display = 'none';
@@ -876,7 +885,7 @@ function captureSelfie() {
 }
 
 function captureFrame() {
-    const video = document.getElementById('webcam');
+    var video = window.__uploadedVideoEl || document.getElementById('webcam');
     if (!video || !video.videoWidth) return null;
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth;
@@ -909,35 +918,73 @@ async function startLivenessChallenge() {
     challengeCurrentIndex = 0;
     challengeResults = [];
 
-    const video = document.getElementById('webcam');
-    if (!video || !webcamStream) {
-        showToast('Camera not available. Please allow camera access and try again.', 'error');
-        startBtn.disabled = false;
-        startBtn.textContent = '\u{1F50D} Start Live Verification';
-        return;
-    }
+    var useUploadedVideo = !!uploadedVideoFile;
+    var uploadedVideoEl = null;
 
-    try {
-        const rs = video.readyState;
-        if (rs < 2 || video.videoWidth === 0) {
-            await new Promise((resolve) => {
-                let waited = 0;
-                const check = setInterval(() => {
-                    waited += 200;
-                    if ((video.readyState >= 2 && video.videoWidth > 0) || waited > 5000) {
-                        clearInterval(check);
-                        resolve();
-                    }
-                }, 200);
+    if (useUploadedVideo) {
+        uploadedVideoEl = document.createElement('video');
+        uploadedVideoEl.muted = true;
+        uploadedVideoEl.playsInline = true;
+        uploadedVideoEl.loop = true;
+        uploadedVideoEl.id = 'uploadedVideoSource';
+        uploadedVideoEl.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:320px;height:240px;';
+
+        try {
+            await new Promise((resolve, reject) => {
+                uploadedVideoEl.onloadeddata = resolve;
+                uploadedVideoEl.onerror = reject;
+                uploadedVideoEl.src = URL.createObjectURL(uploadedVideoFile);
             });
+            uploadedVideoEl.play();
+        } catch (e) {
+            showToast('Failed to load uploaded video: ' + e.message, 'error');
+            startBtn.disabled = false;
+            startBtn.textContent = '\u{1F3AC} Start Verification with Video (' + uploadedVideoFile.name + ')';
+            return;
         }
-    } catch (e) { }
 
-    if (!video || video.readyState < 2 || video.videoWidth === 0) {
-        showToast('Camera not ready. Please allow camera access and retry.', 'error');
-        startBtn.disabled = false;
-        startBtn.textContent = '\u{1F50D} Start Live Verification';
-        return;
+        window.__uploadedVideoEl = uploadedVideoEl;
+        document.body.appendChild(uploadedVideoEl);
+
+        const challengeLayout = document.getElementById('challengeLayout');
+        if (challengeLayout) {
+            const previewDiv = document.createElement('div');
+            previewDiv.id = 'videoPreviewBox';
+            previewDiv.style.cssText = 'text-align:center;margin-bottom:12px;padding:8px;background:rgba(124,58,237,0.1);border-radius:8px;font-size:12px;color:#7c3aed;';
+            previewDiv.innerHTML = '&#127909; Using uploaded video: <strong>' + uploadedVideoFile.name + '</strong>';
+            challengeLayout.parentElement.insertBefore(previewDiv, challengeLayout);
+        }
+    } else {
+        const video = document.getElementById('webcam');
+        if (!video || !webcamStream) {
+            showToast('Camera not available. Please allow camera access and try again.', 'error');
+            startBtn.disabled = false;
+            startBtn.textContent = '\u{1F50D} Start Live Verification';
+            return;
+        }
+
+        try {
+            const rs = video.readyState;
+            if (rs < 2 || video.videoWidth === 0) {
+                await new Promise((resolve) => {
+                    let waited = 0;
+                    const check = setInterval(() => {
+                        waited += 200;
+                        if ((video.readyState >= 2 && video.videoWidth > 0) || waited > 5000) {
+                            clearInterval(check);
+                            resolve();
+                        }
+                    }, 200);
+                });
+            }
+        } catch (e) { }
+
+        if (!video || video.readyState < 2 || video.videoWidth === 0) {
+            showToast('Camera not ready. Please allow camera access and retry.', 'error');
+            startBtn.disabled = false;
+            startBtn.textContent = '\u{1F50D} Start Live Verification';
+            return;
+        }
     }
 
     // Step 1: Fetch challenge session from server
@@ -1168,7 +1215,7 @@ async function startLivenessChallenge() {
             // 5-second continuous capture window
             capturedFrames = [];
             const captureStart = Date.now();
-            const videoEl = document.getElementById('webcam');
+            const videoEl = window.__uploadedVideoEl || document.getElementById('webcam');
 
             // Reset and start timer bar animation
             if (timerFill) {
@@ -1363,6 +1410,15 @@ async function startLivenessChallenge() {
 
     challengeActive = false;
     if (challengeTimerInterval) { clearInterval(challengeTimerInterval); challengeTimerInterval = null; }
+
+    if (window.__uploadedVideoEl) {
+        window.__uploadedVideoEl.pause();
+        window.__uploadedVideoEl.src = '';
+        if (window.__uploadedVideoEl.parentNode) window.__uploadedVideoEl.parentNode.removeChild(window.__uploadedVideoEl);
+        window.__uploadedVideoEl = null;
+    }
+    var previewBox = document.getElementById('videoPreviewBox');
+    if (previewBox) previewBox.remove();
 
     // Stop challenge video recording and convert to base64
     if (challengeVideoRecorder && challengeVideoRecorder.state === 'recording') {
@@ -2043,6 +2099,19 @@ function handleDeepfakeVideo(event) {
     var file = event.target.files[0];
     if (!file) return;
 
+    uploadedVideoFile = file;
+
+    var startBtn = document.getElementById('startChallengeBtn');
+    if (startBtn) {
+        startBtn.textContent = '\u{1F3AC} Start Verification with Video (' + file.name + ')';
+        startBtn.style.background = 'linear-gradient(135deg, #7c3aed, #2563eb)';
+    }
+
+    var clearBtn = document.getElementById('clearVideoBtn');
+    if (clearBtn) clearBtn.style.display = 'inline-flex';
+    var testBtn = document.getElementById('testDeepfakeBtn');
+    if (testBtn) testBtn.style.display = 'inline-flex';
+
     var resultDiv = document.getElementById('deepfakeTestResult');
     if (!resultDiv) return;
     resultDiv.style.display = 'block';
@@ -2160,4 +2229,75 @@ function sendFramesToDeepfake(frames, resultDiv) {
     .catch(function(e) {
         resultDiv.innerHTML = '<div style="padding:12px;color:var(--danger)">&#10060; Error: ' + e.message + '</div>';
     });
+}
+
+
+function clearUploadedVideo() {
+    uploadedVideoFile = null;
+    window.__uploadedVideoEl = null;
+    var input = document.getElementById('deepfakeVideoInput');
+    if (input) input.value = '';
+    var startBtn = document.getElementById('startChallengeBtn');
+    if (startBtn) {
+        startBtn.textContent = '\u{1F50D} Start Live Verification';
+        startBtn.style.background = '';
+    }
+    var clearBtn = document.getElementById('clearVideoBtn');
+    if (clearBtn) clearBtn.style.display = 'none';
+    var testBtn = document.getElementById('testDeepfakeBtn');
+    if (testBtn) testBtn.style.display = 'none';
+    var resultDiv = document.getElementById('deepfakeTestResult');
+    if (resultDiv) { resultDiv.style.display = 'none'; resultDiv.innerHTML = ''; }
+}
+
+function runDeepfakeTest() {
+    if (!uploadedVideoFile) {
+        showToast('No video uploaded', 'error');
+        return;
+    }
+    var resultDiv = document.getElementById('deepfakeTestResult');
+    if (!resultDiv) return;
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '<div style="text-align:center;padding:16px"><div class="spinner" style="margin:0 auto 8px"></div><p style="font-size:13px;color:var(--gray-500)">Extracting frames from video...</p></div>';
+
+    var video = document.createElement('video');
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = 'metadata';
+    var canvas = document.createElement('canvas');
+    var ctx = canvas.getContext('2d');
+
+    video.onloadedmetadata = function() {
+        var duration = video.duration;
+        canvas.width = Math.min(video.videoWidth, 320);
+        canvas.height = Math.min(video.videoHeight, 320);
+        var numFrames = Math.min(Math.max(Math.floor(duration * 2), 3), 15);
+        var interval = duration / numFrames;
+        var frames = [];
+        var currentFrame = 0;
+
+        function captureNext() {
+            if (currentFrame >= numFrames) {
+                sendFramesToDeepfake(frames, resultDiv);
+                return;
+            }
+            video.currentTime = currentFrame * interval;
+        }
+
+        video.onseeked = function() {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            frames.push({
+                index: currentFrame,
+                time: (currentFrame * interval).toFixed(1) + 's',
+                image: canvas.toDataURL('image/jpeg', 0.8)
+            });
+            currentFrame++;
+            resultDiv.innerHTML = '<div style="text-align:center;padding:16px"><div class="spinner" style="margin:0 auto 8px"></div><p style="font-size:13px;color:var(--gray-500)">Extracted frame ' + currentFrame + '/' + numFrames + '</p></div>';
+            captureNext();
+        };
+
+        captureNext();
+    };
+
+    video.src = URL.createObjectURL(uploadedVideoFile);
 }

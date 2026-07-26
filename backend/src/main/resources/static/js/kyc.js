@@ -303,7 +303,7 @@ function checkUploadReady() {
     }
 }
 
-// ====================== OCR ======================
+// ====================== QR EXTRACTION ======================
 function populateOCRForm() {
     ocrInProgress = false;
     var ocrStatus = document.getElementById('ocrStatus');
@@ -341,7 +341,9 @@ function populateOCRForm() {
         if (kycData.mobile) document.getElementById('kycMobile').value = kycData.mobile;
         if (kycData.email) document.getElementById('kycEmail').value = kycData.email;
     } else {
-        startQRExtraction();
+        ocrStatus.style.display = 'block';
+        ocrForm.style.display = 'none';
+        ocrStatus.innerHTML = '<div style="font-size:48px;margin-bottom:12px">&#128270;</div><p>Click below to scan QR codes from your uploaded documents</p><button class="btn btn-primary" style="margin-top:12px" onclick="startQRExtraction()">&#128270; Scan QR Code</button><button class="btn btn-outline" style="margin-top:8px" onclick="manualEntryFallback()">Enter Details Manually</button>';
     }
 }
 
@@ -387,7 +389,7 @@ async function startQRExtraction() {
     if (!ocrStatus || !ocrForm) return;
     ocrStatus.style.display = 'block';
     ocrForm.style.display = 'none';
-    ocrStatus.innerHTML = '<div class="spinner"></div><p>Scanning document QR codes...</p>';
+    ocrStatus.innerHTML = '<div class="spinner"></div><p>Scanning QR codes from your documents...</p>';
 
     try {
         const healthRes = await fetch('/api/ai/healthz');

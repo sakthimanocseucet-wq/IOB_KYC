@@ -1371,7 +1371,7 @@ function renderQrResult(data, appId) {
                 '<div style="font-size:12px;color:var(--gray-500)">QR Detection: ' + detectionBadge + ' &bull; Match: ' + matchPct + '%</div>' +
             '</div>' +
         '</div>' +
-        '<button class="btn btn-sm btn-outline" onclick="triggerQrVerification(' + appId + ')" id="qrVerifyBtn_' + appId + '" style="font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer">&#128260; Re-run</button>' +
+        '<button class="btn btn-sm btn-outline" onclick="triggerQrVerification(' + appId + ')" id="qrVerifyBtn_' + appId + '" style="font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer">&#128260; Refresh</button>' +
     '</div>';
 
     var results = data.results || {};
@@ -1498,14 +1498,14 @@ async function triggerQrVerification(appId) {
         } else {
             if (container) {
                 container.innerHTML = '<div style="text-align:center;padding:12px"><p style="font-size:13px;color:var(--danger)">&#10060; ' + (data.message || 'Verification failed') + '</p>' +
-                    '<button class="btn btn-sm btn-outline" onclick="triggerQrVerification(' + appId + ')" style="margin-top:8px;font-size:12px;padding:6px 12px;cursor:pointer">&#128260; Retry</button></div>';
+                    '<button class="btn btn-sm btn-outline" onclick="triggerQrVerification(' + appId + ')" style="margin-top:8px;font-size:12px;padding:6px 12px;cursor:pointer">&#128260; Refresh</button></div>';
             }
             showToast('QR verification failed', 'error');
         }
     } catch (e) {
         if (container) {
             container.innerHTML = '<div style="text-align:center;padding:12px"><p style="font-size:13px;color:var(--danger)">&#10060; Error: ' + e.message + '</p>' +
-                '<button class="btn btn-sm btn-outline" onclick="triggerQrVerification(' + appId + ')" style="margin-top:8px;font-size:12px;padding:6px 12px;cursor:pointer">&#128260; Retry</button></div>';
+                    '<button class="btn btn-sm btn-outline" onclick="triggerQrVerification(' + appId + ')" style="margin-top:8px;font-size:12px;padding:6px 12px;cursor:pointer">&#128260; Refresh</button></div>';
         }
         showToast('QR verification error: ' + e.message, 'error');
     }

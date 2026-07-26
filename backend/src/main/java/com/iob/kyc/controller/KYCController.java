@@ -401,7 +401,11 @@ public class KYCController {
             }
         }
         if (best == null) best = apps.get(0);
-        return serveFileField(best.getPhotoFilePath());
+        var resp = serveFileField(best.getPhotoFilePath());
+        if (resp.getStatusCode().is4xxClientError() && best.getPhotoBase64() != null && !best.getPhotoBase64().isEmpty()) {
+            return serveBase64(best.getPhotoBase64());
+        }
+        return resp;
     }
 
     @GetMapping("/approved")

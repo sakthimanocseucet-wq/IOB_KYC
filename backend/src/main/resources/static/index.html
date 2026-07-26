@@ -4,14 +4,37 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Indian Overseas Bank - Secure Digital KYC Onboarding</title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/landing.css">
+    <link rel="preconnect" href="https://iobkyc-production.up.railway.app">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="css/style.css" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="css/landing.css" media="print" onload="this.media='all'">
     <link rel="icon" type="image/png" href="assets/logo.png">
+    <style>
+        body{margin:0;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f8fafc;color:#1e293b}
+        .navbar{display:flex;align-items:center;justify-content:space-between;padding:16px 32px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.08);position:sticky;top:0;z-index:100}
+        .logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px}
+        .iob-logo{height:36px;width:auto}
+        .hero{min-height:80vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:60px 32px;background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);color:#fff}
+        .hero h1{font-size:clamp(28px,5vw,48px);margin:16px 0 12px}
+        .hero p{font-size:18px;opacity:.9;max-width:600px;margin:0 auto 32px}
+        .hero-buttons{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+        .btn{display:inline-block;padding:12px 28px;border-radius:8px;font-weight:600;text-decoration:none;transition:all .2s}
+        .btn-primary{background:#fff;color:#1e3a5f}.btn-primary:hover{background:#e2e8f0}
+        .btn-outline{border:2px solid #fff;color:#fff;background:transparent}.btn-outline:hover{background:rgba(255,255,255,.1)}
+        .features,.workflow{padding:60px 32px;text-align:center}
+        .section-title{font-size:28px;margin-bottom:40px}
+        .features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px;max-width:1000px;margin:0 auto}
+        .feature-card{background:#fff;padding:28px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+        .feature-icon{font-size:36px;margin-bottom:12px}
+        .footer{background:#1e293b;color:#94a3b8;text-align:center;padding:32px}
+        @media(max-width:768px){.navbar{padding:12px 16px}.hero{padding:40px 16px;min-height:70vh}.features,.workflow{padding:40px 16px}}
+    </style>
 </head>
 <body>
     <nav class="navbar">
         <div class="logo">
-            <img src="assets/logo.png" alt="IOB" class="iob-logo" height="36">
+            <img src="assets/logo.png" alt="IOB" class="iob-logo" width="50" height="56" loading="eager" fetchpriority="high">
             <span>Indian Overseas Bank</span>
         </div>
         <div class="hamburger" onclick="toggleMobileMenu()">
@@ -126,7 +149,7 @@
     <footer class="footer">
         <div class="footer-content">
             <div class="footer-brand">
-                <img src="assets/logo.png" alt="IOB" height="30">
+                <img src="assets/logo.png" alt="IOB" width="30" height="34" loading="lazy">
                 <span>Indian Overseas Bank</span>
             </div>
             <p>&copy; 2026 Indian Overseas Bank. All rights reserved. Powered by AI & Zero Trust Security.</p>
@@ -135,6 +158,6 @@
 
     <div class="toast-container" id="toastContainer"></div>
 
-    <script src="js/main.js"></script>
+    <script src="js/main.js" defer></script>
 </body>
 </html>

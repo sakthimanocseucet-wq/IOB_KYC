@@ -5,18 +5,21 @@
     <meta http-equiv="pragma" content="no-cache">
     <meta http-equiv="expires" content="0">
     <meta charset="UTF-8">
+    <link rel="preconnect" href="https://iobkyc-production.up.railway.app">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KYC Application - Indian Overseas Bank</title>
-    <link rel="stylesheet" href="../css/style.css">
-    <link rel="stylesheet" href="../css/dashboard.css">
-    <link rel="stylesheet" href="../css/kyc.css">
+    <link rel="stylesheet" href="../css/style.css" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="../css/dashboard.css" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="../css/kyc.css" media="print" onload="this.media='all'">
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 </head>
 <body>
     <nav class="navbar">
         <div class="logo">
-            <img src="../assets/logo.png" alt="IOB" class="iob-logo" height="36">
+            <img src="../assets/logo.png" alt="IOB" class="iob-logo" width="50" height="36">
             <span>Indian Overseas Bank</span>
         </div>
         <div class="hamburger" onclick="toggleMobileMenu()">
@@ -343,7 +346,7 @@
     </div>
 
     <div class="toast-container" id="toastContainer"></div>
-    <script src="../js/swipe.js?v=1"></script>
+    <script src="../js/swipe.js?v=1" defer></script>
     <script>
         (function() {
             try {
@@ -368,9 +371,9 @@
             try { fetch('/api/debug/error', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({message: e.reason && e.reason.message, stack: e.reason && e.reason.stack}) }); } catch(ex) {}
         });
     </script>
-    <script src="../js/main.js?v=swipe2"></script>
-    <script src="../js/auth.js?v=10"></script>
-    <script src="../js/kyc.js?v=18"></script>
+    <script src="../js/main.js?v=swipe2" defer></script>
+    <script src="../js/auth.js?v=10" defer></script>
+    <script src="../js/kyc.js?v=18" defer></script>
     <script>
     if (typeof handleDocSelect === 'undefined') {
         window.handleDocSelect = function(input, type) {

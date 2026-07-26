@@ -2,17 +2,20 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="preconnect" href="https://iobkyc-production.up.railway.app">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Employee Register - IOB KYC</title>
-    <link rel="stylesheet" href="../css/style.css">
-    <link rel="stylesheet" href="../css/auth.css">
+    <link rel="stylesheet" href="../css/style.css" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="../css/auth.css" media="print" onload="this.media='all'">
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 </head>
 <body>
     <nav class="navbar">
         <div class="logo">
-            <img src="../assets/logo.png" alt="IOB" class="iob-logo" height="36">
+            <img src="../assets/logo.png" alt="IOB" class="iob-logo" width="50" height="36">
             <span>Indian Overseas Bank - Employee Portal</span>
         </div>
         <div class="hamburger" onclick="toggleMobileMenu()">
@@ -109,8 +112,8 @@
     </div>
 
     <div class="toast-container" id="toastContainer"></div>
-    <script src="js/swipe.js?v=1"></script>
-    <script src="../js/main.js?v=swipe2"></script>
-    <script src="../js/auth.js?v=2"></script>
+    <script src="js/swipe.js?v=1" defer></script>
+    <script src="../js/main.js?v=swipe2" defer></script>
+    <script src="../js/auth.js?v=2" defer></script>
 </body>
 </html>

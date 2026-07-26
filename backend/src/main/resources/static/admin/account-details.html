@@ -2,10 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="preconnect" href="https://iobkyc-production.up.railway.app">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Customer Account Details - IOB KYC</title>
-    <link rel="stylesheet" href="../css/style.css?v=5">
-    <link rel="stylesheet" href="../css/admin.css?v=5">
+    <link rel="stylesheet" href="../css/style.css?v=5" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="../css/admin.css?v=5" media="print" onload="this.media='all'">
     <style>
         .details-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
         .details-grid .full-width { grid-column:1/-1; }
@@ -40,7 +43,7 @@
 <body class="admin-body">
     <nav class="navbar admin-navbar">
         <div class="logo">
-            <img src="../assets/logo.png" alt="IOB" class="iob-logo" height="36">
+            <img src="../assets/logo.png" alt="IOB" class="iob-logo" width="50" height="36">
             <span>Indian Overseas Bank - Account Details</span>
         </div>
         <div class="hamburger" onclick="toggleMobileMenu()">
@@ -154,9 +157,9 @@
         </div>
     </div>
 
-    <script src="../js/swipe.js?v=1"></script>
-    <script src="../js/main.js?v=swipe2"></script>
-    <script src="../js/auth.js?v=5"></script>
+    <script src="../js/swipe.js?v=1" defer></script>
+    <script src="../js/main.js?v=swipe2" defer></script>
+    <script src="../js/auth.js?v=5" defer></script>
     <script>
         var API_BASE = '/api/admin/account-details';
 

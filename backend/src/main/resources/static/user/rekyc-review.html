@@ -2,11 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="preconnect" href="https://iobkyc-production.up.railway.app">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Re-KYC Review & Edit - Indian Overseas Bank</title>
-    <link rel="stylesheet" href="../css/style.css?v=10">
-    <link rel="stylesheet" href="../css/dashboard.css?v=10">
-    <link rel="stylesheet" href="../css/kyc.css?v=5">
+    <link rel="stylesheet" href="../css/style.css?v=10" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="../css/dashboard.css?v=10" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="../css/kyc.css?v=5" media="print" onload="this.media='all'">
     <style>
         .review-header { display:flex; align-items:center; gap:16px; margin-bottom:24px; }
         .review-header .badge-rekyc { background:var(--primary,#1a73e8); color:#fff; padding:4px 12px; border-radius:12px; font-size:12px; font-weight:600; }
@@ -36,7 +39,7 @@
 <body>
     <nav class="navbar">
         <div class="logo">
-            <img src="../assets/logo.png" alt="IOB" class="iob-logo" height="36">
+            <img src="../assets/logo.png" alt="IOB" class="iob-logo" width="50" height="36">
             <span>Indian Overseas Bank</span>
         </div>
         <div class="hamburger" onclick="toggleMobileMenu()">
@@ -186,7 +189,7 @@
 
     </div><!-- end dashboard-container -->
 
-    <script src="../js/swipe.js?v=1"></script>
+    <script src="../js/swipe.js?v=1" defer></script>
     <script>
         // Instant cache: show form data from localStorage before any external JS loads
         (function() {
@@ -215,9 +218,9 @@
         })();
     </script>
 
-        <script src="../js/main.js?v=swipe3"></script>
-    <script src="../js/auth.js?v=11"></script>
-    <script src="../js/kyc.js?v=16"></script>
+        <script src="../js/main.js?v=swipe3" defer></script>
+    <script src="../js/auth.js?v=11" defer></script>
+    <script src="../js/kyc.js?v=16" defer></script>
     <script>
         var newDocs = { aadhaar: null, pan: null, photo: null };
         var existingAppId = '';

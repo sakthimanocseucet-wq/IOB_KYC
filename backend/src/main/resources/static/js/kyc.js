@@ -474,17 +474,18 @@ let kycEmailOtpTimer = null;
 let kycOtpMethod = 'email';
 let firebaseConfirmationResult = null;
 let firebaseInitialized = false;
+let kycFirebaseApp = null;
 
 async function initFirebase() {
     if (firebaseInitialized) return;
     try {
-        var existingApp = firebase.apps.find(function(app) { return app.name === '[DEFAULT]'; });
-        if (existingApp) { firebaseInitialized = true; return; }
+        var existingApp = firebase.apps.find(function(app) { return app.name === 'kycFirebase'; });
+        if (existingApp) { kycFirebaseApp = existingApp; firebaseInitialized = true; return; }
         var res = await fetch('/api/config/firebase');
         var cfg = await res.json();
         console.log('[Firebase] Config:', cfg);
         if (cfg.apiKey && cfg.projectId) {
-            firebase.initializeApp({ apiKey: cfg.apiKey, authDomain: cfg.authDomain, projectId: cfg.projectId });
+            kycFirebaseApp = firebase.initializeApp({ apiKey: cfg.apiKey, authDomain: cfg.authDomain, projectId: cfg.projectId }, 'kycFirebase');
             firebaseInitialized = true;
             console.log('[Firebase] Initialized OK');
         } else {
@@ -535,8 +536,9 @@ async function sendKycOtp() {
         if (!firebaseInitialized) { showAlert('Firebase not configured. Use email OTP.', 'error'); btn.disabled = false; return; }
 
         try {
-            var recaptchaVerifier = new firebase.auth.RecaptchaVerifier('sendEmailOtpBtn', { size: 'invisible' });
-            firebaseConfirmationResult = await firebase.auth().signInWithPhoneNumber(phone, recaptchaVerifier);
+            var auth = kycFirebaseApp ? firebase.auth(kycFirebaseApp) : firebase.auth();
+            var recaptchaVerifier = new auth.RecaptchaVerifier('sendEmailOtpBtn', { size: 'invisible' });
+            firebaseConfirmationResult = await auth.signInWithPhoneNumber(phone, recaptchaVerifier);
             showToast('OTP sent to ' + phone, 'success');
         } catch (e) {
             console.error('[Firebase] SMS error:', e);

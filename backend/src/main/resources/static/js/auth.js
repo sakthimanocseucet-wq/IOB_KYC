@@ -31,16 +31,17 @@ function showFieldError(errorId, message) {
 let otpMethod = 'email';
 let regFirebaseConfirmation = null;
 let regFirebaseInitialized = false;
+let regFirebaseApp = null;
 
 async function initRegFirebase() {
     if (regFirebaseInitialized) return;
     try {
         var existingApp = firebase.apps.find(function(app) { return app.name === 'regFirebase'; });
-        if (existingApp) { regFirebaseInitialized = true; return; }
+        if (existingApp) { regFirebaseApp = existingApp; regFirebaseInitialized = true; return; }
         var res = await fetch('/api/config/firebase');
         var cfg = await res.json();
         if (cfg.apiKey && cfg.projectId) {
-            firebase.initializeApp({ apiKey: cfg.apiKey, authDomain: cfg.authDomain, projectId: cfg.projectId }, 'regFirebase');
+            regFirebaseApp = firebase.initializeApp({ apiKey: cfg.apiKey, authDomain: cfg.authDomain, projectId: cfg.projectId }, 'regFirebase');
             regFirebaseInitialized = true;
         }
     } catch (e) {
@@ -206,9 +207,9 @@ async function sendRegOTP() {
         await initRegFirebase();
         if (!regFirebaseInitialized) { showFieldError('otpError', 'Firebase not configured. Use email OTP.'); btn.disabled = false; return; }
         try {
-            var recaptchaVerifier = new firebase.auth.RecaptchaVerifier('sendOtpBtn', { size: 'invisible' });
-            var app = regFirebaseInitialized ? firebase.app('regFirebase') : firebase.app();
-            regFirebaseConfirmation = await app.auth().signInWithPhoneNumber(identifier, recaptchaVerifier);
+            var auth = regFirebaseApp ? firebase.auth(regFirebaseApp) : firebase.auth();
+            var recaptchaVerifier = new auth.RecaptchaVerifier('sendOtpBtn', { size: 'invisible' });
+            regFirebaseConfirmation = await auth.signInWithPhoneNumber(identifier, recaptchaVerifier);
             showToast('OTP sent to ' + identifier, 'success');
         } catch (e) {
             showFieldError('otpError', 'Failed to send SMS: ' + e.message);

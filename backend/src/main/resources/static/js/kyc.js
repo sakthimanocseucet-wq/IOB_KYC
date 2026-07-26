@@ -303,7 +303,7 @@ function checkUploadReady() {
     }
 }
 
-// ====================== QR EXTRACTION ======================
+// ====================== OCR ======================
 function populateOCRForm() {
     ocrInProgress = false;
     var ocrStatus = document.getElementById('ocrStatus');
@@ -341,9 +341,7 @@ function populateOCRForm() {
         if (kycData.mobile) document.getElementById('kycMobile').value = kycData.mobile;
         if (kycData.email) document.getElementById('kycEmail').value = kycData.email;
     } else {
-        ocrStatus.style.display = 'block';
-        ocrForm.style.display = 'none';
-        ocrStatus.innerHTML = '<div style="font-size:48px;margin-bottom:12px">&#128270;</div><p>Click below to scan QR codes from your uploaded documents</p><button class="btn btn-primary" style="margin-top:12px" onclick="startQRExtraction()">&#128270; Scan QR Code</button><button class="btn btn-outline" style="margin-top:8px" onclick="manualEntryFallback()">Enter Details Manually</button>';
+        startOCR();
     }
 }
 
@@ -381,7 +379,7 @@ async function runOCR(imageFile, docType) {
     }
 }
 
-async function startQRExtraction() {
+async function startOCR() {
     if (ocrInProgress) return;
     ocrInProgress = true;
     const ocrStatus = document.getElementById('ocrStatus');
@@ -389,86 +387,88 @@ async function startQRExtraction() {
     if (!ocrStatus || !ocrForm) return;
     ocrStatus.style.display = 'block';
     ocrForm.style.display = 'none';
-    ocrStatus.innerHTML = '<div class="spinner"></div><p>Scanning QR codes from your documents...</p>';
+    ocrStatus.innerHTML = '<div class="spinner"></div><p>Connecting to OCR server...</p>';
 
     try {
         const healthRes = await fetch('/api/ai/healthz');
         if (!healthRes.ok) throw new Error('AI server not reachable');
     } catch {
-        ocrStatus.innerHTML = '<p>QR server not running.</p><button class="btn btn-primary" style="margin-top:12px" onclick="manualEntryFallback()">Enter Details Manually</button>';
+        ocrStatus.innerHTML = '<p>OCR server not running.</p><p style="font-size:12px;color:var(--gray-500);margin-top:4px">Start it with: <code>python api_server.py</code> in the ai-ml folder</p><button class="btn btn-primary" style="margin-top:12px" onclick="manualEntryFallback()">Enter Details Manually</button>';
         ocrInProgress = false;
         return;
     }
 
-    var formData = new FormData();
-    if (kycData.aadhaarFile) formData.append('aadhaar_image', kycData.aadhaarFile);
-    if (kycData.panFile) formData.append('pan_image', kycData.panFile);
+    ocrStatus.innerHTML = '<div class="spinner"></div><p>Scanning document...</p>';
 
-    if (!kycData.aadhaarFile && !kycData.panFile) {
-        ocrStatus.innerHTML = '<p>No document uploaded.</p><button class="btn btn-primary" style="margin-top:12px" onclick="manualEntryFallback()">Enter Details Manually</button>';
+    var docResult = { success: false, data: {} };
+    if (kycData.aadhaarFile) {
+        docResult = await runOCR(kycData.aadhaarFile, 'AADHAAR');
+    }
+    if (kycData.panFile) {
+        var panResult = await runOCR(kycData.panFile, 'PAN');
+        if (panResult.success && panResult.data) {
+            if (!docResult.success) {
+                docResult = panResult;
+                if (docResult.data.id_number) docResult.data.pan_number = docResult.data.id_number;
+            } else {
+                if (panResult.data.id_number) docResult.data.pan_number = panResult.data.id_number;
+                if (panResult.data.name && !docResult.data.name) docResult.data.name = panResult.data.name;
+                if (panResult.data.dob && !docResult.data.dob) docResult.data.dob = panResult.data.dob;
+                if (panResult.data.address && !docResult.data.address) docResult.data.address = panResult.data.address;
+            }
+        }
+    }
+
+    if (!ocrInProgress) return;
+    if (!docResult.success) {
+        ocrStatus.innerHTML = '<p>OCR failed: ' + docResult.error + '</p><button class="btn btn-primary" style="margin-top:12px" onclick="manualEntryFallback()">Enter Details Manually</button>';
         ocrInProgress = false;
         return;
     }
 
-    try {
-        var headers = {};
-        var tkn = (typeof getAuthToken === 'function') ? getAuthToken() : null;
-        if (tkn) headers['Authorization'] = 'Bearer ' + tkn;
-        const res = await fetch(AI_API + '/qr-extract', { method: 'POST', headers: headers, body: formData });
-        const result = await res.json();
+    ocrInProgress = false;
+    ocrStatus.innerHTML = '<div class="spinner"></div><p>Extracting personal details...</p>';
+    await new Promise(r => setTimeout(r, 300));
 
-        ocrInProgress = false;
-        ocrStatus.style.display = 'none';
-        ocrForm.style.display = 'block';
+    ocrStatus.style.display = 'none';
+    ocrForm.style.display = 'block';
 
-        if (!result.success || !result.data) {
-            showToast('Could not extract data from QR codes. Enter details manually.', 'info');
-            kycData.ocrData = { name: '', dob: '', idNumber: '', panNumber: '', address: '', gender: '', branch: '' };
-            return;
-        }
-
-        const data = result.data;
-        let dob = data.dob || '';
-        if (dob && dob.includes('/')) {
-            const parts = dob.split('/');
-            dob = parts[2] + '-' + parts[1] + '-' + parts[0];
-        }
-
-        kycData.ocrData = {
-            name: data.name || '',
-            dob: dob,
-            idNumber: data.aadhaar_number || '',
-            panNumber: data.pan_number || '',
-            address: data.address || '',
-            gender: data.gender || '',
-            branch: ''
-        };
-
-        document.getElementById('ocrName').value = kycData.ocrData.name;
-        document.getElementById('ocrDob').value = kycData.ocrData.dob;
-        document.getElementById('ocrIdNumber').value = kycData.ocrData.idNumber;
-        if (kycData.ocrData.panNumber) document.getElementById('ocrPanNumber').value = kycData.ocrData.panNumber;
-        document.getElementById('ocrAddress').value = kycData.ocrData.address;
-        if (kycData.ocrData.gender && document.getElementById('ocrGender')) {
-            document.getElementById('ocrGender').value = kycData.ocrData.gender;
-        }
-
-        const user = getUser();
-        if (user) {
-            if (!document.getElementById('kycMobile').value && user.phone) document.getElementById('kycMobile').value = user.phone;
-            if (!document.getElementById('kycEmail').value && user.email) document.getElementById('kycEmail').value = user.email;
-        }
-
-        if (kycData.ocrData.name || kycData.ocrData.idNumber) {
-            showToast('Document QR codes scanned! Verify extracted details', 'success');
-        } else {
-            showToast('QR codes not detected. Enter details manually.', 'info');
-        }
-        document.getElementById('ocrName').focus();
-    } catch (e) {
-        ocrInProgress = false;
-        ocrStatus.innerHTML = '<p>QR extraction failed: ' + e.message + '</p><button class="btn btn-primary" style="margin-top:12px" onclick="manualEntryFallback()">Enter Details Manually</button>';
+    const data = docResult.data || {};
+    let dob = data.dob || '';
+    if (dob && dob.includes('/')) {
+        const parts = dob.split('/');
+        dob = parts[2] + '-' + parts[1] + '-' + parts[0];
     }
+
+    kycData.ocrData = {
+        name: data.name || '',
+        dob: dob,
+        idNumber: data.id_number || '',
+        panNumber: data.pan_number || '',
+        address: data.address || '',
+        addressComponents: data.address_components || null,
+        branch: data.branch || ''
+    };
+    document.getElementById('ocrName').value = kycData.ocrData.name;
+    document.getElementById('ocrDob').value = kycData.ocrData.dob;
+    var idField = document.getElementById('ocrIdNumber');
+    idField.value = kycData.ocrData.idNumber;
+    if (kycData.ocrData.panNumber) document.getElementById('ocrPanNumber').value = kycData.ocrData.panNumber;
+    document.getElementById('ocrAddress').value = kycData.ocrData.address;
+    document.getElementById('ocrBranch').value = kycData.ocrData.branch;
+
+    const user = getUser();
+    if (user) {
+        if (!document.getElementById('kycMobile').value && user.phone) document.getElementById('kycMobile').value = user.phone;
+        if (!document.getElementById('kycEmail').value && user.email) document.getElementById('kycEmail').value = user.email;
+    }
+
+    if (kycData.ocrData.name || kycData.ocrData.idNumber) {
+        showToast('Document scanned! Verify extracted details', 'success');
+    } else {
+        showToast('Could not auto-extract. Enter details manually', 'info');
+    }
+    document.getElementById('ocrName').focus();
 }
 
 // ====================== KYC OTP (Email or SMS) ======================

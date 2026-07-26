@@ -105,14 +105,13 @@
                     </div>
                     <div class="ocr-status" id="ocrStatus">
                         <div class="spinner"></div>
-                        <p>Scanning document QR codes...</p>
-                        <button class="btn btn-primary" style="margin-top:12px" onclick="startQRExtraction()">&#128270; Scan QR Code</button>
+                        <p>Running OCR extraction...</p>
                     </div>
                     <div id="ocrForm" style="display:none">
                         <div class="form-row">
                             <div class="form-group">
                                 <label>Full Name (as on document)</label>
-                                <input type="text" id="ocrName" placeholder="Scan QR to auto-fill">
+                                <input type="text" id="ocrName" placeholder="Name extracted from document">
                             </div>
                             <div class="form-group">
                                 <label>Date of Birth</label>
@@ -131,16 +130,16 @@
                             </div>
                             <div class="form-group">
                                 <label>Aadhaar Number</label>
-                                <input type="text" id="ocrIdNumber" placeholder="From Aadhaar QR code">
+                                <input type="text" id="ocrIdNumber" placeholder="Aadhaar number extracted">
                             </div>
                         </div>
                         <div class="form-group">
                             <label>PAN Number</label>
-                                <input type="text" id="ocrPanNumber" placeholder="From PAN QR code" readonly>
+                                <input type="text" id="ocrPanNumber" placeholder="PAN number extracted" readonly>
                         </div>
                         <div class="form-group">
                             <label>Address</label>
-                            <textarea id="ocrAddress" rows="3" placeholder="From Aadhaar QR code"></textarea>
+                            <textarea id="ocrAddress" rows="3" placeholder="Enter your full address manually"></textarea>
                         </div>
                         <div class="form-group">
                             <label>Branch</label>

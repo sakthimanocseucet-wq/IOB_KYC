@@ -250,7 +250,7 @@ class FaceVerifier:
         l = clahe.apply(l)
         enhanced = cv2.merge([l, a, b])
         enhanced = cv2.cvtColor(enhanced, cv2.COLOR_LAB2BGR)
-        denoised = cv2.fastNlMeansDenoisingColored(enhanced, None, h=5, hForColoredImage=5)
+        denoised = cv2.fastNlMeansDenoisingColored(enhanced, None, 5, 5)
         return denoised
 
     def _cosine_similarity(self, emb1, emb2):

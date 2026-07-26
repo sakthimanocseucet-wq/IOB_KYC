@@ -694,23 +694,25 @@ async function verifyDetails() {
     if (!mobile || mobile.length < 10) { showAlert('Please enter a valid mobile number with country code (e.g., +91 9876543210)', 'error'); return; }
     if (!/^\+[0-9]/.test(mobile)) { showAlert('Mobile number must start with country code (e.g., +91)', 'error'); return; }
     if (!email) { showAlert('Please enter your email address', 'error'); return; }
-    if (!emailOtp || emailOtp.length !== 6) { showAlert('Please enter the 6-digit OTP sent to your ' + (kycOtpMethod === 'sms' ? 'mobile number' : 'email'), 'error'); return; }
+    if (!kycData.emailOtpVerified && (!emailOtp || emailOtp.length !== 6)) { showAlert('Please enter the 6-digit OTP sent to your ' + (kycOtpMethod === 'sms' ? 'mobile number' : 'email'), 'error'); return; }
 
-    try {
-        if (kycOtpMethod === 'sms') {
-            if (!firebaseConfirmationResult) { showAlert('Please send OTP first', 'error'); return; }
-            await firebaseConfirmationResult.confirm(emailOtp);
-        } else {
-            var otpRes = await fetch('/api/auth/otp/verify?identifier=' + encodeURIComponent(email) + '&otp=' + emailOtp + '&purpose=KYC', { method: 'POST' });
-            var otpResult = await otpRes.json();
-            if (!otpResult.success) {
-                showAlert(otpResult.message || 'Invalid email OTP. Please try again.', 'error');
-                return;
+    if (!kycData.emailOtpVerified) {
+        try {
+            if (kycOtpMethod === 'sms') {
+                if (!firebaseConfirmationResult) { showAlert('Please send OTP first', 'error'); return; }
+                await firebaseConfirmationResult.confirm(emailOtp);
+            } else {
+                var otpRes = await fetch('/api/auth/otp/verify?identifier=' + encodeURIComponent(email) + '&otp=' + emailOtp + '&purpose=KYC', { method: 'POST' });
+                var otpResult = await otpRes.json();
+                if (!otpResult.success) {
+                    showAlert(otpResult.message || 'Invalid email OTP. Please try again.', 'error');
+                    return;
+                }
             }
+        } catch (err) {
+            showAlert('OTP verification failed. Please try again.', 'error');
+            return;
         }
-    } catch (err) {
-        showAlert('OTP verification failed. Please try again.', 'error');
-        return;
     }
 
     kycData.emailOtpVerified = true;

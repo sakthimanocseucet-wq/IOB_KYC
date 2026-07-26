@@ -1440,7 +1440,6 @@ async function triggerQrVerification(appId) {
         var data = await res.json();
         if (data.success) {
             lastDataHash = '';
-            await loadApplicationsFromAPI();
             if (data.results && data.verificationStatus) {
                 if (container) {
                     container.innerHTML = renderQrResult(data, appId);

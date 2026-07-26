@@ -53,85 +53,6 @@ def _is_date_text(text):
     return False
 
 
-def _ensure_min_size(img, min_dim=1000):
-    h, w = img.shape[:2]
-    if max(h, w) < min_dim:
-        scale = min_dim / max(h, w)
-        img = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
-    return img
-
-
-def _preprocess_adaptive(img):
-    """Strategy 1: Adaptive Gaussian thresholding — best for uneven lighting."""
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    denoised = cv2.fastNlMeansDenoising(gray, h=8)
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-    enhanced = clahe.apply(denoised)
-    kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]], dtype=np.float32)
-    sharpened = cv2.filter2D(enhanced, -1, kernel)
-    adaptive_bin = cv2.adaptiveThreshold(
-        sharpened, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv2.THRESH_BINARY, 25, 12
-    )
-    kernel_morph = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
-    cleaned = cv2.morphologyEx(adaptive_bin, cv2.MORPH_CLOSE, kernel_morph)
-    return cv2.cvtColor(cleaned, cv2.COLOR_GRAY2BGR)
-
-
-def _preprocess_otsu(img):
-    """Strategy 2: Otsu binarization — best for clean scans with good contrast."""
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    denoised = cv2.fastNlMeansDenoising(gray, h=6)
-    clahe = cv2.createCLAHE(clipLimit=1.5, tileGridSize=(8, 8))
-    enhanced = clahe.apply(denoised)
-    blurred = cv2.GaussianBlur(enhanced, (3, 3), 0)
-    _, binary = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    return cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
-
-
-def _preprocess_unsharp(img):
-    """Strategy 3: Unsharp mask — best for low-contrast photos with faint text."""
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    denoised = cv2.fastNlMeansDenoising(gray, h=10)
-    blurred = cv2.GaussianBlur(denoised, (0, 0), 3)
-    sharpened = cv2.addWeighted(denoised, 1.5, blurred, -0.5, 0)
-    clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
-    enhanced = clahe.apply(sharpened)
-    _, binary = cv2.threshold(enhanced, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    return cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
-
-
-def _preprocess_for_ocr(img):
-    """Enhance image for better OCR accuracy."""
-    return _preprocess_adaptive(img)
-
-
-def _score_ocr_result(items):
-    """Score an OCR result by quality: more readable items = higher score."""
-    if not items:
-        return 0
-    score = 0
-    for it in items:
-        text = it['text']
-        conf = it.get('conf', 0)
-        score += conf * 10
-        alpha_count = sum(1 for c in text if c.isalpha())
-        digit_count = sum(1 for c in text if c.isdigit())
-        if alpha_count > 0:
-            score += min(alpha_count, 20)
-        if digit_count > 0:
-            score += min(digit_count, 10)
-        has_name_like = bool(re.search(r'[A-Z][a-z]{2,}', text))
-        if has_name_like:
-            score += 5
-        has_pin = bool(re.search(r'\b\d{6}\b', text))
-        if has_pin:
-            score += 10
-        has_address = bool(re.search(r'\b(S/O|D/O|W/O|C/O|Road|Nagar|Colony|Street)\b', text, re.IGNORECASE))
-        if has_address:
-            score += 8
-    return score
-
 
 def ocr_image(image_bytes, doc_type='AADHAAR'):
     engine = get_ocr()
@@ -151,11 +72,10 @@ def ocr_image(image_bytes, doc_type='AADHAAR'):
         img = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
         h, w = img.shape[:2]
 
-    def _run_ocr_on(preprocessed):
-        result, elapse = engine(preprocessed)
-        if not result or len(result) == 0:
-            return []
-        items = []
+    result, elapse = engine(img)
+
+    items = []
+    if result:
         for line in result:
             box, text, conf = line
             text = text.strip()
@@ -170,51 +90,8 @@ def ocr_image(image_bytes, doc_type='AADHAAR'):
                 'cx': (min(xs) + max(xs)) / 2,
                 'cy': (min(ys) + max(ys)) / 2,
             })
-        return items
 
-    def _has_meaningful_text(items):
-        if len(items) < 3:
-            return False
-        for it in items:
-            t = it['text']
-            if re.search(r'\b\d{4}\s?\d{4}\s?\d{4}\b', t):
-                return True
-            if re.search(r'\b\d{2}[/-]\d{2}[/-]\d{4}\b', t):
-                return True
-            if re.search(r'\b(S/O|D/O|W/O|C/O)\b', t, re.IGNORECASE):
-                return True
-            if re.search(r'\b\d{6}\b', t):
-                return True
-        return False
-
-    best_items = _run_ocr_on(img)
-    best_strategy = 'raw'
-    logger.info(f"OCR strategy=raw items={len(best_items)} meaningful={_has_meaningful_text(best_items)}")
-
-    if not _has_meaningful_text(best_items) and best_items:
-        best_items = []
-
-    if not best_items:
-        for name, preprocess_fn in [('adaptive', _preprocess_adaptive), ('otsu', _preprocess_otsu), ('unsharp', _preprocess_unsharp)]:
-            try:
-                processed = preprocess_fn(img)
-                items = _run_ocr_on(processed)
-                meaningful = _has_meaningful_text(items)
-                logger.info(f"OCR strategy={name} items={len(items)} meaningful={meaningful}")
-                if meaningful:
-                    best_items = items
-                    best_strategy = name
-                    break
-                if len(items) > len(best_items):
-                    best_items = items
-                    best_strategy = name
-            except Exception as e:
-                logger.warning(f"OCR strategy {name} failed: {e}")
-                continue
-
-    logger.info(f"OCR best strategy={best_strategy} items={len(best_items)}")
-
-    items = best_items
+    items.sort(key=lambda x: x['cy'])
     items.sort(key=lambda x: x['cy'])
 
     all_text = ' '.join(it['text'] for it in items)
@@ -261,7 +138,7 @@ def ocr_image(image_bytes, doc_type='AADHAAR'):
 
     details['raw_text'] = all_text
     details['extracted_at'] = datetime.now().isoformat()
-    details['ocr_method'] = f'rapidocr-{best_strategy}'
+    details['ocr_method'] = 'rapidocr'
     details['debug'] = debug
     details['confidence'] = _calc_confidence(details, doc_type)
     return {'success': True, 'data': _sanitize(details)}

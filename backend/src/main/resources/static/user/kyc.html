@@ -58,6 +58,7 @@
                                 <div class="upload-icon">&#128196;</div>
                                 <p>Click to upload</p>
                                 <small style="color:var(--gray-500)">JPG, PNG, PDF (Max 5MB)</small>
+                                <img class="preview-img" id="aadhaarPreview" style="display:none; max-width:100%; max-height:150px; border-radius:8px; margin-top:8px;">
                                 <div class="file-name" id="aadhaarFileName"></div>
                             </div>
                             <button type="button" class="btn-remove" id="aadhaarRemove" style="display:none" onclick="removeFile('aadhaar')">&#10005; Remove</button>
@@ -71,6 +72,7 @@
                                 <div class="upload-icon">&#128196;</div>
                                 <p>Click to upload</p>
                                 <small style="color:var(--gray-500)">JPG, PNG, PDF (Max 5MB)</small>
+                                <img class="preview-img" id="panPreview" style="display:none; max-width:100%; max-height:150px; border-radius:8px; margin-top:8px;">
                                 <div class="file-name" id="panFileName"></div>
                             </div>
                             <button type="button" class="btn-remove" id="panRemove" style="display:none" onclick="removeFile('pan')">&#10005; Remove</button>
@@ -84,6 +86,7 @@
                                 <div class="upload-icon">&#128247;</div>
                                 <p>Click to upload</p>
                                 <small style="color:var(--gray-500)">JPG, PNG (Max 5MB)</small>
+                                <img class="preview-img" id="photoPreview" style="display:none; max-width:100%; max-height:150px; border-radius:8px; margin-top:8px;">
                                 <div class="file-name" id="photoFileName"></div>
                             </div>
                             <button type="button" class="btn-remove" id="photoRemove" style="display:none" onclick="removeFile('photo')">&#10005; Remove</button>
@@ -373,9 +376,9 @@
             var file = input.files[0];
             if (!file) return;
             var map = {
-                aadhaar: { uploadId: 'aadhaarUpload', nameId: 'aadhaarFileName', removeId: 'aadhaarRemove', key: 'aadhaarFile' },
-                pan:     { uploadId: 'panUpload',     nameId: 'panFileName',     removeId: 'panRemove',     key: 'panFile' },
-                photo:   { uploadId: 'photoUpload',   nameId: 'photoFileName',   removeId: 'photoRemove',   key: 'profilePhoto' }
+                aadhaar: { uploadId: 'aadhaarUpload', nameId: 'aadhaarFileName', removeId: 'aadhaarRemove', key: 'aadhaarFile', previewId: 'aadhaarPreview' },
+                pan:     { uploadId: 'panUpload',     nameId: 'panFileName',     removeId: 'panRemove',     key: 'panFile',     previewId: 'panPreview' },
+                photo:   { uploadId: 'photoUpload',   nameId: 'photoFileName',   removeId: 'photoRemove',   key: 'profilePhoto', previewId: 'photoPreview' }
             };
             var m = map[type];
             if (!m) return;
@@ -383,8 +386,14 @@
             var uploadEl = document.getElementById(m.uploadId);
             var nameEl = document.getElementById(m.nameId);
             var removeEl = document.getElementById(m.removeId);
+            var previewEl = document.getElementById(m.previewId);
             if (nameEl) { nameEl.textContent = '\u2705 ' + file.name; nameEl.style.display = 'block'; }
             if (removeEl) removeEl.style.display = 'inline-block';
+            if (previewEl && file.type && file.type.startsWith('image/')) {
+                var reader = new FileReader();
+                reader.onload = function(e) { previewEl.src = e.target.result; previewEl.style.display = 'block'; };
+                reader.readAsDataURL(file);
+            }
             if (uploadEl) {
                 uploadEl.classList.add('uploaded');
                 uploadEl.style.borderColor = '#22c55e';
@@ -403,9 +412,9 @@
     if (typeof removeFile === 'undefined') {
         window.removeFile = function(type) {
             var map = {
-                aadhaar: { uploadId: 'aadhaarUpload', nameId: 'aadhaarFileName', removeId: 'aadhaarRemove', inputId: 'aadhaarFile', key: 'aadhaarFile' },
-                pan:     { uploadId: 'panUpload',     nameId: 'panFileName',     removeId: 'panRemove',     inputId: 'panFile',     key: 'panFile' },
-                photo:   { uploadId: 'photoUpload',   nameId: 'photoFileName',   removeId: 'photoRemove',   inputId: 'profilePhoto', key: 'profilePhoto' }
+                aadhaar: { uploadId: 'aadhaarUpload', nameId: 'aadhaarFileName', removeId: 'aadhaarRemove', inputId: 'aadhaarFile', key: 'aadhaarFile', previewId: 'aadhaarPreview' },
+                pan:     { uploadId: 'panUpload',     nameId: 'panFileName',     removeId: 'panRemove',     inputId: 'panFile',     key: 'panFile',     previewId: 'panPreview' },
+                photo:   { uploadId: 'photoUpload',   nameId: 'photoFileName',   removeId: 'photoRemove',   inputId: 'profilePhoto', key: 'profilePhoto', previewId: 'photoPreview' }
             };
             var m = map[type];
             if (!m) return;
@@ -414,9 +423,11 @@
             var uploadEl = document.getElementById(m.uploadId);
             var nameEl = document.getElementById(m.nameId);
             var removeEl = document.getElementById(m.removeId);
+            var previewEl = document.getElementById(m.previewId);
             if (inputEl) { inputEl.value = ''; inputEl.style.display = ''; }
             if (nameEl) { nameEl.textContent = ''; nameEl.style.display = 'none'; }
             if (removeEl) removeEl.style.display = 'none';
+            if (previewEl) { previewEl.src = ''; previewEl.style.display = 'none'; }
             if (uploadEl) {
                 uploadEl.classList.remove('uploaded');
                 uploadEl.style.borderColor = '';

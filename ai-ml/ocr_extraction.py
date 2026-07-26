@@ -67,11 +67,6 @@ def ocr_image(image_bytes, doc_type='AADHAAR'):
         img = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
         h, w = img.shape[:2]
 
-    if max(h, w) < 800:
-        scale = 800 / max(h, w)
-        img = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
-        h, w = img.shape[:2]
-
     result, elapse = engine(img)
 
     items = []
@@ -91,7 +86,6 @@ def ocr_image(image_bytes, doc_type='AADHAAR'):
                 'cy': (min(ys) + max(ys)) / 2,
             })
 
-    items.sort(key=lambda x: x['cy'])
     items.sort(key=lambda x: x['cy'])
 
     all_text = ' '.join(it['text'] for it in items)

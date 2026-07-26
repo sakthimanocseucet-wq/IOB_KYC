@@ -495,6 +495,8 @@ function setKycOtpMethod(method) {
     var smsBtn = document.getElementById('kycOtpMethodSms');
     var emailRow = document.getElementById('kycOtpEmailRow');
     var smsRow = document.getElementById('kycOtpSmsRow');
+    var sendBtn = document.getElementById('sendEmailOtpBtn');
+    var otpInput = document.getElementById('emailOtp');
     if (method === 'email') {
         emailBtn.className = 'btn btn-sm btn-primary';
         emailBtn.style.border = '2px solid #2563eb';
@@ -502,6 +504,8 @@ function setKycOtpMethod(method) {
         smsBtn.style.border = '';
         if (emailRow) emailRow.style.display = '';
         if (smsRow) smsRow.style.display = 'none';
+        if (sendBtn) sendBtn.textContent = 'Send Email OTP';
+        if (otpInput) otpInput.placeholder = '6-digit OTP';
     } else {
         smsBtn.className = 'btn btn-sm btn-primary';
         smsBtn.style.border = '2px solid #2563eb';
@@ -509,6 +513,8 @@ function setKycOtpMethod(method) {
         emailBtn.style.border = '';
         if (emailRow) emailRow.style.display = 'none';
         if (smsRow) smsRow.style.display = '';
+        if (sendBtn) sendBtn.textContent = 'Send SMS OTP';
+        if (otpInput) otpInput.placeholder = '6-digit SMS code';
     }
 }
 

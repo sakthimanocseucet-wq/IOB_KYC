@@ -639,7 +639,7 @@ def _extract_address(all_items, mid_x=None, img_w=None):
 
     address_text = re.sub(r'(\d)\s+(?=[A-Za-z])', r'\1, ', address_text)
     address_text = re.sub(r'(?<=\w)\s+(?=S/O|D/O|W/O|C/O)', ', ', address_text)
-    address_text = re.sub(r'Colony\s+(?=Ramnagar|[A-Z][a-z]+\s*,)', 'Colony, ', address_text, flags=re.IGNORECASE)
+    address_text = re.sub(r'(Colony|Nagar|Society|Enclave|Vihar|Puram)\s+(?=[A-Z])', r'\1, ', address_text, flags=re.IGNORECASE)
     address_text = re.sub(r'(Coimbatore|Chennai|Bangalore|Mumbai|Delhi|Pune|Hyderabad)\s+(?=[A-Za-z])', r'\1, ', address_text, flags=re.IGNORECASE)
     address_text = re.sub(r',\s*,', ',', address_text)
     address_text = re.sub(r'\s+', ' ', address_text).strip()

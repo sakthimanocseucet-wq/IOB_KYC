@@ -22,7 +22,7 @@ ocr_engine = None
 def get_ocr():
     global ocr_engine
     if ocr_engine is None:
-        ocr_engine = PaddleOCR(use_angle_cls=True, lang='en', show_log=False)
+        ocr_engine = PaddleOCR(use_angle_cls=True, lang='en')
     return ocr_engine
 
 

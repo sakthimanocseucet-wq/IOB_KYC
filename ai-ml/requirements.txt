@@ -3,9 +3,9 @@ opencv-python-headless>=4.9.0
 Pillow>=10.0.0
 numpy>=1.26.0
 
-# OCR - PaddleOCR with PaddlePaddle backend
+# OCR - PaddleOCR (3.x)
 paddlepaddle>=3.0.0
-paddleocr>=2.7.0
+paddleocr>=3.0.0
 
 # Flask API
 flask>=3.0.0

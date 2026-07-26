@@ -630,7 +630,7 @@ def _extract_address(all_items, mid_x=None, img_w=None):
     address_text = re.sub(r'^\s*/\s*(S/O|D/O|W/O|C/O)', r'\1', address_text)
 
     address_text = address_text.replace(' / ', ' ')
-    address_text = re.sub(r'(?<=[a-zA-Z])\s+q\s+(?=[a-zA-Z])', ' ', address_text, flags=re.IGNORECASE)
+    address_text = re.sub(r'(?<=[a-zA-Z])\s*q\s*/?\s*(?=[a-zA-Z])', ' ', address_text, flags=re.IGNORECASE)
 
     address_text = re.sub(r'Tamil\s*Nadu', 'Tamil Nadu', address_text, flags=re.IGNORECASE)
     address_text = re.sub(r'Andhra\s*Pradesh', 'Andhra Pradesh', address_text, flags=re.IGNORECASE)
@@ -692,8 +692,9 @@ def _extract_address(all_items, mid_x=None, img_w=None):
             deduped.append(p)
 
     full_address = ', '.join(deduped)
-    if pin and pin not in full_address:
-        full_address = full_address.rstrip(',').strip() + ' - ' + pin
+    full_address = re.sub(r'[\s\-]*\d{6}\s*$', '', full_address).rstrip(',').strip()
+    if pin:
+        full_address = full_address + ' - ' + pin
 
     full_address = re.sub(r',\s*,', ',', full_address)
     full_address = re.sub(r'^\s*,\s*', '', full_address)

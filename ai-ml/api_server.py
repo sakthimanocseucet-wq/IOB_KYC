@@ -428,6 +428,46 @@ def test_deepfake():
     return jsonify(results)
 
 
+@app.route('/deepfake-test', methods=['POST'])
+def deepfake_test():
+    """Test deepfake detection on multiple video frames.
+
+    Request:  { "frames": ["data:image/jpeg;base64,...", ...] }
+    Response: { "success": true, "data": [{ "frame": 0, "fake_prob": 0.85, "is_deepfake": true, "per_model": {...} }, ...] }
+    """
+    data = request.json
+    if not data or 'frames' not in data:
+        return jsonify({'success': False, 'error': 'frames array required'}), 400
+
+    frames = data['frames']
+    if not isinstance(frames, list) or len(frames) == 0:
+        return jsonify({'success': False, 'error': 'frames must be a non-empty array'}), 400
+
+    if not deepfake_detector or not deepfake_detector.available:
+        return jsonify({'success': False, 'error': 'Deepfake detector not available'}), 503
+
+    results = []
+    for i, frame in enumerate(frames):
+        try:
+            r = deepfake_detector.detect(frame)
+            results.append({
+                'frame': i,
+                'fake_prob': round(r.get('fake_prob', 0), 4),
+                'is_deepfake': r.get('is_deepfake', False),
+                'per_model': r.get('per_model', {}),
+                'reason': r.get('reason', ''),
+            })
+        except Exception as e:
+            results.append({
+                'frame': i,
+                'fake_prob': 0,
+                'is_deepfake': False,
+                'error': str(e),
+            })
+
+    return jsonify({'success': True, 'data': results})
+
+
 @app.route('/face-detect', methods=['POST'])
 def face_detect():
     """Detect faces in an image.

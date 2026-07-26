@@ -630,6 +630,16 @@
                                 &#128247; Capture Live Selfie
                             </button>
                         </div>
+
+                        <div id="deepfakeTestSection" style="margin-top:20px;border:2px dashed var(--gray-300,#d1d5db);border-radius:12px;padding:20px;text-align:center;background:var(--gray-50,#f8fafc)">
+                            <h4 style="margin:0 0 8px;font-size:15px;color:var(--gray-700)">&#127909; Deepfake Model Test</h4>
+                            <p style="margin:0 0 12px;font-size:12px;color:var(--gray-500)">Upload a video to test deepfake detection per frame</p>
+                            <input type="file" id="deepfakeVideoInput" accept="video/*" style="display:none" onchange="handleDeepfakeVideo(event)">
+                            <button class="btn btn-outline" onclick="document.getElementById('deepfakeVideoInput').click()">
+                                &#128206; Choose Video File
+                            </button>
+                            <div id="deepfakeTestResult" style="margin-top:12px;text-align:left;display:none"></div>
+                        </div>
                         <div id="faceResult" style="display:none;margin-top:20px">
                             <div class="face-result-card">
                                 <div class="face-match-animation">

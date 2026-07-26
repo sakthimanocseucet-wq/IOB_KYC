@@ -2036,3 +2036,128 @@ async function handleFinalSubmit() {
                 });
             }
         });
+
+
+// ====================== DEEPFAKE VIDEO TEST ======================
+function handleDeepfakeVideo(event) {
+    var file = event.target.files[0];
+    if (!file) return;
+
+    var resultDiv = document.getElementById('deepfakeTestResult');
+    if (!resultDiv) return;
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '<div style="text-align:center;padding:16px"><div class="spinner" style="margin:0 auto 8px"></div><p style="font-size:13px;color:var(--gray-500)">Processing video: ' + file.name + ' (' + (file.size / 1024 / 1024).toFixed(1) + ' MB)</p></div>';
+
+    var video = document.createElement('video');
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = 'metadata';
+
+    var canvas = document.createElement('canvas');
+    var ctx = canvas.getContext('2d');
+
+    video.onloadedmetadata = function() {
+        var duration = video.duration;
+        var width = video.videoWidth;
+        var height = video.videoHeight;
+        canvas.width = Math.min(width, 320);
+        canvas.height = Math.min(height, 320);
+
+        var numFrames = Math.min(Math.max(Math.floor(duration * 2), 3), 15);
+        var interval = duration / numFrames;
+        var frames = [];
+        var currentFrame = 0;
+
+        resultDiv.innerHTML = '<div style="text-align:center;padding:16px"><div class="spinner" style="margin:0 auto 8px"></div><p style="font-size:13px;color:var(--gray-500)">Extracting ' + numFrames + ' frames from ' + duration.toFixed(1) + 's video...</p></div>';
+
+        function captureFrame() {
+            if (currentFrame >= numFrames) {
+                sendFramesToDeepfake(frames, resultDiv);
+                return;
+            }
+            video.currentTime = currentFrame * interval;
+        }
+
+        video.onseeked = function() {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            var frameBase64 = canvas.toDataURL('image/jpeg', 0.8);
+            frames.push({
+                index: currentFrame,
+                time: (currentFrame * interval).toFixed(1) + 's',
+                image: frameBase64
+            });
+            currentFrame++;
+            resultDiv.innerHTML = '<div style="text-align:center;padding:16px"><div class="spinner" style="margin:0 auto 8px"></div><p style="font-size:13px;color:var(--gray-500)">Extracted frame ' + currentFrame + '/' + numFrames + '</p></div>';
+            captureFrame();
+        };
+
+        captureFrame();
+    };
+
+    video.onerror = function() {
+        resultDiv.innerHTML = '<div style="padding:12px;color:var(--danger)">&#10060; Failed to load video. Try a different format (MP4/WebM).</div>';
+    };
+
+    video.src = URL.createObjectURL(file);
+}
+
+function sendFramesToDeepfake(frames, resultDiv) {
+    var token = (typeof getAuthToken === 'function') ? getAuthToken() : null;
+    var headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+
+    resultDiv.innerHTML = '<div style="text-align:center;padding:16px"><div class="spinner" style="margin:0 auto 8px"></div><p style="font-size:13px;color:var(--gray-500)">Sending ' + frames.length + ' frames to deepfake model...</p></div>';
+
+    fetch('/api/ai/deepfake-test', {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({ frames: frames.map(function(f) { return f.image; }) })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (!data.success) {
+            resultDiv.innerHTML = '<div style="padding:12px;color:var(--danger)">&#10060; ' + (data.error || 'Analysis failed') + '</div>';
+            return;
+        }
+        var results = data.data || [];
+        var html = '<div style="border:1px solid var(--gray-200);border-radius:8px;overflow:hidden">';
+        html += '<div style="background:var(--gray-100);padding:8px 12px;font-weight:600;font-size:13px">Deepfake Analysis Results (' + results.length + ' frames)</div>';
+        html += '<table style="width:100%;border-collapse:collapse;font-size:12px">';
+        html += '<tr style="background:var(--gray-50)"><th style="padding:6px 10px;text-align:left;border-bottom:1px solid var(--gray-200)">Frame</th><th style="padding:6px 10px;text-align:left;border-bottom:1px solid var(--gray-200)">Time</th><th style="padding:6px 10px;text-align:center;border-bottom:1px solid var(--gray-200)">Fake Prob</th><th style="padding:6px 10px;text-align:center;border-bottom:1px solid var(--gray-200)">Verdict</th></tr>';
+
+        var totalFake = 0;
+        var fakeCount = 0;
+        var realCount = 0;
+
+        for (var i = 0; i < results.length; i++) {
+            var r = results[i];
+            var fp = r.fake_prob || 0;
+            totalFake += fp;
+            var isFake = r.is_deepfake;
+            if (isFake) fakeCount++; else realCount++;
+            var verdictColor = isFake ? 'var(--danger)' : 'var(--success)';
+            var verdictText = isFake ? 'FAKE' : 'REAL';
+            var rowBg = isFake ? 'background:rgba(220,38,38,0.03)' : '';
+            html += '<tr style="' + rowBg + '">';
+            html += '<td style="padding:6px 10px;border-bottom:1px solid var(--gray-100)">#' + (i + 1) + '</td>';
+            html += '<td style="padding:6px 10px;border-bottom:1px solid var(--gray-100)">' + (r.time || '--') + '</td>';
+            html += '<td style="padding:6px 10px;border-bottom:1px solid var(--gray-100);text-align:center;font-weight:600;color:' + verdictColor + '">' + (fp * 100).toFixed(1) + '%</td>';
+            html += '<td style="padding:6px 10px;border-bottom:1px solid var(--gray-100);text-align:center;font-weight:600;color:' + verdictColor + '">' + verdictText + '</td>';
+            html += '</tr>';
+        }
+
+        var avgFake = totalFake / results.length;
+        var summaryColor = avgFake > 0.5 ? 'var(--danger)' : 'var(--success)';
+        html += '</table>';
+        html += '<div style="padding:10px 12px;background:var(--gray-50);border-top:1px solid var(--gray-200);font-size:13px">';
+        html += '<strong>Average Fake Prob:</strong> <span style="color:' + summaryColor + ';font-weight:700">' + (avgFake * 100).toFixed(1) + '%</span>';
+        html += ' &bull; <strong>REAL:</strong> ' + realCount + ' &bull; <strong>FAKE:</strong> ' + fakeCount;
+        html += ' &bull; <strong>Threshold:</strong> 85%';
+        html += '</div></div>';
+
+        resultDiv.innerHTML = html;
+    })
+    .catch(function(e) {
+        resultDiv.innerHTML = '<div style="padding:12px;color:var(--danger)">&#10060; Error: ' + e.message + '</div>';
+    });
+}

@@ -600,15 +600,12 @@ def _extract_address(all_items, mid_x=None, img_w=None):
     address_text = ' '.join(address_parts)
     address_text = _fix_ocr_errors(address_text)
 
-    address_text = re.sub(r'\bS\s*[/.]?\s*O\b', 'S/O', address_text, flags=re.IGNORECASE)
-    address_text = re.sub(r'\bD\s*[/.]?\s*O\b', 'D/O', address_text, flags=re.IGNORECASE)
-    address_text = re.sub(r'\bW\s*[/.]?\s*O\b', 'W/O', address_text, flags=re.IGNORECASE)
-    address_text = re.sub(r'\bC\s*[/.]?\s*O\b', 'C/O', address_text, flags=re.IGNORECASE)
+    address_text = re.sub(r'\bS\s*[/.]?\s*O\b', 'S/O', address_text)
+    address_text = re.sub(r'\bD\s*[/.]?\s*O\b', 'D/O', address_text)
+    address_text = re.sub(r'\bW\s*[/.]?\s*O\b', 'W/O', address_text)
+    address_text = re.sub(r'\bC\s*[/.]?\s*O\b', 'C/O', address_text)
     address_text = re.sub(r'^\s*/\s*(S/O|D/O|W/O|C/O)', r'\1', address_text)
-    address_text = re.sub(r'\s*/\s*(S/O|D/O|W/O|C/O)', r' \1', address_text)
-    address_text = re.sub(r'(?<=\w)\s+(?=[A-Za-z]{0,2}\s*(?:,|Ramnagar|Ward|No|Coimbatore|Tamil|Colony|Park|Green|Road|Street|Nagar))', ' ', address_text)
     address_text = re.sub(r'\b[qQ]\b(?!\s*[/.]?\s*(?:O|o))', '', address_text)
-    address_text = re.sub(r'\s*/\s*', ' ', address_text)
     address_text = re.sub(r'\s+', ' ', address_text).strip()
 
     for kw in NON_ADDRESS_KEYWORDS:

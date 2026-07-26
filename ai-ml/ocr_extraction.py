@@ -631,12 +631,7 @@ def _extract_address(all_items, mid_x=None, img_w=None):
 
     address_text = re.sub(r'(\d)\s+(?=[A-Za-z])', r'\1, ', address_text)
     address_text = re.sub(r'(?<=\w)\s+(?=S/O|D/O|W/O|C/O)', ', ', address_text)
-    _ADDR_MARKERS = r'(?:Colony|Nagar|Park|Road|Street|Lane|Phase|Sector|Block|Ward|Layout|Enclave|Vihar|Puram|Bad|Garden|Heights)'
-    address_text = re.sub(
-        _ADDR_MARKERS + r'\s+(?=[A-Z][a-z]+(?!\s+' + _ADDR_MARKERS + r'))',
-        lambda m: m.group(0).rstrip() + ', ',
-        address_text, flags=re.IGNORECASE
-    )
+    address_text = re.sub(r'(Colony|Nagar|Park|Road|Street|Lane)\s+(?=[A-Z][a-z]+(?!\s+(?:Colony|Nagar|Park|Road|Street|Lane|No|Number)))', lambda m: m.group(0).rstrip() + ', ', address_text, flags=re.IGNORECASE)
     address_text = re.sub(r'(Ramnagar|Coimbatore|Chennai|Bangalore|Mumbai|Delhi|Pune|Hyderabad)\s+(?=[A-Za-z])', r'\1, ', address_text, flags=re.IGNORECASE)
     address_text = re.sub(r',\s*,', ',', address_text)
     address_text = re.sub(r'\s+', ' ', address_text).strip()

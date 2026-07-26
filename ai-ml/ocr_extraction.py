@@ -276,9 +276,9 @@ def _extract_aadhaar(left_items, right_items, top_items, bottom_items,
     if gender:
         details['gender'] = gender
 
-    addr_result = _extract_address(back_items, mid_x, img_w)
-    details['address'] = addr_result.get('full_address', '')
-    details['address_components'] = addr_result
+    details['address'] = ''
+    details['address_components'] = {'full_address': '', 'house_number': '', 'street': '', 'locality': '',
+                                      'city_or_village': '', 'district': '', 'state': '', 'pin_code': '', 'confidence_score': 0.0}
 
     debug['extracted_name'] = name
     debug['extracted_gender'] = gender
@@ -1141,9 +1141,9 @@ def _extract_pan(items, all_text, img_h, img_w, debug):
     if gender:
         details['gender'] = gender
 
-    addr_result = _extract_address(items, None, img_w)
-    details['address'] = addr_result.get('full_address', '')
-    details['address_components'] = addr_result
+    details['address'] = ''
+    details['address_components'] = {'full_address': '', 'house_number': '', 'street': '', 'locality': '',
+                                      'city_or_village': '', 'district': '', 'state': '', 'pin_code': '', 'confidence_score': 0.0}
 
     debug['extracted_name'] = details.get('name')
     debug['extracted_gender'] = gender

@@ -209,9 +209,9 @@ async function handleSendResetOtp(event) {
             return;
         }
         try {
-            var auth = fpFirebaseApp ? firebase.auth(fpFirebaseApp) : firebase.auth();
-            var recaptchaVerifier = new auth.RecaptchaVerifier('sendResetOtpBtn', { size: 'invisible' });
-            fpFirebaseConfirmation = await auth.signInWithPhoneNumber(identifier, recaptchaVerifier);
+            var app = fpFirebaseApp || firebase.app();
+            var recaptchaVerifier = new firebase.auth.RecaptchaVerifier('sendResetOtpBtn', { size: 'invisible' }, app);
+            fpFirebaseConfirmation = await app.auth().signInWithPhoneNumber(identifier, recaptchaVerifier);
         } catch (e) {
             fpShowAlert('Failed to send SMS: ' + e.message);
             fpSetLoading('forgotForm', false);
@@ -248,9 +248,9 @@ function resendResetOtp() {
     if (fpOtpMethod === 'sms') {
         initFpFirebase().then(function() {
             if (!fpFirebaseInitialized) { fpShowAlert('Firebase not configured.'); return; }
-            var auth = fpFirebaseApp ? firebase.auth(fpFirebaseApp) : firebase.auth();
-            var recaptchaVerifier = new auth.RecaptchaVerifier('sendResetOtpBtn', { size: 'invisible' });
-            fpFirebaseConfirmation = auth.signInWithPhoneNumber(resetIdentifier, recaptchaVerifier)
+            var app = fpFirebaseApp || firebase.app();
+            var recaptchaVerifier = new firebase.auth.RecaptchaVerifier('sendResetOtpBtn', { size: 'invisible' }, app);
+            fpFirebaseConfirmation = app.auth().signInWithPhoneNumber(resetIdentifier, recaptchaVerifier)
                 .then(function() { fpShowToast('OTP resent to ' + resetIdentifier, 'success'); startOtpTimer(); })
                 .catch(function(e) { fpShowAlert('Failed to resend SMS: ' + e.message); });
         });

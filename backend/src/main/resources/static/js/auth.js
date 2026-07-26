@@ -207,9 +207,9 @@ async function sendRegOTP() {
         await initRegFirebase();
         if (!regFirebaseInitialized) { showFieldError('otpError', 'Firebase not configured. Use email OTP.'); btn.disabled = false; return; }
         try {
-            var auth = regFirebaseApp ? firebase.auth(regFirebaseApp) : firebase.auth();
-            var recaptchaVerifier = new auth.RecaptchaVerifier('sendOtpBtn', { size: 'invisible' });
-            regFirebaseConfirmation = await auth.signInWithPhoneNumber(identifier, recaptchaVerifier);
+            var app = regFirebaseApp || firebase.app();
+            var recaptchaVerifier = new firebase.auth.RecaptchaVerifier('sendOtpBtn', { size: 'invisible' }, app);
+            regFirebaseConfirmation = await app.auth().signInWithPhoneNumber(identifier, recaptchaVerifier);
             showToast('OTP sent to ' + identifier, 'success');
         } catch (e) {
             showFieldError('otpError', 'Failed to send SMS: ' + e.message);

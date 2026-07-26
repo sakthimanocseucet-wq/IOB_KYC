@@ -475,6 +475,7 @@ let kycOtpMethod = 'email';
 let firebaseConfirmationResult = null;
 let firebaseInitialized = false;
 let kycFirebaseApp = null;
+let kycRecaptchaVerifier = null;
 
 async function initFirebase() {
     if (firebaseInitialized) return;
@@ -537,8 +538,13 @@ async function sendKycOtp() {
 
         try {
             var app = kycFirebaseApp || firebase.app();
-            var recaptchaVerifier = new firebase.auth.RecaptchaVerifier('sendEmailOtpBtn', { size: 'invisible' }, app);
-            firebaseConfirmationResult = await app.auth().signInWithPhoneNumber(phone, recaptchaVerifier);
+            if (kycRecaptchaVerifier) { kycRecaptchaVerifier.clear(); kycRecaptchaVerifier = null; }
+            var container = document.createElement('div');
+            container.id = 'recaptcha-container';
+            container.style.display = 'none';
+            document.body.appendChild(container);
+            kycRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'invisible' }, app);
+            firebaseConfirmationResult = await app.auth().signInWithPhoneNumber(phone, kycRecaptchaVerifier);
             showToast('OTP sent to ' + phone, 'success');
         } catch (e) {
             console.error('[Firebase] SMS error:', e);

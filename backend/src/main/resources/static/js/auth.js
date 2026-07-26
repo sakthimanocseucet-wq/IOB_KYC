@@ -32,6 +32,7 @@ let otpMethod = 'email';
 let regFirebaseConfirmation = null;
 let regFirebaseInitialized = false;
 let regFirebaseApp = null;
+let regRecaptchaVerifier = null;
 
 async function initRegFirebase() {
     if (regFirebaseInitialized) return;
@@ -208,8 +209,13 @@ async function sendRegOTP() {
         if (!regFirebaseInitialized) { showFieldError('otpError', 'Firebase not configured. Use email OTP.'); btn.disabled = false; return; }
         try {
             var app = regFirebaseApp || firebase.app();
-            var recaptchaVerifier = new firebase.auth.RecaptchaVerifier('sendOtpBtn', { size: 'invisible' }, app);
-            regFirebaseConfirmation = await app.auth().signInWithPhoneNumber(identifier, recaptchaVerifier);
+            if (regRecaptchaVerifier) { regRecaptchaVerifier.clear(); regRecaptchaVerifier = null; }
+            var container = document.createElement('div');
+            container.id = 'reg-recaptcha-container';
+            container.style.display = 'none';
+            document.body.appendChild(container);
+            regRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('reg-recaptcha-container', { size: 'invisible' }, app);
+            regFirebaseConfirmation = await app.auth().signInWithPhoneNumber(identifier, regRecaptchaVerifier);
             showToast('OTP sent to ' + identifier, 'success');
         } catch (e) {
             showFieldError('otpError', 'Failed to send SMS: ' + e.message);

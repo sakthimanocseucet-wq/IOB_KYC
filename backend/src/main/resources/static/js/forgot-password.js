@@ -6,6 +6,7 @@ let fpOtpMethod = 'email';
 let fpFirebaseConfirmation = null;
 let fpFirebaseInitialized = false;
 let fpFirebaseApp = null;
+let fpRecaptchaVerifier = null;
 let isEmployeePage = (function() {
     if (document.body && document.body.getAttribute('data-role') === 'employee') return true;
     var path = window.location.pathname.toLowerCase();
@@ -210,8 +211,13 @@ async function handleSendResetOtp(event) {
         }
         try {
             var app = fpFirebaseApp || firebase.app();
-            var recaptchaVerifier = new firebase.auth.RecaptchaVerifier('sendResetOtpBtn', { size: 'invisible' }, app);
-            fpFirebaseConfirmation = await app.auth().signInWithPhoneNumber(identifier, recaptchaVerifier);
+            if (fpRecaptchaVerifier) { fpRecaptchaVerifier.clear(); fpRecaptchaVerifier = null; }
+            var container = document.createElement('div');
+            container.id = 'fp-recaptcha-container';
+            container.style.display = 'none';
+            document.body.appendChild(container);
+            fpRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('fp-recaptcha-container', { size: 'invisible' }, app);
+            fpFirebaseConfirmation = await app.auth().signInWithPhoneNumber(identifier, fpRecaptchaVerifier);
         } catch (e) {
             fpShowAlert('Failed to send SMS: ' + e.message);
             fpSetLoading('forgotForm', false);
@@ -249,8 +255,13 @@ function resendResetOtp() {
         initFpFirebase().then(function() {
             if (!fpFirebaseInitialized) { fpShowAlert('Firebase not configured.'); return; }
             var app = fpFirebaseApp || firebase.app();
-            var recaptchaVerifier = new firebase.auth.RecaptchaVerifier('sendResetOtpBtn', { size: 'invisible' }, app);
-            fpFirebaseConfirmation = app.auth().signInWithPhoneNumber(resetIdentifier, recaptchaVerifier)
+            if (fpRecaptchaVerifier) { fpRecaptchaVerifier.clear(); fpRecaptchaVerifier = null; }
+            var container = document.createElement('div');
+            container.id = 'fp-recaptcha-container-resend';
+            container.style.display = 'none';
+            document.body.appendChild(container);
+            fpRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('fp-recaptcha-container-resend', { size: 'invisible' }, app);
+            fpFirebaseConfirmation = app.auth().signInWithPhoneNumber(resetIdentifier, fpRecaptchaVerifier)
                 .then(function() { fpShowToast('OTP resent to ' + resetIdentifier, 'success'); startOtpTimer(); })
                 .catch(function(e) { fpShowAlert('Failed to resend SMS: ' + e.message); });
         });

@@ -267,9 +267,11 @@ ul { list-style: none; }
     opacity: 1;
     transform: none;
     transition: opacity 0.5s ease, transform 0.5s ease;
+    will-change: opacity, transform;
 }
 .fade-in.animate-ready, .slide-up.animate-ready, .scale-in.animate-ready {
     opacity: 0;
+    will-change: opacity, transform;
 }
 .fade-in.animate-ready { transform: translateY(12px); }
 .slide-up.animate-ready { transform: translateY(20px); }

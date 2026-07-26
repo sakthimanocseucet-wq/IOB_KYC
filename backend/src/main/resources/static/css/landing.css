@@ -8,8 +8,9 @@
     margin: 0 auto;
     gap: 60px;
     min-height: 85vh;
+    contain: layout style;
 }
-.hero-content { flex: 1; text-align: left; }
+.hero-content { flex: 1; text-align: left; contain: layout style; }
 .hero-content h1 {
     font-size: 52px;
     font-weight: 800;
@@ -47,6 +48,7 @@
     align-items: center;
     justify-content: center;
     min-height: 400px;
+    contain: layout style;
 }
 .hero-shield svg { width: 200px; height: 200px; }
 .hero-shield path { stroke: var(--primary); }
@@ -65,6 +67,7 @@
     color: var(--gray-700);
     border: 1px solid var(--gray-200);
     animation: float 3s ease-in-out infinite;
+    will-change: transform;
 }
 .floating-card .icon { font-size: 24px; }
 .card-1 { top: 10%; right: 10%; animation-delay: 0s; }
@@ -79,6 +82,7 @@
 .features {
     padding: 80px 40px;
     background: var(--white);
+    contain: layout style;
 }
 .section-title {
     text-align: center;
@@ -153,6 +157,7 @@
 .workflow {
     padding: 80px 40px;
     background: var(--light-bg);
+    contain: layout style;
 }
 .workflow-steps {
     display: grid;

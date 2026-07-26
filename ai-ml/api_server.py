@@ -182,15 +182,16 @@ logger.info("  Deepfake: %s", "OK" if deepfake_detector else "UNAVAILABLE")
 
 # ============================================================
 # STARTUP DIAGNOSTIC — Verify models actually work end-to-end
+# Runs in a background thread to avoid blocking Flask startup
 # ============================================================
 def _run_startup_diagnostic():
     """Run quick inference test on synthetic images to catch model issues early."""
-    import cv2
-    import base64
     try:
-        # Create a simple face-like test image (100x100 skin-tone rectangle)
+        import cv2
+        import base64
+
         test_img = np.zeros((100, 100, 3), dtype=np.uint8)
-        test_img[:, :] = (140, 160, 200)  # BGR skin-like color
+        test_img[:, :] = (140, 160, 200)
         _, buf = cv2.imencode('.jpg', test_img)
         test_b64 = 'data:image/jpeg;base64,' + base64.b64encode(buf.tobytes()).decode()
 
@@ -198,20 +199,16 @@ def _run_startup_diagnostic():
             try:
                 img = face_verifier.decode_image(test_b64)
                 faces = face_verifier._get_faces(img)
-                logger.info("[StartupDiag] InsightFace detection: %d face(s) found", len(faces))
+                logger.info("[StartupDiag] InsightFace: %d face(s)", len(faces))
                 if faces and faces[0].embedding is not None:
-                    logger.info("[StartupDiag] InsightFace recognition: embedding dim=%d", len(faces[0].embedding))
-                elif faces:
-                    logger.warning("[StartupDiag] InsightFace: face detected but embedding is None")
-                else:
-                    logger.info("[StartupDiag] InsightFace: no face in synthetic image (expected)")
+                    logger.info("[StartupDiag] InsightFace embedding dim=%d", len(faces[0].embedding))
             except Exception as e:
                 logger.error("[StartupDiag] InsightFace FAILED: %s", e)
 
         if spoof_detector and spoof_detector.available:
             try:
                 result = spoof_detector.detect(test_b64)
-                logger.info("[StartupDiag] Anti-spoof: liveness=%.2f available=%s", result.get('liveness_score', 0), result.get('available'))
+                logger.info("[StartupDiag] Anti-spoof: liveness=%.2f", result.get('liveness_score', 0))
             except Exception as e:
                 logger.error("[StartupDiag] Anti-spoof FAILED: %s", e)
 
@@ -222,11 +219,12 @@ def _run_startup_diagnostic():
             except Exception as e:
                 logger.error("[StartupDiag] Deepfake FAILED: %s", e)
 
-        logger.info("[StartupDiag] Diagnostic complete")
+        logger.info("[StartupDiag] Complete")
     except Exception as e:
-        logger.warning("[StartupDiag] Diagnostic skipped: %s", e)
+        logger.warning("[StartupDiag] Skipped: %s", e)
 
-_run_startup_diagnostic()
+import threading as _threading
+_threading.Thread(target=_run_startup_diagnostic, daemon=True).start()
 
 # ============================================================
 # CHALLENGE SESSION STORE (thread-safe)

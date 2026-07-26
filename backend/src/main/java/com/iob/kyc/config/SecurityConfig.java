@@ -46,7 +46,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .securityContext(ctx -> ctx.securityContextRepository(new RequestAttributeSecurityContextRepository()))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/", "/index.html", "/css/**", "/js/**", "/assets/**", "/user/**", "/admin/**", "/api/public/**", "/api/ai/healthz", "/api/config/**", "/health", "/error").permitAll()
+                .requestMatchers("/", "/index.html", "/PROJECT_REPORT.html", "/css/**", "/js/**", "/assets/**", "/user/**", "/admin/**", "/api/public/**", "/api/ai/healthz", "/api/config/**", "/health", "/error").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/admin/applications/*/selfie", "/api/admin/applications/*/photo", "/api/admin/applications/*/aadhaar-front", "/api/admin/applications/*/aadhaar-back", "/api/admin/applications/*/pan-card", "/api/admin/applications/*/document").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/admin/applications/*/selfie", "/api/admin/applications/*/photo", "/api/admin/applications/*/aadhaar-front", "/api/admin/applications/*/aadhaar-back", "/api/admin/applications/*/pan-card", "/api/admin/applications/*/document").permitAll()

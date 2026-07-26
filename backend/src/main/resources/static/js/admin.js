@@ -1423,13 +1423,10 @@ async function triggerQrVerification(appId) {
     var btn = document.getElementById('qrVerifyBtn_' + appId);
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '&#8987; Verifying...';
+        btn.innerHTML = '&#128260; Re-run';
     }
 
     var container = document.getElementById('qrVerificationSection');
-    if (container) {
-        container.innerHTML = '<div style="text-align:center;padding:16px"><div class="spinner" style="margin:0 auto 8px"></div><p style="font-size:13px;color:var(--gray-500)">Scanning QR code and comparing fields...</p></div>';
-    }
 
     try {
         var token = getAuthToken();

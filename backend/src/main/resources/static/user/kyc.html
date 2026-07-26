@@ -176,9 +176,10 @@
                                 <div class="otp-row" id="kycOtpSmsRow" style="display:none">
                                     <small style="color:var(--gray-500);display:block;margin-bottom:4px">OTP will be sent to the mobile number above</small>
                                 </div>
-                                <div class="otp-row">
-                                    <input type="text" id="emailOtp" placeholder="6-digit OTP" maxlength="6" pattern="[0-9]{6}">
-                                    <button type="button" class="btn btn-sm btn-primary" onclick="sendKycOtp()" id="sendEmailOtpBtn">Send OTP</button>
+                                <div style="display:flex;gap:6px;align-items:center">
+                                    <input type="text" id="emailOtp" placeholder="6-digit OTP" maxlength="6" pattern="[0-9]{6}" style="flex:1;padding:10px 12px;border:1px solid var(--gray-300,#d1d5db);border-radius:6px;font-size:14px" oninput="autoVerifyKycOtp()">
+                                    <button type="button" class="btn btn-sm btn-primary" onclick="sendKycOtp()" id="sendEmailOtpBtn" style="white-space:nowrap;padding:10px 14px">Send OTP</button>
+                                    <span id="kycOtpTick" style="display:none;color:#16a34a;font-size:22px;font-weight:bold" title="Verified">&#10003;</span>
                                 </div>
                                 <small class="otp-timer" id="emailOtpTimer" style="color:var(--gray-500);margin-top:4px;display:block"></small>
                             </div>

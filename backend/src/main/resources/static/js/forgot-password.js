@@ -277,6 +277,42 @@ function resendResetOtp() {
 }
 
 // Step 2
+async function autoVerifyFpOtp() {
+    var otp = document.getElementById('resetOtp').value.trim();
+    if (otp.length !== 6 || !/^[0-9]{6}$/.test(otp)) return;
+
+    var tick = document.getElementById('fpOtpTick');
+    fpSetLoading('otpForm', true);
+
+    try {
+        if (fpOtpMethod === 'sms') {
+            if (!fpFirebaseConfirmation) { fpSetLoading('otpForm', false); fpShowAlert('Send OTP first'); return; }
+            await fpFirebaseConfirmation.confirm(otp);
+        } else {
+            var res = await fetch('/api/auth/otp/verify?identifier=' + encodeURIComponent(resetIdentifier) + '&otp=' + otp + '&purpose=PASSWORD_RESET', { method: 'POST' });
+            var result = await res.json();
+            if (!result.success) {
+                fpSetLoading('otpForm', false);
+                tick.style.display = 'none';
+                document.getElementById('resetOtp').style.borderColor = '#dc2626';
+                fpShowAlert(result.message || 'Invalid OTP');
+                return;
+            }
+        }
+        fpSetLoading('otpForm', false);
+        tick.style.display = 'inline';
+        document.getElementById('resetOtp').style.borderColor = '#16a34a';
+        if (resetOtpTimer) clearInterval(resetOtpTimer);
+        fpShowToast('OTP verified!', 'success');
+        setTimeout(function() { goToStep(3); document.getElementById('newPassword').focus(); }, 600);
+    } catch (e) {
+        fpSetLoading('otpForm', false);
+        tick.style.display = 'none';
+        document.getElementById('resetOtp').style.borderColor = '#dc2626';
+        fpShowAlert('Verification failed. Please try again.');
+    }
+}
+
 async function handleVerifyResetOtp(event) {
     event.preventDefault();
     var otp = document.getElementById('resetOtp').value.trim();

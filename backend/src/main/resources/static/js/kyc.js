@@ -620,6 +620,49 @@ async function sendKycOtp() {
     }, 1000);
 }
 
+async function autoVerifyKycOtp() {
+    var otp = document.getElementById('emailOtp').value.trim();
+    if (otp.length !== 6 || !/^[0-9]{6}$/.test(otp)) return;
+
+    var tick = document.getElementById('kycOtpTick');
+
+    if (kycOtpMethod === 'email') {
+        var email = document.getElementById('kycEmail').value.trim();
+        if (!email) { showToast('Enter email first', 'error'); return; }
+        try {
+            var res = await fetch('/api/auth/otp/verify?identifier=' + encodeURIComponent(email) + '&otp=' + otp + '&purpose=KYC', { method: 'POST' });
+            var data = await res.json();
+            if (data.success) {
+                kycData.emailOtpVerified = true;
+                tick.style.display = 'inline';
+                document.getElementById('emailOtp').style.borderColor = '#16a34a';
+                showToast('Email verified!', 'success');
+            } else {
+                kycData.emailOtpVerified = false;
+                tick.style.display = 'none';
+                document.getElementById('emailOtp').style.borderColor = '#dc2626';
+                showToast(data.message || 'Invalid OTP', 'error');
+            }
+        } catch (err) {
+            showToast('Verification failed', 'error');
+        }
+    } else {
+        if (!firebaseConfirmationResult) { showToast('Send OTP first', 'error'); return; }
+        try {
+            await firebaseConfirmationResult.confirm(otp);
+            kycData.emailOtpVerified = true;
+            tick.style.display = 'inline';
+            document.getElementById('emailOtp').style.borderColor = '#16a34a';
+            showToast('Phone verified!', 'success');
+        } catch (err) {
+            kycData.emailOtpVerified = false;
+            tick.style.display = 'none';
+            document.getElementById('emailOtp').style.borderColor = '#dc2626';
+            showToast('Invalid OTP: ' + err.message, 'error');
+        }
+    }
+}
+
 async function verifyDetails() {
     const name = document.getElementById('ocrName').value.trim();
     const dob = document.getElementById('ocrDob').value;

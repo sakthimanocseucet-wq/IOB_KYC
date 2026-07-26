@@ -3,7 +3,7 @@ opencv-python-headless>=4.9.0
 Pillow>=10.0.0
 numpy>=1.26.0
 
-# OCR - PaddleOCR (3.x)
+# OCR - PaddleOCR (3.x, PP-OCRv6)
 paddlepaddle>=3.0.0
 paddleocr>=3.0.0
 

@@ -60,11 +60,13 @@ class MiniFASNetDetector:
     SPOOF_THRESHOLD = 0.45  # reject faces where liveness score is below 45%
     SPOOF_CONFIDENCE_THRESHOLD = 0.35  # model must favor spoof by at least 35% to trigger
 
-    def __init__(self):
+    def __init__(self, shared_insightface_app=None, shared_lock=None):
         self.model = None
         self.model_type = None
         self.available = False
         self._transform = None
+        self._shared_insightface = shared_insightface_app
+        self._shared_lock = shared_lock
         self._load_model()
 
     def _load_model(self):
@@ -510,7 +512,24 @@ class MiniFASNetDetector:
         }
 
     def _detect_face_insightface(self, img):
-        """Detect face using Haar Cascade (fast and reliable)."""
+        """Detect face using InsightFace (shared from face_verifier) for accurate detection."""
+        if self._shared_insightface is not None:
+            try:
+                # Use face_verifier's lock if available to prevent det_size race conditions
+                lock = getattr(self, '_shared_lock', None)
+                if lock:
+                    with lock:
+                        faces = self._shared_insightface.get(img)
+                else:
+                    faces = self._shared_insightface.get(img)
+                if faces:
+                    face = max(faces, key=lambda f: f.det_score)
+                    bbox = face.bbox.astype(int)
+                    logger.info("[AntiSpoof] InsightFace detected face: bbox=%s score=%.3f",
+                                bbox.tolist(), float(face.det_score))
+                    return (int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3]))
+            except Exception as e:
+                logger.warning("[AntiSpoof] InsightFace detection failed: %s — falling back to Haar", e)
         return self._detect_face_haar(img)
 
     def _detect_face_haar(self, img):

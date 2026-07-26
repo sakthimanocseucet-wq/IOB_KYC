@@ -132,6 +132,7 @@ class FaceVerifier:
 
     def __init__(self):
         self.insightface_app = None
+        self._lock = __import__('threading').Lock()
         self._init_insightface()
 
     def _init_insightface(self):
@@ -173,56 +174,57 @@ class FaceVerifier:
 
         Uses multi-pass detection: first try with standard (640,640),
         then retry with larger (1280,1280) if no faces found (helps with
-        small faces in ID card photos).
+        small faces in ID card photos). Thread-safe via lock.
         """
         if self.insightface_app is None:
             raise RuntimeError(
                 "InsightFace ArcFace model is not loaded. "
                 "Face verification cannot proceed."
             )
-        # Pass 1: standard detection
-        faces = self.insightface_app.get(img)
-        if faces:
-            return faces
-
-        # Pass 2: retry with larger detection size for small faces (ID cards)
-        logger.info("[FaceDetect] No faces at 640, retrying with 1280...")
-        try:
-            self.insightface_app.prepare(ctx_id=0, det_size=(1280, 1280))
+        with self._lock:
+            # Pass 1: standard detection
             faces = self.insightface_app.get(img)
-            self.insightface_app.prepare(ctx_id=0, det_size=(640, 640))
             if faces:
-                logger.info("[FaceDetect] Found %d face(s) at 1280 det_size", len(faces))
                 return faces
-        except Exception as e:
-            logger.warning("[FaceDetect] 1280 retry failed: %s", e)
-            try:
-                self.insightface_app.prepare(ctx_id=0, det_size=(640, 640))
-            except Exception:
-                pass
 
-        # Pass 3: try with enhanced image (CLAHE contrast + sharpening)
-        logger.info("[FaceDetect] Trying enhanced image preprocessing...")
-        try:
-            enhanced = self._enhance_for_detection(img)
-            self.insightface_app.prepare(ctx_id=0, det_size=(640, 640))
-            faces = self.insightface_app.get(enhanced)
-            if faces:
-                logger.info("[FaceDetect] Found %d face(s) with enhanced image", len(faces))
-                return faces
-            # Also try 1280 on enhanced
-            self.insightface_app.prepare(ctx_id=0, det_size=(1280, 1280))
-            faces = self.insightface_app.get(enhanced)
-            self.insightface_app.prepare(ctx_id=0, det_size=(640, 640))
-            if faces:
-                logger.info("[FaceDetect] Found %d face(s) with enhanced image at 1280", len(faces))
-                return faces
-        except Exception as e:
-            logger.warning("[FaceDetect] Enhanced detection failed: %s", e)
+            # Pass 2: retry with larger detection size for small faces (ID cards)
+            logger.info("[FaceDetect] No faces at 640, retrying with 1280...")
             try:
+                self.insightface_app.prepare(ctx_id=0, det_size=(1280, 1280))
+                faces = self.insightface_app.get(img)
                 self.insightface_app.prepare(ctx_id=0, det_size=(640, 640))
-            except Exception:
-                pass
+                if faces:
+                    logger.info("[FaceDetect] Found %d face(s) at 1280 det_size", len(faces))
+                    return faces
+            except Exception as e:
+                logger.warning("[FaceDetect] 1280 retry failed: %s", e)
+                try:
+                    self.insightface_app.prepare(ctx_id=0, det_size=(640, 640))
+                except Exception:
+                    pass
+
+            # Pass 3: try with enhanced image (CLAHE contrast + sharpening)
+            logger.info("[FaceDetect] Trying enhanced image preprocessing...")
+            try:
+                enhanced = self._enhance_for_detection(img)
+                self.insightface_app.prepare(ctx_id=0, det_size=(640, 640))
+                faces = self.insightface_app.get(enhanced)
+                if faces:
+                    logger.info("[FaceDetect] Found %d face(s) with enhanced image", len(faces))
+                    return faces
+                # Also try 1280 on enhanced
+                self.insightface_app.prepare(ctx_id=0, det_size=(1280, 1280))
+                faces = self.insightface_app.get(enhanced)
+                self.insightface_app.prepare(ctx_id=0, det_size=(640, 640))
+                if faces:
+                    logger.info("[FaceDetect] Found %d face(s) with enhanced image at 1280", len(faces))
+                    return faces
+            except Exception as e:
+                logger.warning("[FaceDetect] Enhanced detection failed: %s", e)
+                try:
+                    self.insightface_app.prepare(ctx_id=0, det_size=(640, 640))
+                except Exception:
+                    pass
 
         return []
 
@@ -275,6 +277,7 @@ class FaceVerifier:
         start_time = time.time()
 
         if self.insightface_app is None:
+            logger.error("[FaceVerify] InsightFace is None — model not loaded")
             raise RuntimeError(
                 "InsightFace ArcFace model is not loaded. "
                 "Face verification cannot proceed — system startup integrity check failed."
@@ -282,9 +285,14 @@ class FaceVerifier:
 
         id_b64 = id_face_image if isinstance(id_face_image, str) else '(bytes)'
         selfie_b64 = selfie_image if isinstance(selfie_image, str) else '(bytes)'
+        id_size = len(id_b64) if isinstance(id_b64, str) else 0
+        selfie_size = len(selfie_b64) if isinstance(selfie_b64, str) else 0
         id_hash = hashlib.md5(id_b64.encode() if isinstance(id_b64, str) else id_b64).hexdigest()[:12]
         selfie_hash = hashlib.md5(selfie_b64.encode() if isinstance(selfie_b64, str) else selfie_b64).hexdigest()[:12]
         same_input = (id_hash == selfie_hash)
+
+        logger.info("[FaceVerify] Input sizes: id=%d selfie=%d id_hash=%s selfie_hash=%s same=%s strict=%s",
+                     id_size, selfie_size, id_hash, selfie_hash, same_input, strict)
 
         result = {
             'verified': False,
@@ -305,6 +313,9 @@ class FaceVerifier:
         try:
             img_id = self.decode_image(id_face_image)
             img_selfie = self.decode_image(selfie_image)
+            logger.info("[FaceVerify] Decoded: id=%dx%dx%d selfie=%dx%dx%d",
+                         img_id.shape[1], img_id.shape[0], img_id.shape[2] if len(img_id.shape) > 2 else 1,
+                         img_selfie.shape[1], img_selfie.shape[0], img_selfie.shape[2] if len(img_selfie.shape) > 2 else 1)
         except Exception as e:
             result['reason'] = f"Image decode error: {str(e)}"
             logger.warning("[FaceVerify] Decode error: %s", e)
@@ -383,8 +394,20 @@ class FaceVerifier:
             issues = '; '.join(result['selfie_face_quality']['issues'])
             logger.warning("Selfie quality warning: %s (continuing)", issues)
 
-        if face_id.embedding is not None and face_selfie.embedding is not None:
-            similarity = self._cosine_similarity(face_id.embedding, face_selfie.embedding)
+        id_emb = face_id.embedding
+        selfie_emb = face_selfie.embedding
+        logger.info("[FaceVerify] ID embedding: %s (len=%s), Selfie embedding: %s (len=%s)",
+                     type(id_emb).__name__ if id_emb is not None else 'None',
+                     len(id_emb) if id_emb is not None else 0,
+                     type(selfie_emb).__name__ if selfie_emb is not None else 'None',
+                     len(selfie_emb) if selfie_emb is not None else 0)
+
+        if id_emb is not None and selfie_emb is not None:
+            emb_id_norm = np.linalg.norm(np.array(id_emb, dtype=np.float32).flatten())
+            emb_selfie_norm = np.linalg.norm(np.array(selfie_emb, dtype=np.float32).flatten())
+            logger.info("[FaceVerify] Embedding norms: id=%.4f selfie=%.4f", emb_id_norm, emb_selfie_norm)
+
+            similarity = self._cosine_similarity(id_emb, selfie_emb)
             result['cosine_similarity'] = round(similarity, 4)
 
             threshold = self.COSINE_THRESHOLD_STRICT if strict else self.COSINE_THRESHOLD
@@ -425,6 +448,9 @@ class FaceVerifier:
                 else:
                     result['reason'] = f"Similarity {similarity:.4f} below threshold {threshold}"
         else:
+            logger.error("[FaceVerify] Cannot compute embeddings: id_emb=%s selfie_emb=%s",
+                         'None' if id_emb is None else f'OK({len(id_emb)})',
+                         'None' if selfie_emb is None else f'OK({len(selfie_emb)})')
             result['reason'] = "Could not compute face embeddings"
             result['processing_time_ms'] = round((time.time() - start_time) * 1000, 1)
             return result

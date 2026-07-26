@@ -90,6 +90,43 @@ def _safe_get(d, key, default=0):
     return d.get(key, default)
 
 
+def _compress_image_base64(b64_str, max_dim=1024, jpeg_quality=75):
+    """Compress a base64 image string to reduce memory and processing time.
+
+    Resizes to max_dim on the longest side and re-encodes as JPEG.
+    Returns the compressed base64 string (with data URI prefix).
+    """
+    import cv2
+    try:
+        if not b64_str or not isinstance(b64_str, str):
+            return b64_str
+        data = b64_str
+        if ',' in data:
+            prefix = data.split(',')[0] + ','
+            data = data.split(',')[1]
+        else:
+            prefix = 'data:image/jpeg;base64,'
+        img_bytes = __import__('base64').b64decode(data)
+        nparr = np.frombuffer(img_bytes, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img is None:
+            return b64_str
+        h, w = img.shape[:2]
+        if max(h, w) <= max_dim:
+            return b64_str
+        scale = max_dim / max(h, w)
+        new_w, new_h = int(w * scale), int(h * scale)
+        img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        _, buf = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, jpeg_quality])
+        compressed = __import__('base64').b64encode(buf.tobytes()).decode('utf-8')
+        logger.info("[Compress] %dx%d → %dx%d (%.0fKB → %.0fKB)",
+                     w, h, new_w, new_h, len(img_bytes) / 1024, len(compressed) * 3 / 4 / 1024)
+        return prefix + compressed
+    except Exception as e:
+        logger.warning("[Compress] Failed to compress image: %s — using original", e)
+        return b64_str
+
+
 # ============================================================
 # INITIALIZE DETECTORS (4 singletons only)
 # ============================================================
@@ -119,13 +156,21 @@ except Exception as e:
 
 try:
     from minifasnet_detector import MiniFASNetDetector
-    spoof_detector = MiniFASNetDetector()
+    shared_insightface = getattr(face_verifier, 'insightface_app', None) if face_verifier else None
+    shared_lock = getattr(face_verifier, '_lock', None) if face_verifier else None
+    spoof_detector = MiniFASNetDetector(shared_insightface_app=shared_insightface, shared_lock=shared_lock)
+    if shared_insightface:
+        logger.info("Anti-spoofing using shared InsightFace for face detection")
+    else:
+        logger.info("Anti-spoofing using Haar Cascade fallback for face detection")
 except Exception as e:
     logger.warning("Anti-spoofing unavailable: %s", e)
 
 try:
     from deepfake_detector import DeepfakeDetector, DEEPFAKE_THRESHOLD
-    deepfake_detector = DeepfakeDetector()
+    shared_insightface_df = getattr(face_verifier, 'insightface_app', None) if face_verifier else None
+    shared_lock_df = getattr(face_verifier, '_lock', None) if face_verifier else None
+    deepfake_detector = DeepfakeDetector(shared_insightface_app=shared_insightface_df, shared_lock=shared_lock_df)
 except Exception as e:
     logger.warning("Deepfake detection unavailable: %s", e)
 
@@ -134,6 +179,54 @@ logger.info("  Face verification: %s", "OK" if face_verifier else "UNAVAILABLE")
 logger.info("  Liveness: %s", "OK" if challenge_liveness else "UNAVAILABLE")
 logger.info("  Anti-spoofing: %s", "OK" if spoof_detector else "UNAVAILABLE")
 logger.info("  Deepfake: %s", "OK" if deepfake_detector else "UNAVAILABLE")
+
+# ============================================================
+# STARTUP DIAGNOSTIC — Verify models actually work end-to-end
+# ============================================================
+def _run_startup_diagnostic():
+    """Run quick inference test on synthetic images to catch model issues early."""
+    import cv2
+    import base64
+    try:
+        # Create a simple face-like test image (100x100 skin-tone rectangle)
+        test_img = np.zeros((100, 100, 3), dtype=np.uint8)
+        test_img[:, :] = (140, 160, 200)  # BGR skin-like color
+        _, buf = cv2.imencode('.jpg', test_img)
+        test_b64 = 'data:image/jpeg;base64,' + base64.b64encode(buf.tobytes()).decode()
+
+        if face_verifier and getattr(face_verifier, 'insightface_app', None):
+            try:
+                img = face_verifier.decode_image(test_b64)
+                faces = face_verifier._get_faces(img)
+                logger.info("[StartupDiag] InsightFace detection: %d face(s) found", len(faces))
+                if faces and faces[0].embedding is not None:
+                    logger.info("[StartupDiag] InsightFace recognition: embedding dim=%d", len(faces[0].embedding))
+                elif faces:
+                    logger.warning("[StartupDiag] InsightFace: face detected but embedding is None")
+                else:
+                    logger.info("[StartupDiag] InsightFace: no face in synthetic image (expected)")
+            except Exception as e:
+                logger.error("[StartupDiag] InsightFace FAILED: %s", e)
+
+        if spoof_detector and spoof_detector.available:
+            try:
+                result = spoof_detector.detect(test_b64)
+                logger.info("[StartupDiag] Anti-spoof: liveness=%.2f available=%s", result.get('liveness_score', 0), result.get('available'))
+            except Exception as e:
+                logger.error("[StartupDiag] Anti-spoof FAILED: %s", e)
+
+        if deepfake_detector and deepfake_detector.available:
+            try:
+                result = deepfake_detector.detect(test_b64)
+                logger.info("[StartupDiag] Deepfake: is_deepfake=%s", result.get('is_deepfake'))
+            except Exception as e:
+                logger.error("[StartupDiag] Deepfake FAILED: %s", e)
+
+        logger.info("[StartupDiag] Diagnostic complete")
+    except Exception as e:
+        logger.warning("[StartupDiag] Diagnostic skipped: %s", e)
+
+_run_startup_diagnostic()
 
 # ============================================================
 # CHALLENGE SESSION STORE (thread-safe)
@@ -326,6 +419,17 @@ def detailed_verify():
     frames = data.get('frames', [])
     session_result = data.get('session_result')
     is_rekyc = bool(data.get('rekyc', False))
+
+    # Compress large images to reduce memory and processing time
+    if id_face and isinstance(id_face, str) and len(id_face) > 2_000_000:
+        logger.info("[VERIFY] Compressing large id_face (%.0fKB)", len(id_face) / 1024)
+        id_face = _compress_image_base64(id_face)
+    if selfie and isinstance(selfie, str) and len(selfie) > 2_000_000:
+        logger.info("[VERIFY] Compressing large selfie (%.0fKB)", len(selfie) / 1024)
+        selfie = _compress_image_base64(selfie)
+    if profile_photo and isinstance(profile_photo, str) and len(profile_photo) > 2_000_000:
+        logger.info("[VERIFY] Compressing large profile_photo (%.0fKB)", len(profile_photo) / 1024)
+        profile_photo = _compress_image_base64(profile_photo)
 
     # ============================================================
     # 1. FACE VERIFICATION (always runs for Re-KYC with relaxed threshold)

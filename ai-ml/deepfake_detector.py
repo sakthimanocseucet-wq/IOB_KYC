@@ -323,12 +323,14 @@ class DeepfakeDetector:
 
     _shared_cascade = None
 
-    def __init__(self):
+    def __init__(self, shared_insightface_app=None, shared_lock=None):
         self.detectors: dict = {}
         self.available = False
         self.models_loaded = []
         self.models_disabled = []
         self.model_info = {}
+        self._shared_insightface = shared_insightface_app
+        self._shared_lock = shared_lock
         self._load_all_models()
 
     @classmethod
@@ -378,6 +380,21 @@ class DeepfakeDetector:
         return {name: 1.0 / len(active) for name in active}
 
     def _detect_face(self, img):
+        """Detect face — try InsightFace first (shared, thread-safe), then Haar Cascade fallback."""
+        if hasattr(self, '_shared_insightface') and self._shared_insightface is not None:
+            try:
+                lock = getattr(self, '_shared_lock', None)
+                if lock:
+                    with lock:
+                        faces = self._shared_insightface.get(img)
+                else:
+                    faces = self._shared_insightface.get(img)
+                if faces:
+                    face = max(faces, key=lambda f: f.det_score)
+                    bbox = face.bbox.astype(int)
+                    return (int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3]))
+            except Exception:
+                pass
         try:
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             cascade = self._get_cascade()

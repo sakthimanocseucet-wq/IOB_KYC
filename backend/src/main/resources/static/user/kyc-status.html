@@ -48,7 +48,7 @@
     <script src="../js/main.js?v=swipe2" defer></script>
     <script src="../js/auth.js?v=12" defer></script>
     <script>
-    (function() {
+    document.addEventListener('DOMContentLoaded', function() {
         function loadStatus() {
             var container = document.getElementById('statusContent');
             var token = getAuthToken();
@@ -285,7 +285,7 @@
 
         var cachedStatusHtml = null;
         loadStatus();
-    })();
+    });
     </script>
 </body>
 </html>

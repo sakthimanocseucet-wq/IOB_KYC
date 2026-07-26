@@ -211,6 +211,47 @@ def normalize_date(date_str):
     return date_str.lower()
 
 
+def normalize_address(address):
+    """Normalize address for fuzzy comparison."""
+    if not address:
+        return ''
+    addr = address.lower().strip()
+    addr = re.sub(r'[,\s]+', ' ', addr)
+    addr = re.sub(r'\b(s/o|d/o|w/o|son of|daughter of|wife of)\b', '', addr)
+    addr = re.sub(r'\b(po|ps|dist|state|pin|pincode|taluk|tehsil|village|city|town)\b\.?', '', addr)
+    addr = re.sub(r'\bandhra\s*pradesh\b', 'ap', addr)
+    addr = re.sub(r'\btamil\s*nadu\b', 'tn', addr)
+    addr = re.sub(r'\bkarnataka\b', 'ka', addr)
+    addr = re.sub(r'\bkerala\b', 'kl', addr)
+    addr = re.sub(r'\bmadhya\s*pradesh\b', 'mp', addr)
+    addr = re.sub(r'\bwest\s*bengal\b', 'wb', addr)
+    addr = re.sub(r'\bumar\s*pradesh\b', 'up', addr)
+    addr = re.sub(r'\brajasthan\b', 'rj', addr)
+    addr = re.sub(r'\bodisha\b', 'od', addr)
+    addr = re.sub(r'\bchhattisgarh\b', 'cg', addr)
+    addr = re.sub(r'\bjharkhand\b', 'jh', addr)
+    addr = re.sub(r'\b uttarakhand\b', 'uk', addr)
+    addr = re.sub(r'\bhimachal\s*pradesh\b', 'hp', addr)
+    addr = re.sub(r'\bgoa\b', 'ga', addr)
+    addr = re.sub(r'\bgujarat\b', 'gj', addr)
+    addr = re.sub(r'\bmaharashtra\b', 'mh', addr)
+    addr = re.sub(r'\bpunjab\b', 'pb', addr)
+    addr = re.sub(r'\bharyana\b', 'hr', addr)
+    addr = re.sub(r'\bassam\b', 'as', addr)
+    addr = re.sub(r'\bmanipur\b', 'mn', addr)
+    addr = re.sub(r'\bmeghalaya\b', 'ml', addr)
+    addr = re.sub(r'\bnagaland\b', 'nl', addr)
+    addr = re.sub(r'\bmizoram\b', 'mz', addr)
+    addr = re.sub(r'\btripura\b', 'tr', addr)
+    addr = re.sub(r'\bsikkim\b', 'sk', addr)
+    addr = re.sub(r'\barunachal\s*pradesh\b', 'ar', addr)
+    addr = re.sub(r'\bjammu\s*&?\s*kashmir\b', 'jk', addr)
+    addr = re.sub(r'\bladakh\b', 'la', addr)
+    addr = re.sub(r'\bchandigarh\b', 'ch', addr)
+    addr = re.sub(r'\s+', ' ', addr).strip()
+    return addr
+
+
 def parse_aadhaar_qr(qr_data):
     """Parse Aadhaar QR code data to extract name, DOB, and Aadhaar number.
 
@@ -521,6 +562,7 @@ def compare_fields(ocr_data, qr_data, doc_type):
         ('dob', 'dob', 'Date of Birth'),
         ('aadhaar_number', 'aadhaar_number', 'Aadhaar Number'),
         ('pan_number', 'pan_number', 'PAN Number'),
+        ('address', 'address', 'Address'),
     ]
 
     for ocr_key, qr_key, label in fields_to_compare:
@@ -540,6 +582,9 @@ def compare_fields(ocr_data, qr_data, doc_type):
         elif ocr_key == 'dob':
             norm_ocr = normalize_date(str(ocr_val))
             norm_qr = normalize_date(str(qr_val))
+        elif ocr_key == 'address':
+            norm_ocr = normalize_address(str(ocr_val))
+            norm_qr = normalize_address(str(qr_val))
         else:
             norm_ocr = normalize_id_number(str(ocr_val))
             norm_qr = normalize_id_number(str(qr_val))

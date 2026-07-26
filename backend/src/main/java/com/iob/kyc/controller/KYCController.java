@@ -667,6 +667,7 @@ public class KYCController {
             ocrDataMap.put("id_number", app.getOcrIdNumber());
             ocrDataMap.put("aadhaar_number", app.getOcrIdNumber());
             ocrDataMap.put("pan_number", app.getOcrPanNumber());
+            ocrDataMap.put("address", app.getOcrAddress() != null ? app.getOcrAddress() : "");
             String ocrDataJson = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(ocrDataMap);
 
             org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
@@ -738,6 +739,16 @@ public class KYCController {
                     qrResult.setOcrPanNumber(app.getOcrPanNumber() != null ? app.getOcrPanNumber() : "");
                 }
 
+                if (results.has("address")) {
+                    qrResult.setOcrAddress(results.path("address").path("ocr").asText(""));
+                    qrResult.setQrAddress(results.path("address").path("qr").asText(""));
+                    qrResult.setAddressMatch(results.path("address").path("match").asBoolean(false));
+                } else {
+                    qrResult.setOcrAddress(app.getOcrAddress() != null ? app.getOcrAddress() : "");
+                }
+
+                boolean alreadyHasQrResult = !qrVerificationRepository.findByApplicationIdOrderByVerifiedAtDesc(id).isEmpty();
+
                 qrVerificationRepository.save(qrResult);
 
                 app.setQrVerified(true);
@@ -745,29 +756,31 @@ public class KYCController {
                 app.setQrMatchPercentage(qrResult.getMatchPercentage());
                 app.setQrVerifiedAt(java.time.LocalDateTime.now());
 
-                if (qrResult.getVerificationStatus() == com.iob.kyc.model.QRStatus.FAILED) {
-                    int currentRisk = app.getRiskScore();
-                    int newRisk = Math.min(currentRisk + 25, 100);
-                    app.setRiskScore(newRisk);
-                    if (newRisk >= 60) {
-                        app.setRiskLevel(KYCApplication.RiskLevel.HIGH);
-                    } else if (newRisk >= 30) {
-                        app.setRiskLevel(KYCApplication.RiskLevel.MEDIUM);
+                if (!alreadyHasQrResult) {
+                    if (qrResult.getVerificationStatus() == com.iob.kyc.model.QRStatus.FAILED) {
+                        int currentRisk = app.getRiskScore();
+                        int newRisk = Math.min(currentRisk + 25, 100);
+                        app.setRiskScore(newRisk);
+                        if (newRisk >= 60) {
+                            app.setRiskLevel(KYCApplication.RiskLevel.HIGH);
+                        } else if (newRisk >= 30) {
+                            app.setRiskLevel(KYCApplication.RiskLevel.MEDIUM);
+                        }
+                    } else if (qrResult.getVerificationStatus() == com.iob.kyc.model.QRStatus.SKIPPED) {
+                        int currentRisk = app.getRiskScore();
+                        int newRisk = Math.min(currentRisk + 10, 100);
+                        app.setRiskScore(newRisk);
+                        if (newRisk >= 60) {
+                            app.setRiskLevel(KYCApplication.RiskLevel.HIGH);
+                        } else if (newRisk >= 30) {
+                            app.setRiskLevel(KYCApplication.RiskLevel.MEDIUM);
+                        }
+                    } else if (qrResult.getVerificationStatus() == com.iob.kyc.model.QRStatus.PASSED) {
+                        int currentRisk = app.getRiskScore();
+                        int newRisk = Math.max(currentRisk - 15, 0);
+                        app.setRiskScore(newRisk);
+                        app.setRiskLevel(KYCApplication.RiskLevel.LOW);
                     }
-                } else if (qrResult.getVerificationStatus() == com.iob.kyc.model.QRStatus.SKIPPED) {
-                    int currentRisk = app.getRiskScore();
-                    int newRisk = Math.min(currentRisk + 10, 100);
-                    app.setRiskScore(newRisk);
-                    if (newRisk >= 60) {
-                        app.setRiskLevel(KYCApplication.RiskLevel.HIGH);
-                    } else if (newRisk >= 30) {
-                        app.setRiskLevel(KYCApplication.RiskLevel.MEDIUM);
-                    }
-                } else if (qrResult.getVerificationStatus() == com.iob.kyc.model.QRStatus.PASSED) {
-                    int currentRisk = app.getRiskScore();
-                    int newRisk = Math.max(currentRisk - 15, 0);
-                    app.setRiskScore(newRisk);
-                    app.setRiskLevel(KYCApplication.RiskLevel.LOW);
                 }
 
                 kycApplicationRepository.save(app);

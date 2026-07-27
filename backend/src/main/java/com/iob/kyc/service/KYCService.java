@@ -346,24 +346,31 @@ public class KYCService {
         }
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public ApiResponse getKYCStatus(Long userId) {
         List<KYCApplication> applications = kycApplicationRepository.findByUserIdOrderByIdDesc(userId);
         if (applications.isEmpty()) {
             return ApiResponse.success("No KYC applications found", List.of());
         }
+        boolean dirty = false;
         for (KYCApplication app : applications) {
             if (app.getStatus() == KYCApplication.Status.APPROVED) {
                 if (app.getAccountNumber() == null || app.getAccountNumber().isEmpty()) {
                     app.setAccountNumber("IOB" + String.format("%04d", app.getId()) + String.format("%06d", System.currentTimeMillis() % 1000000));
+                    dirty = true;
                 }
                 if (app.getIfscCode() == null || app.getIfscCode().isEmpty()) {
                     app.setIfscCode("IOBA000" + String.format("%04d", app.getId()));
+                    dirty = true;
                 }
                 if (app.getBranchId() == null || app.getBranchId().isEmpty()) {
                     app.setBranchId("BRANCH" + String.format("%03d", app.getId()));
+                    dirty = true;
                 }
             }
+        }
+        if (dirty) {
+            kycApplicationRepository.saveAll(applications);
         }
         return ApiResponse.success("KYC applications retrieved", applications);
     }

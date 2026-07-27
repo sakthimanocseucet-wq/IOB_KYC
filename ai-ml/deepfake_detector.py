@@ -429,6 +429,81 @@ class RECCEModel(DeepfakeBenchXception):
         super().__init__(in_channels=3, num_classes=nc, dropout=0.0)
 
 
+def _dct_matrix(size):
+    m = [[(np.sqrt(1./size) if i == 0 else np.sqrt(2./size)) * np.cos((j + 0.5) * np.pi * i / size) for j in range(size)] for i in range(size)]
+    return m
+
+
+def _generate_filter(start, end, size):
+    return [[0. if i + j > end or i + j < start else 1. for j in range(size)] for i in range(size)]
+
+
+class FADFilter(nn.Module):
+    def __init__(self, size, start, end):
+        super().__init__()
+        self.base = nn.Parameter(torch.tensor(_generate_filter(start, end, size)).float(), requires_grad=False)
+        self.learnable = nn.Parameter(torch.rand(size, size), requires_grad=True)
+
+    def forward(self, x):
+        return x * (self.base + self.learnable)
+
+
+class FADHead(nn.Module):
+    def __init__(self, size=256):
+        super().__init__()
+        self._DCT_all = nn.Parameter(torch.tensor(_dct_matrix(size)).float(), requires_grad=False)
+        self._DCT_all_T = nn.Parameter(torch.transpose(torch.tensor(_dct_matrix(size)).float(), 0, 1), requires_grad=False)
+        self.filters = nn.ModuleList([
+            FADFilter(size, 0, int(size // 2.82)),
+            FADFilter(size, int(size // 2.82), size // 2),
+            FADFilter(size, size // 2, size * 2),
+            FADFilter(size, 0, size * 2),
+        ])
+
+    def forward(self, x):
+        x_freq = self._DCT_all @ x @ self._DCT_all_T
+        y_list = []
+        for f in self.filters:
+            x_pass = f(x_freq)
+            y = self._DCT_all_T @ x_pass @ self._DCT_all
+            y_list.append(y)
+        return torch.cat(y_list, dim=1)
+
+
+class F3NetFull(nn.Module):
+    def __init__(self, backbone, nc=2):
+        super().__init__()
+        self.FAD_head = FADHead(256)
+        self.backbone = backbone
+        self.backbone.conv1 = nn.Conv2d(12, 32, 3, 2, 0, bias=False)
+        self.backbone.last_linear = nn.Linear(2048, nc)
+
+    def features(self, x):
+        fad_out = self.FAD_head(x)
+        x = F.relu(self.backbone.bn1(self.backbone.conv1(fad_out)))
+        x = F.relu(self.backbone.bn2(self.backbone.conv2(x)))
+        x = self.backbone.block1(x)
+        x = self.backbone.block2(x)
+        x = self.backbone.block3(x)
+        x = self.backbone.block4(x)
+        x = self.backbone.block5(x)
+        x = self.backbone.block6(x)
+        x = self.backbone.block7(x)
+        x = self.backbone.block8(x)
+        x = self.backbone.block9(x)
+        x = self.backbone.block10(x)
+        x = self.backbone.block11(x)
+        x = self.backbone.block12(x)
+        x = F.relu(self.backbone.bn3(self.backbone.conv3(x)))
+        x = F.relu(self.backbone.bn4(self.backbone.conv4(x)))
+        x = F.adaptive_avg_pool2d(x, (1, 1)).flatten(1)
+        return x
+
+    def forward(self, x):
+        feat = self.features(x)
+        return self.backbone.last_linear(feat)
+
+
 class F3NetModel(DeepfakeBenchXception):
     """F3Net backbone — DeepfakeBench Xception (in_channels=12 for FAD head)."""
     def __init__(self, nc=2):
@@ -503,13 +578,14 @@ class F3NetClassifier:
         self.available = False
         self.device = torch.device('cpu')
         self.model_name = 'f3net'
-        self.input_size = (224, 224)
+        self.input_size = (256, 256)
         self.info = None
         self._load_model()
 
     def _load_model(self):
         try:
-            self.model = F3NetModel(nc=2)
+            backbone = DeepfakeBenchXception(in_channels=12, num_classes=2, dropout=0.5)
+            self.model = F3NetFull(backbone, nc=2)
             self.model.eval()
             self.model.to(self.device)
             info = MODEL_DEFINITIONS['f3net']
@@ -519,19 +595,23 @@ class F3NetClassifier:
                 self.model = None
                 return
             state = torch.load(checkpoint_path, map_location='cpu')
-            # Strip 'backbone.' prefix to match our model structure
             new_state = {}
             for k, v in state.items():
-                if k.startswith('backbone.'):
-                    new_state[k[len('backbone.'):]] = v
-                elif not k.startswith('FAD_head.') and not k.startswith('adjust_channel'):
+                if k.startswith('backbone.last_linear.1.'):
+                    new_state['backbone.last_linear.' + k[len('backbone.last_linear.1.'):]] = v
+                elif k.startswith('backbone.'):
+                    new_state[k] = v
+                elif k.startswith('FAD_head.'):
                     new_state[k] = v
             missing, unexpected = self.model.load_state_dict(new_state, strict=False)
             if missing:
-                logger.warning("[F3Net] Missing keys: %s", missing[:5])
+                logger.warning("[F3Net] Missing keys: %s", missing[:10])
+            real_unexpected = [k for k in unexpected if 'adjust_channel' not in k]
+            if real_unexpected:
+                logger.warning("[F3Net] Unexpected keys: %s", real_unexpected[:5])
             self.info = info
             self.available = True
-            logger.info("[F3Net] ENABLED (checkpoint loaded, stripped backbone prefix)")
+            logger.info("[F3Net] ENABLED with FAD_head (DCT frequency filter)")
         except Exception as e:
             logger.warning("[F3Net] Failed to initialize: %s", e)
             self.model = None

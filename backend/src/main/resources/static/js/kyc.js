@@ -744,12 +744,27 @@ async function verifyDetails() {
 
 // ====================== WEBCAM / FACE VERIFICATION ======================
 var VIRTUAL_CAMERA_KEYWORDS = [
-    'obs', 'virtual', 'manycam', 'xsplit', 'snap camera', 'snapcamera',
+    'obs virtual', 'obs studio', 'manycam', 'xsplit', 'snap camera', 'snapcamera',
     'logitech capture', 'youcam', 'chroma cam', 'camtwist', 'webcamoid',
-    'droidcam', 'iriun', 'ivcam', 'epoccam', 'virtualhere', 'usb over network',
-    'software device', 'screen capture', 'window capture', 'game capture',
-    'parsec', 'teamviewer', 'anydesk', 'chrome remote', 'virtual machine'
+    'droidcam', 'iriun', 'ivcam', 'epoccam', 'virtualhere',
+    'screen capture', 'window capture', 'game capture',
+    'parsec', 'teamviewer', 'anydesk', 'chrome remote'
 ];
+
+var REAL_CAMERA_KEYWORDS = [
+    'hd pro', 'hd webcam', 'c920', 'c922', 'c930', 'c270', 'brio',
+    'webcam', 'camera', 'integrated camera', 'built-in',
+    'usb 2.0', 'usb video', 'rgb camera', 'depth camera',
+    'faceime', 'facetime', 'apple', 'microsoft lifecam'
+];
+
+function isRealCamera(label) {
+    var lower = label.toLowerCase();
+    for (var i = 0; i < REAL_CAMERA_KEYWORDS.length; i++) {
+        if (lower.indexOf(REAL_CAMERA_KEYWORDS[i]) !== -1) return true;
+    }
+    return false;
+}
 
 async function detectVirtualCamera() {
     try {
@@ -757,8 +772,10 @@ async function detectVirtualCamera() {
         var devices = await navigator.mediaDevices.enumerateDevices();
         var videoDevices = devices.filter(function(d) { return d.kind === 'videoinput'; });
         var virtualCams = [];
+        var hasRealCam = false;
         for (var i = 0; i < videoDevices.length; i++) {
             var label = (videoDevices[i].label || '').toLowerCase();
+            if (isRealCamera(label)) { hasRealCam = true; continue; }
             for (var j = 0; j < VIRTUAL_CAMERA_KEYWORDS.length; j++) {
                 if (label.indexOf(VIRTUAL_CAMERA_KEYWORDS[j]) !== -1) {
                     virtualCams.push(videoDevices[i].label);
@@ -766,6 +783,7 @@ async function detectVirtualCamera() {
                 }
             }
         }
+        if (hasRealCam && virtualCams.length > 0) virtualCams = [];
         return virtualCams.length > 0 ? virtualCams : null;
     } catch (e) {
         return null;
@@ -791,12 +809,14 @@ async function startWebcam() {
                 var activeDevice = devices.find(function(d) { return d.deviceId === deviceId; });
                 if (activeDevice) {
                     var lbl = (activeDevice.label || '').toLowerCase();
-                    for (var k = 0; k < VIRTUAL_CAMERA_KEYWORDS.length; k++) {
-                        if (lbl.indexOf(VIRTUAL_CAMERA_KEYWORDS[k]) !== -1) {
-                            webcamStream.getTracks().forEach(function(t) { t.stop(); });
-                            webcamStream = null;
-                            showAlert('Virtual camera detected (' + activeDevice.label + '). Please use a real webcam.', 'error');
-                            return;
+                    if (!isRealCamera(lbl)) {
+                        for (var k = 0; k < VIRTUAL_CAMERA_KEYWORDS.length; k++) {
+                            if (lbl.indexOf(VIRTUAL_CAMERA_KEYWORDS[k]) !== -1) {
+                                webcamStream.getTracks().forEach(function(t) { t.stop(); });
+                                webcamStream = null;
+                                showAlert('Virtual camera detected (' + activeDevice.label + '). Please use a real webcam.', 'error');
+                                return;
+                            }
                         }
                     }
                 }

@@ -465,7 +465,31 @@ def deepfake_test():
                 'error': str(e),
             })
 
-    return jsonify({'success': True, 'data': results})
+    if results:
+        fake_probs = [r['fake_prob'] for r in results if 'error' not in r]
+        frames_flagged = sum(1 for r in results if r.get('is_deepfake', False))
+        avg_prob = sum(fake_probs) / len(fake_probs) if fake_probs else 0
+        majority_fake = frames_flagged > len(results) / 2
+        video_is_deepfake = majority_fake or avg_prob > DEEPFAKE_THRESHOLD
+        verdict = 'FAKE' if video_is_deepfake else 'REAL'
+    else:
+        avg_prob = 0
+        frames_flagged = 0
+        video_is_deepfake = False
+        verdict = 'UNKNOWN'
+
+    return jsonify({
+        'success': True,
+        'data': results,
+        'video_summary': {
+            'avg_fake_prob': round(avg_prob, 4),
+            'frames_flagged': frames_flagged,
+            'total_frames': len(results),
+            'video_is_deepfake': video_is_deepfake,
+            'verdict': verdict,
+            'threshold': DEEPFAKE_THRESHOLD,
+        },
+    })
 
 
 @app.route('/face-detect', methods=['POST'])

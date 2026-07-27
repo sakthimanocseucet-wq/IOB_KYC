@@ -28,7 +28,7 @@ import torch.nn.functional as F
 logger = logging.getLogger(__name__)
 
 MODEL_DIR = os.path.join(os.path.dirname(__file__), 'models')
-DEEPFAKE_THRESHOLD = 0.85
+DEEPFAKE_THRESHOLD = 0.65
 IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
@@ -486,6 +486,35 @@ class DeepfakeDetector:
                 }
         return diagnostics
 
+    def _frequency_analysis(self, face_crop):
+        try:
+            gray = cv2.cvtColor(face_crop, cv2.COLOR_BGR2GRAY)
+            resized = cv2.resize(gray, (128, 128))
+            f = np.fft.fft2(resized)
+            fshift = np.fft.fftshift(f)
+            magnitude = np.abs(fshift)
+            h, w = resized.shape
+            cy, cx = h // 2, w // 2
+            y, x = np.ogrid[:h, :w]
+            r = np.sqrt((x - cx) ** 2 + (y - cy) ** 2)
+            high_freq = magnitude[r > 30].mean() if (r > 30).any() else 0
+            low_freq = magnitude[r <= 30].mean() if (r <= 30).any() else 1
+            ratio = high_freq / (low_freq + 1e-10)
+            edges = cv2.Canny(resized, 50, 150)
+            edge_density = edges.mean() / 255.0
+            score = 0.0
+            if ratio > 0.8:
+                score += 0.3
+            if ratio > 1.5:
+                score += 0.2
+            if edge_density > 0.15:
+                score += 0.2
+            if edge_density < 0.03:
+                score += 0.15
+            return min(score, 1.0)
+        except Exception:
+            return 0.0
+
     def detect(self, image_data, face_bbox=None):
         start = time.time()
 
@@ -578,6 +607,13 @@ class DeepfakeDetector:
 
             fake_prob = ensemble['fake_prob']
             real_prob = ensemble['real_prob']
+
+            freq_score = self._frequency_analysis(face_crop)
+            if freq_score > 0:
+                blended = 0.55 * fake_prob + 0.45 * freq_score
+                fake_prob = round(min(max(blended, 0.0), 1.0), 4)
+                real_prob = round(1.0 - fake_prob, 4)
+
             is_deepfake = fake_prob > DEEPFAKE_THRESHOLD
             confidence = max(real_prob, fake_prob)
 

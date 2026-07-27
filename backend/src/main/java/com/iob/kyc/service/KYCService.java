@@ -9,6 +9,7 @@ import com.iob.kyc.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import com.iob.kyc.dto.KYCStatusDTO;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -352,7 +353,10 @@ public class KYCService {
         if (applications.isEmpty()) {
             return ApiResponse.success("No KYC applications found", List.of());
         }
-        return ApiResponse.success("KYC applications retrieved", applications);
+        List<KYCStatusDTO> dtos = applications.stream()
+                .map(KYCStatusDTO::fromEntity)
+                .toList();
+        return ApiResponse.success("KYC applications retrieved", dtos);
     }
 
     private String sanitizeFilename(String filename) {

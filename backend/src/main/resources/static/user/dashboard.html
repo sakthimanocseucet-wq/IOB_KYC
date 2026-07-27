@@ -126,7 +126,7 @@
         localStorage.removeItem('kycData');
     })();
     </script>
-    <script src="../js/kyc.js?v=20" defer></script>
+    <script src="../js/kyc.js?v=21" defer></script>
     <script>
     (function() {
         var kycActionsEl = document.getElementById('kycActions');
@@ -234,8 +234,8 @@
 
             loadProfileImage(document.getElementById('profilePhotoImg'), app.id);
 
-            document.getElementById('bankEmail').textContent = (app.user && app.user.email) || app.email || '';
-            document.getElementById('bankMobile').textContent = app.mobile || (app.user && app.user.phone) || '';
+            document.getElementById('bankEmail').textContent = app.userEmail || app.email || '';
+            document.getElementById('bankMobile').textContent = app.mobile || app.userPhone || '';
             document.getElementById('bankAadhaar').textContent = app.ocrIdNumber || (app.ocr_data && app.ocr_data.id_number) || '--';
             document.getElementById('bankPan').textContent = app.ocrPanNumber || (app.ocr_data && app.ocr_data.pan_number) || '--';
             kycActionsEl.innerHTML =

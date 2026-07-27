@@ -288,8 +288,8 @@
                     document.getElementById('editAadhaar').value = app.ocrIdNumber || '';
                     document.getElementById('editPan').value = app.ocrPanNumber || '';
                     document.getElementById('editAddress').value = app.ocrAddress || '';
-                    var apiMobile = app.mobile || (app.user && app.user.phone) || '';
-                    var apiEmail = app.email || (app.user && app.user.email) || '';
+                    var apiMobile = app.mobile || app.userPhone || '';
+                    var apiEmail = app.email || app.userEmail || '';
                     if (apiMobile) document.getElementById('editMobile').value = apiMobile;
                     if (apiEmail) document.getElementById('editEmail').value = apiEmail;
                     if (app.branchId) {
@@ -355,8 +355,8 @@
                         document.getElementById('editAadhaar').value = app.ocrIdNumber || '';
                         document.getElementById('editPan').value = app.ocrPanNumber || '';
                         document.getElementById('editAddress').value = app.ocrAddress || '';
-                        var apiMobile = app.mobile || (app.user && app.user.phone) || '';
-                        var apiEmail = app.email || (app.user && app.user.email) || '';
+                        var apiMobile = app.mobile || app.userPhone || '';
+                        var apiEmail = app.email || app.userEmail || '';
                         if (apiMobile) document.getElementById('editMobile').value = apiMobile;
                         if (apiEmail) document.getElementById('editEmail').value = apiEmail;
                         if (app.branchId) {

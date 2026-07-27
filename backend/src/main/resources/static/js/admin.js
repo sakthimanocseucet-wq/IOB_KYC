@@ -1360,6 +1360,9 @@ function renderQrResult(data, appId) {
     fieldConfig.push({ key: 'aadhaar_number', label: 'Aadhaar Number' });
     fieldConfig.push({ key: 'pan_number', label: 'PAN Number' });
 
+    var calcMatchCount = 0;
+    var calcTotal = 0;
+
     for (var i = 0; i < fieldConfig.length; i++) {
         var f = fieldConfig[i];
         var r = results[f.key] || {};
@@ -1370,6 +1373,8 @@ function renderQrResult(data, appId) {
             if (qrVal && qrVal !== '--') qrVal = qrVal.replace(/T\d{2}:\d{2}(:\d{2})?$/, '').substring(0, 10);
         }
         var match = r.match || false;
+        calcTotal++;
+        if (match) calcMatchCount++;
         var matchIcon = match ? '<span style="color:var(--success);font-weight:700">&#10004; Yes</span>' : '<span style="color:var(--danger);font-weight:700">&#10008; No</span>';
         var rowBg = match ? '' : 'background:rgba(220,38,38,0.03)';
 

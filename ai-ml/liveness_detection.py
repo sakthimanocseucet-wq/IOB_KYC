@@ -938,16 +938,26 @@ class ChallengeLivenessDetector:
             return None
 
     def _is_hand_raised(self, pose_data):
-        """Check if a hand is raised above shoulder level."""
+        """Check if a hand is raised above shoulder level.
+        Uses both wrist-shoulder comparison and wrist-nose comparison for robustness."""
         if pose_data is None:
             return False, False
         left_wrist_y = pose_data['left_wrist'][1]
         right_wrist_y = pose_data['right_wrist'][1]
         left_shoulder_y = pose_data['left_shoulder'][1]
         right_shoulder_y = pose_data['right_shoulder'][1]
+        nose_y = pose_data['nose'][1]
         avg_shoulder_y = (left_shoulder_y + right_shoulder_y) / 2.0
-        left_raised = left_wrist_y < avg_shoulder_y * self.HAND_SHOULDER_Y_THRESHOLD + avg_shoulder_y * (1 - self.HAND_SHOULDER_Y_THRESHOLD)
-        right_raised = right_wrist_y < avg_shoulder_y * self.HAND_SHOULDER_Y_THRESHOLD + avg_shoulder_y * (1 - self.HAND_SHOULDER_Y_THRESHOLD)
+        shoulder_margin = (right_shoulder_y - left_shoulder_y) * 0.1
+
+        left_raised_ws = left_wrist_y < (avg_shoulder_y - shoulder_margin)
+        right_raised_ws = right_wrist_y < (avg_shoulder_y - shoulder_margin)
+
+        left_raised_wn = left_wrist_y < nose_y
+        right_raised_wn = right_wrist_y < nose_y
+
+        left_raised = left_raised_ws or left_raised_wn
+        right_raised = right_raised_ws or right_raised_wn
         return left_raised, right_raised
 
     # ============================================================

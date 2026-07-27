@@ -1882,45 +1882,31 @@ async function performFaceVerification() {
 
         var scoreDetails = document.getElementById('scoreDetails');
         if (scoreDetails) {
-            var challengeInfo = challengeCount > 0 ? '<div class="score-row"><span>Challenges Passed:</span><strong>' + challengeCount + '/4</strong></div>' : '';
-            var faceSection = '';
-            if (data.face_three_way) {
-                var ftw = data.face_three_way;
-                var fmt = function(v) { return (v * 100).toFixed(1) + '%'; };
-                var ficon = function(p) { return p ? '&#9989;' : '&#10060;'; };
-                faceSection =
-                    '<div class="score-row" style="font-weight:600;color:var(--primary,#1a73e8)"><span>Face Match (3-way):</span></div>' +
-                    '<div class="score-row" style="padding-left:16px"><span>ID vs Selfie:</span><strong>' + ficon(ftw.id_vs_selfie.passed) + ' ' + fmt(ftw.id_vs_selfie.similarity) + '</strong></div>' +
-                    '<div class="score-row" style="padding-left:16px"><span>ID vs Photo:</span><strong>' + ficon(ftw.id_vs_photo.passed) + ' ' + fmt(ftw.id_vs_photo.similarity) + '</strong></div>' +
-                    '<div class="score-row" style="padding-left:16px"><span>Photo vs Selfie:</span><strong>' + ficon(ftw.photo_vs_selfie.passed) + ' ' + fmt(ftw.photo_vs_selfie.similarity) + '</strong></div>';
-            } else {
-                faceSection = '<div class="score-row"><span>Face Match:</span><strong>' + fm + '%</strong></div>';
-            }
+            var isVerified = status === 'VERIFIED' || status === 'APPROVED';
             scoreDetails.innerHTML =
-                faceSection +
-                '<div class="score-row"><span>Liveness:</span><strong>' + lv + '%</strong></div>' +
-                '<div class="score-row"><span>Deepfake:</span><strong>' + (data.deepfakeDetected ? 'DETECTED' : df + '%') + '</strong></div>' +
-                challengeInfo +
-                '<hr style="margin:8px 0;opacity:0.3">' +
-                '<div class="score-row final"><span>Overall:</span><strong>' + fs + '%</strong></div>';
+                '<div style="text-align:center;padding:20px">' +
+                '<div style="font-size:48px;margin-bottom:12px">' + (isVerified ? '&#9989;' : '&#10060;') + '</div>' +
+                '<div style="font-size:24px;font-weight:700;color:' + (isVerified ? 'var(--success,#22c55e)' : 'var(--danger,#ef4444)') + '">' +
+                (isVerified ? 'VERIFIED' : 'REJECTED') + '</div>' +
+                '<div style="font-size:13px;color:var(--gray-500);margin-top:8px">' +
+                (isVerified ? 'Identity verification passed successfully' : 'Identity verification failed') + '</div>' +
+                '</div>';
             scoreDetails.style.display = 'block';
         }
 
         if (status === 'VERIFIED' || status === 'APPROVED') {
             if (isReKycResponse) {
-                document.getElementById('faceMatchText').textContent = 'RE-KYC VERIFIED | Face: ' + fm + '% | Liveness: ' + lv + '% | Final Score: ' + fs + '%';
+                document.getElementById('faceMatchText').textContent = 'RE-KYC VERIFIED';
             } else {
-                document.getElementById('faceMatchText').textContent = 'VERIFIED | Face: ' + fm + '% | Final Score: ' + fs + '%';
+                document.getElementById('faceMatchText').textContent = 'VERIFIED';
             }
             document.getElementById('faceMatchText').style.color = 'var(--success)';
             submitBtn.disabled = false;
             showToast('Face verification successful!', 'success');
         } else {
-            var reasons = data.rejection_reasons || data.reasons || [];
-            var reason = reasons.length > 0 ? reasons.join('; ') : ('Verification rejected');
-            document.getElementById('faceMatchText').textContent = 'REJECTED: ' + reason;
+            document.getElementById('faceMatchText').textContent = 'REJECTED';
             document.getElementById('faceMatchText').style.color = 'var(--danger)';
-            showToast('Face verification rejected: ' + reason, 'error');
+            showToast('Face verification rejected', 'error');
         }
     } catch (err) {
         console.error('Face verification error:', err);

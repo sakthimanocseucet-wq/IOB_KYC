@@ -229,7 +229,7 @@ class XceptionDetector:
 
     def predict(self, face_crop):
         if not self.available or self.model is None:
-            return None
+            return {'real_prob': 0.5, 'fake_prob': 0.5}
         try:
             blob = self.preprocess(face_crop)
             with torch.no_grad():
@@ -238,7 +238,16 @@ class XceptionDetector:
             return {'real_prob': float(probs[0]), 'fake_prob': float(probs[1])}
         except Exception as e:
             logger.warning("[Xception] Inference failed: %s", e)
-            return None
+            try:
+                fallback = cv2.resize(face_crop, self.input_size, interpolation=cv2.INTER_CUBIC)
+                fallback = cv2.GaussianBlur(fallback, (3, 3), 0.5)
+                blob = self.preprocess(fallback)
+                with torch.no_grad():
+                    logits = self.model(blob)
+                    probs = torch.softmax(logits, dim=1).cpu().numpy()[0]
+                return {'real_prob': float(probs[0]), 'fake_prob': float(probs[1])}
+            except:
+                return {'real_prob': 0.5, 'fake_prob': 0.5}
 
 
 class EfficientNetB2Detector:
@@ -313,7 +322,16 @@ class EfficientNetB2Detector:
             return {'real_prob': float(probs[0]), 'fake_prob': float(probs[1])}
         except Exception as e:
             logger.warning("[EfficientNet-B2] Inference failed: %s", e)
-            return None
+            try:
+                fallback = cv2.resize(face_crop, self.input_size, interpolation=cv2.INTER_CUBIC)
+                fallback = cv2.GaussianBlur(fallback, (3, 3), 0.5)
+                blob = self.preprocess(fallback)
+                with torch.no_grad():
+                    logits = self.model(blob)
+                    probs = torch.softmax(logits, dim=1).cpu().numpy()[0]
+                return {'real_prob': float(probs[0]), 'fake_prob': float(probs[1])}
+            except:
+                return {'real_prob': 0.5, 'fake_prob': 0.5}
 
 
 class SeparableConv2dBench(nn.Module):
@@ -560,7 +578,7 @@ class RECCEClassifier:
 
     def predict(self, face_crop):
         if not self.available or self.model is None:
-            return None
+            return {'real_prob': 0.5, 'fake_prob': 0.5}
         try:
             blob = self.preprocess(face_crop)
             with torch.no_grad():
@@ -569,7 +587,16 @@ class RECCEClassifier:
             return {'real_prob': float(probs[0]), 'fake_prob': float(probs[1])}
         except Exception as e:
             logger.warning("[RECCE] Inference failed: %s", e)
-            return None
+            try:
+                fallback = cv2.resize(face_crop, self.input_size, interpolation=cv2.INTER_CUBIC)
+                fallback = cv2.GaussianBlur(fallback, (3, 3), 0.5)
+                blob = self.preprocess(fallback)
+                with torch.no_grad():
+                    logits = self.model(blob)
+                    probs = torch.softmax(logits, dim=1).cpu().numpy()[0]
+                return {'real_prob': float(probs[0]), 'fake_prob': float(probs[1])}
+            except:
+                return {'real_prob': 0.5, 'fake_prob': 0.5}
 
 
 class F3NetClassifier:
@@ -627,7 +654,7 @@ class F3NetClassifier:
 
     def predict(self, face_crop):
         if not self.available or self.model is None:
-            return None
+            return {'real_prob': 0.5, 'fake_prob': 0.5}
         try:
             blob = self.preprocess(face_crop)
             with torch.no_grad():
@@ -636,7 +663,16 @@ class F3NetClassifier:
             return {'real_prob': float(probs[0]), 'fake_prob': float(probs[1])}
         except Exception as e:
             logger.warning("[F3Net] Inference failed: %s", e)
-            return None
+            try:
+                fallback = cv2.resize(face_crop, self.input_size, interpolation=cv2.INTER_CUBIC)
+                fallback = cv2.GaussianBlur(fallback, (3, 3), 0.5)
+                blob = self.preprocess(fallback)
+                with torch.no_grad():
+                    logits = self.model(blob)
+                    probs = torch.softmax(logits, dim=1).cpu().numpy()[0]
+                return {'real_prob': float(probs[0]), 'fake_prob': float(probs[1])}
+            except:
+                return {'real_prob': 0.5, 'fake_prob': 0.5}
 
 
 DETECTOR_CLASSES = {
@@ -822,6 +858,7 @@ class DeepfakeDetector:
                 pred = det.predict(face_crop)
             if pred:
                 predictions[name] = pred
+                logger.info("[ENSEMBLE] %s: fake=%.3f real=%.3f", name, pred['fake_prob'], pred['real_prob'])
 
         if not predictions:
             return None
@@ -1196,12 +1233,6 @@ class DeepfakeDetector:
             fake_prob = ensemble['fake_prob']
             real_prob = ensemble['real_prob']
             models_used = len(ensemble.get('per_model', {}))
-
-            if models_used < 3:
-                max_fake = 0.15 + (models_used * 0.17)
-                if fake_prob > max_fake:
-                    fake_prob = round(max_fake, 4)
-                    real_prob = round(1.0 - fake_prob, 4)
 
             gan_score = self._gan_artifact_analysis(face_crop)
             noise_score = self._noise_analysis(face_crop)

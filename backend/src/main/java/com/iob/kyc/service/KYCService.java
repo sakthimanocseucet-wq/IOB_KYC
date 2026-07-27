@@ -352,6 +352,19 @@ public class KYCService {
         if (applications.isEmpty()) {
             return ApiResponse.success("No KYC applications found", List.of());
         }
+        for (KYCApplication app : applications) {
+            if (app.getStatus() == KYCApplication.Status.APPROVED) {
+                if (app.getAccountNumber() == null || app.getAccountNumber().isEmpty()) {
+                    app.setAccountNumber("IOB" + String.format("%04d", app.getId()) + String.format("%06d", System.currentTimeMillis() % 1000000));
+                }
+                if (app.getIfscCode() == null || app.getIfscCode().isEmpty()) {
+                    app.setIfscCode("IOBA000" + String.format("%04d", app.getId()));
+                }
+                if (app.getBranchId() == null || app.getBranchId().isEmpty()) {
+                    app.setBranchId("BRANCH" + String.format("%03d", app.getId()));
+                }
+            }
+        }
         return ApiResponse.success("KYC applications retrieved", applications);
     }
 

@@ -74,11 +74,7 @@
                     <label>Mobile</label>
                     <span id="bankMobile">--</span>
                 </div>
-                <div class="bank-detail-item" id="bankAddressRow">
-                    <label>Address</label>
-                    <span id="bankAddress">--</span>
-                </div>
-                <div class="bank-detail-item" id="bankAadhaarRow">
+                <div class="bank-detail-item">
                     <label>Aadhaar Number</label>
                     <span id="bankAadhaar">--</span>
                 </div>
@@ -137,9 +133,10 @@
                 document.getElementById('bankDetailsCard').style.display = '';
                 if (kd.ocrName) document.getElementById('accountHolder').textContent = kd.ocrName;
                 if (kd.accountNumber) document.getElementById('accountNumber').textContent = kd.accountNumber;
+                if (kd.ifscCode) document.getElementById('ifscCode').textContent = kd.ifscCode;
+                if (kd.branchId) document.getElementById('branchName').textContent = kd.branchId;
                 if (kd.email) document.getElementById('bankEmail').textContent = kd.email;
                 if (kd.mobile) document.getElementById('bankMobile').textContent = kd.mobile;
-                if (kd.ocrAddress) document.getElementById('bankAddress').textContent = kd.ocrAddress;
                 if (kd.ocrIdNumber) document.getElementById('bankAadhaar').textContent = kd.ocrIdNumber;
                 if (kd.ocrPanNumber) document.getElementById('bankPan').textContent = kd.ocrPanNumber;
                 if (kd.ocrName) document.getElementById('userName').textContent = kd.ocrName.split(' ')[0];
@@ -244,7 +241,6 @@
 
             document.getElementById('bankEmail').textContent = (app.user && app.user.email) || app.email || '';
             document.getElementById('bankMobile').textContent = app.mobile || (app.user && app.user.phone) || '';
-            document.getElementById('bankAddress').textContent = app.ocrAddress || (app.ocr_data && app.ocr_data.address) || '';
             document.getElementById('bankAadhaar').textContent = app.ocrIdNumber || (app.ocr_data && app.ocr_data.id_number) || '--';
             document.getElementById('bankPan').textContent = app.ocrPanNumber || (app.ocr_data && app.ocr_data.pan_number) || '--';
             kycActionsEl.innerHTML =

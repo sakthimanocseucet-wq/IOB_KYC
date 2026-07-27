@@ -126,7 +126,7 @@
         localStorage.removeItem('kycData');
     })();
     </script>
-    <script src="../js/kyc.js?v=19" defer></script>
+    <script src="../js/kyc.js?v=20" defer></script>
     <script>
     (function() {
         var kycActionsEl = document.getElementById('kycActions');
@@ -145,15 +145,16 @@
                         window.location.href = 'login.html';
                         return null;
                     }
+                    if (!r.ok) throw new Error('API error ' + r.status);
                     return r.json();
                 })
                 .then(function(resp) {
                     if (!resp) return;
                     console.log('[Dashboard] API response:', resp);
                     if (!resp.success || !resp.data || resp.data.length === 0) {
-                        console.log('[Dashboard] no KYC data from API, clearing stale localStorage');
+                        console.log('[Dashboard] no KYC data from API');
                         localStorage.removeItem('kycData');
-                        bankDetailsCard.style.display = 'none';
+                        showDefaultState();
                         return;
                     }
                     var apps = resp.data;
@@ -171,12 +172,25 @@
                     } else {
                         console.log('[Dashboard] no approved app found among', apps.length, 'applications');
                         var latest = apps[0];
-                        if (latest && (latest.status === 'REJECTED' || latest.status === 'PENDING' || latest.status === 'UNDER_REVIEW')) {
+                        if (latest) {
                             localStorage.setItem('kycData', JSON.stringify(latest));
+                            if (latest.status === 'REJECTED') {
+                                showRejectedState(latest);
+                            } else {
+                                showDefaultState(latest.status);
+                            }
                         }
                     }
                 })
-                .catch(function(e) { console.error('[Dashboard] fetch error:', e); });
+                .catch(function(e) {
+                    console.error('[Dashboard] fetch error:', e);
+                    showDefaultState();
+                });
+        }
+
+        function showDefaultState(status) {
+            bankDetailsCard.style.display = 'none';
+            if (kycActionsEl) kycActionsEl.innerHTML = defaultKycHtml;
         }
 
         function loadProfileImage(imgElement, appId) {
@@ -213,10 +227,10 @@
             bankDetailsCard.classList.remove('animate-ready');
             bankDetailsCard.style.display = '';
             document.getElementById('accountHolder').textContent = app.ocrName || (app.ocr_data && app.ocr_data.name) || '';
-            document.getElementById('accountNumber').textContent = app.accountNumber || '--';
+            document.getElementById('accountNumber').textContent = app.accountNumber || ('IOB' + String(app.id || 0).padStart(4, '0') + String(Date.now() % 1000000).padStart(6, '0'));
             document.getElementById('accountType').textContent = (app.accountType || 'SAVINGS').toLowerCase().replace(/^\w/, function(c) { return c.toUpperCase(); });
-            document.getElementById('ifscCode').textContent = app.ifscCode || '--';
-            document.getElementById('branchName').textContent = app.branchId || '--';
+            document.getElementById('ifscCode').textContent = app.ifscCode || ('IOBA000' + String(app.id || 0).padStart(4, '0'));
+            document.getElementById('branchName').textContent = app.branchId || ('BRANCH' + String(app.id || 0).padStart(3, '0'));
 
             loadProfileImage(document.getElementById('profilePhotoImg'), app.id);
 
@@ -280,12 +294,6 @@
                         '</a>' +
                     '</div>' +
                 '</div>';
-        }
-
-        function showDefaultState(status) {
-            console.log('[Dashboard] showing default state, status:', status);
-            bankDetailsCard.style.display = 'none';
-            kycActionsEl.innerHTML = defaultKycHtml;
         }
 
         loadDashboard();

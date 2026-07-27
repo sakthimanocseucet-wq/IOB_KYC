@@ -2213,13 +2213,12 @@ function handleDeepfakeVideo(event) {
 
     var clearBtn = document.getElementById('clearVideoBtn');
     if (clearBtn) clearBtn.style.display = 'inline-flex';
-    var testBtn = document.getElementById('testDeepfakeBtn');
-    if (testBtn) testBtn.style.display = 'inline-flex';
 
-    var resultDiv = document.getElementById('deepfakeTestResult');
-    if (!resultDiv) return;
-    resultDiv.style.display = 'block';
-    resultDiv.innerHTML = '<div style="text-align:center;padding:16px"><div class="spinner" style="margin:0 auto 8px"></div><p style="font-size:13px;color:var(--gray-500)">Processing video: ' + file.name + ' (' + (file.size / 1024 / 1024).toFixed(1) + ' MB)</p></div>';
+    var statusDiv = document.getElementById('videoStatus');
+    if (statusDiv) {
+        statusDiv.style.display = 'block';
+        statusDiv.innerHTML = '&#127909; Video loaded: <strong>' + file.name + '</strong> (' + (file.size / 1024 / 1024).toFixed(1) + ' MB) — Click <strong>Start Verification</strong> to begin';
+    }
 
     var video = document.createElement('video');
     video.muted = true;
@@ -2325,8 +2324,8 @@ function clearUploadedVideo() {
     }
     var clearBtn = document.getElementById('clearVideoBtn');
     if (clearBtn) clearBtn.style.display = 'none';
-    var testBtn = document.getElementById('testDeepfakeBtn');
-    if (testBtn) testBtn.style.display = 'none';
+    var statusDiv = document.getElementById('videoStatus');
+    if (statusDiv) { statusDiv.style.display = 'none'; statusDiv.innerHTML = ''; }
     var resultDiv = document.getElementById('deepfakeTestResult');
     if (resultDiv) { resultDiv.style.display = 'none'; resultDiv.innerHTML = ''; }
 }

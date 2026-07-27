@@ -626,10 +626,18 @@
                             <button class="btn btn-primary" id="startChallengeBtn" onclick="startLivenessChallenge()">
                                 &#128270; Start Live Verification
                             </button>
+                            <input type="file" id="deepfakeVideoInput" accept="video/*" style="display:none" onchange="handleDeepfakeVideo(event)">
+                            <button class="btn btn-outline" onclick="document.getElementById('deepfakeVideoInput').click()">
+                                &#128247; Upload Video
+                            </button>
+                            <button class="btn btn-outline" id="clearVideoBtn" onclick="clearUploadedVideo()" style="display:none;color:var(--danger);border-color:var(--danger)">
+                                &#10005; Clear Video
+                            </button>
                             <button class="btn btn-secondary" id="captureBtn" onclick="captureSelfie()" style="display:none">
                                 &#128247; Capture Live Selfie
                             </button>
                         </div>
+                        <div id="videoStatus" style="display:none;margin-top:8px;text-align:center;font-size:13px;padding:8px 12px;border-radius:8px;background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.2);color:#7c3aed"></div>
 
                         <div id="deepfakeTestSection" style="display:none;margin-top:20px;border:2px dashed var(--gray-300,#d1d5db);border-radius:12px;padding:20px;text-align:center;background:var(--gray-50,#f8fafc)">
                             <h4 style="margin:0 0 8px;font-size:15px;color:var(--gray-700)">&#127909; Deepfake Model Test</h4>

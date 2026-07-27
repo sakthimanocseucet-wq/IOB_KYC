@@ -743,11 +743,65 @@ async function verifyDetails() {
 }
 
 // ====================== WEBCAM / FACE VERIFICATION ======================
+var VIRTUAL_CAMERA_KEYWORDS = [
+    'obs', 'virtual', 'manycam', 'xsplit', 'snap camera', 'snapcamera',
+    'logitech capture', 'youcam', 'chroma cam', 'camtwist', 'webcamoid',
+    'droidcam', 'iriun', 'ivcam', 'epoccam', 'virtualhere', 'usb over network',
+    'software device', 'screen capture', 'window capture', 'game capture',
+    'parsec', 'teamviewer', 'anydesk', 'chrome remote', 'virtual machine'
+];
+
+async function detectVirtualCamera() {
+    try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return null;
+        var devices = await navigator.mediaDevices.enumerateDevices();
+        var videoDevices = devices.filter(function(d) { return d.kind === 'videoinput'; });
+        var virtualCams = [];
+        for (var i = 0; i < videoDevices.length; i++) {
+            var label = (videoDevices[i].label || '').toLowerCase();
+            for (var j = 0; j < VIRTUAL_CAMERA_KEYWORDS.length; j++) {
+                if (label.indexOf(VIRTUAL_CAMERA_KEYWORDS[j]) !== -1) {
+                    virtualCams.push(videoDevices[i].label);
+                    break;
+                }
+            }
+        }
+        return virtualCams.length > 0 ? virtualCams : null;
+    } catch (e) {
+        return null;
+    }
+}
+
 async function startWebcam() {
     const video = document.getElementById('webcam');
     if (!video) return;
     try {
+        var virtualCams = await detectVirtualCamera();
+        if (virtualCams && virtualCams.length > 0) {
+            showAlert('Virtual camera detected (' + virtualCams[0] + '). Please disable virtual camera software and use a real webcam.', 'error');
+            return;
+        }
         webcamStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 } });
+        var activeTrack = webcamStream.getVideoTracks()[0];
+        if (activeTrack) {
+            var settings = activeTrack.getSettings ? activeTrack.getSettings() : {};
+            var deviceId = settings.deviceId || '';
+            if (deviceId) {
+                var devices = await navigator.mediaDevices.enumerateDevices();
+                var activeDevice = devices.find(function(d) { return d.deviceId === deviceId; });
+                if (activeDevice) {
+                    var lbl = (activeDevice.label || '').toLowerCase();
+                    for (var k = 0; k < VIRTUAL_CAMERA_KEYWORDS.length; k++) {
+                        if (lbl.indexOf(VIRTUAL_CAMERA_KEYWORDS[k]) !== -1) {
+                            webcamStream.getTracks().forEach(function(t) { t.stop(); });
+                            webcamStream = null;
+                            showAlert('Virtual camera detected (' + activeDevice.label + '). Please use a real webcam.', 'error');
+                            return;
+                        }
+                    }
+                }
+            }
+        }
         video.srcObject = webcamStream;
         await new Promise((resolve) => {
             video.onloadedmetadata = () => {
@@ -920,6 +974,16 @@ async function startLivenessChallenge() {
 
     var useUploadedVideo = !!uploadedVideoFile;
     var uploadedVideoEl = null;
+
+    if (!useUploadedVideo) {
+        var virtualCams = await detectVirtualCamera();
+        if (virtualCams && virtualCams.length > 0) {
+            showToast('Virtual camera detected (' + virtualCams[0] + '). Disable virtual camera software.', 'error');
+            startBtn.disabled = false;
+            startBtn.textContent = '\u{1F50D} Start Live Verification';
+            return;
+        }
+    }
 
     if (useUploadedVideo) {
         uploadedVideoEl = document.createElement('video');

@@ -1359,7 +1359,6 @@ function renderQrResult(data, appId) {
     var docType = (data.documentType || '').toLowerCase();
     fieldConfig.push({ key: 'aadhaar_number', label: 'Aadhaar Number' });
     fieldConfig.push({ key: 'pan_number', label: 'PAN Number' });
-    fieldConfig.push({ key: 'address', label: 'Address' });
 
     for (var i = 0; i < fieldConfig.length; i++) {
         var f = fieldConfig[i];

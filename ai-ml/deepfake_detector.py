@@ -26,7 +26,7 @@ import torch.nn.functional as F
 logger = logging.getLogger(__name__)
 
 MODEL_DIR = os.path.join(os.path.dirname(__file__), 'models')
-DEEPFAKE_THRESHOLD = 0.50
+DEEPFAKE_THRESHOLD = 0.60
 IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
@@ -1335,8 +1335,8 @@ class DeepfakeDetector:
         video_is_deepfake = (
             any_deepfake
             or majority_fake
-            or combined_fake > 0.55
-            or avg_fake > 0.60
+            or combined_fake > 0.65
+            or avg_fake > 0.70
         )
         confidence = max(avg_real, avg_fake)
 

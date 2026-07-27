@@ -470,8 +470,8 @@ def deepfake_test():
         frames_flagged = sum(1 for r in results if r.get('is_deepfake', False))
         avg_prob = sum(fake_probs) / len(fake_probs) if fake_probs else 0
         majority_fake = frames_flagged > len(results) / 2
-        any_high = any(fp > 0.60 for fp in fake_probs)
-        video_is_deepfake = majority_fake or avg_prob > 0.55 or any_high
+        any_high = any(fp > 0.70 for fp in fake_probs)
+        video_is_deepfake = majority_fake or avg_prob > 0.65 or any_high
         verdict = 'FAKE' if video_is_deepfake else 'REAL'
     else:
         avg_prob = 0

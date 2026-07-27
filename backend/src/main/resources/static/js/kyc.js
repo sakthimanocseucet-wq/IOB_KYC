@@ -796,6 +796,8 @@ async function startWebcam() {
     try {
         var virtualCams = await detectVirtualCamera();
         if (virtualCams && virtualCams.length > 0) {
+            video.style.background = '#1a1a2e';
+            video.poster = '';
             showAlert('Virtual camera detected (' + virtualCams[0] + '). Please disable virtual camera software and use a real webcam.', 'error');
             return;
         }
@@ -814,6 +816,21 @@ async function startWebcam() {
                             if (lbl.indexOf(VIRTUAL_CAMERA_KEYWORDS[k]) !== -1) {
                                 webcamStream.getTracks().forEach(function(t) { t.stop(); });
                                 webcamStream = null;
+                                video.style.background = '#1a1a2e';
+                                video.poster = '';
+                                var container = video.parentElement;
+                                if (container) {
+                                    var blockMsg = document.getElementById('virtualCamBlockMsg');
+                                    if (!blockMsg) {
+                                        blockMsg = document.createElement('div');
+                                        blockMsg.id = 'virtualCamBlockMsg';
+                                        blockMsg.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(220,38,38,0.95);color:#fff;padding:20px 28px;border-radius:12px;text-align:center;z-index:10;max-width:90%;font-size:14px;box-shadow:0 4px 24px rgba(0,0,0,0.4);';
+                                        container.style.position = 'relative';
+                                        container.appendChild(blockMsg);
+                                    }
+                                    blockMsg.innerHTML = '<div style="font-size:32px;margin-bottom:8px">&#128683;</div><strong>Virtual Camera Blocked</strong><br><span style="font-size:12px;opacity:0.9">Detected: ' + activeDevice.label + '<br>Please select a real webcam from your browser camera settings.</span>';
+                                    blockMsg.style.display = '';
+                                }
                                 showAlert('Virtual camera detected (' + activeDevice.label + '). Please use a real webcam.', 'error');
                                 return;
                             }
@@ -822,6 +839,9 @@ async function startWebcam() {
                 }
             }
         }
+        var blockMsgOld = document.getElementById('virtualCamBlockMsg');
+        if (blockMsgOld) blockMsgOld.style.display = 'none';
+        video.style.background = '';
         video.srcObject = webcamStream;
         await new Promise((resolve) => {
             video.onloadedmetadata = () => {

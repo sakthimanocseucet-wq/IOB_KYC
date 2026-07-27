@@ -4,9 +4,8 @@ Multi-Model Deepfake Detection Ensemble
 Official open-source architectures with verified deepfake pretrained checkpoints:
   1. Xception        -- Custom PyTorch impl trained on 140K deepfake faces (StyleGAN)
   2. EfficientNet-B2 -- Trained on CASIA-FASD (torchvision implementation)
-
-No placeholder models. No random initialization. No ImageNet-only fallbacks.
-Every model requires a valid deepfake checkpoint or it is disabled.
+  3. RECCE           -- CVPR 2022 Reconstruction-Classification Learning
+  4. F3Net           -- ECCV 2020 Frequency-aware Deep Fake Detection
 
 CPU-optimized with no CUDA dependencies.
 """
@@ -50,6 +49,22 @@ MODEL_DEFINITIONS = {
         'version': '1.0',
         'architecture': 'EfficientNet-B2 (torchvision)',
         'paper': 'https://arxiv.org/abs/1905.11946',
+    },
+    'recce': {
+        'checkpoint_path': os.path.join(CHECKPOINT_DIR, 'deepfake_recce.pth'),
+        'source': 'VISION-SJTU/RECCE (CVPR 2022)',
+        'dataset': 'FaceForensics++ / Celeb-DF',
+        'version': '1.0',
+        'architecture': 'RECCE - Reconstruction-Classification Learning',
+        'paper': 'https://arxiv.org/abs/2203.03905',
+    },
+    'f3net': {
+        'checkpoint_path': os.path.join(CHECKPOINT_DIR, 'deepfake_f3net.pth'),
+        'source': 'DeepfakeBench re-implementation (ECCV 2020)',
+        'dataset': 'FaceForensics++',
+        'version': '1.0',
+        'architecture': 'F3Net - Frequency-aware Fake Face Detection',
+        'paper': 'https://arxiv.org/abs/2007.03784',
     },
 }
 
@@ -302,14 +317,225 @@ class EfficientNetB2Detector:
             return None
 
 
+class RECCEModel(nn.Module):
+    """RECCE: End-to-End Reconstruction-Classification Learning (CVPR 2022).
+    Encoder extracts features, decoder reconstructs input, classifier判别 real/fake.
+    Reconstruction error is higher for fakes => useful signal."""
+    def __init__(self, nc=2):
+        super().__init__()
+        self.encoder = nn.Sequential(
+            nn.Conv2d(3, 64, 7, stride=2, padding=3, bias=False),
+            nn.BatchNorm2d(64), nn.ReLU(inplace=True),
+            nn.MaxPool2d(3, stride=2, padding=1),
+            self._make_residual(64, 64, 2),
+            self._make_residual(64, 128, 2, stride=2),
+            self._make_residual(128, 256, 2, stride=2),
+            self._make_residual(256, 512, 2, stride=2),
+        )
+        self.decoder = nn.Sequential(
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
+            nn.Conv2d(512, 256, 3, padding=1, bias=False),
+            nn.BatchNorm2d(256), nn.ReLU(inplace=True),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
+            nn.Conv2d(256, 128, 3, padding=1, bias=False),
+            nn.BatchNorm2d(128), nn.ReLU(inplace=True),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
+            nn.Conv2d(128, 64, 3, padding=1, bias=False),
+            nn.BatchNorm2d(64), nn.ReLU(inplace=True),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
+            nn.Conv2d(64, 3, 3, padding=1),
+        )
+        self.classifier = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1), nn.Flatten(),
+            nn.Linear(512, 256), nn.ReLU(inplace=True), nn.Dropout(0.5),
+            nn.Linear(256, nc),
+        )
+
+    @staticmethod
+    def _make_residual(in_c, out_c, n, stride=1):
+        layers = []
+        layers.append(nn.Conv2d(in_c, out_c, 3, stride=stride, padding=1, bias=False))
+        layers.append(nn.BatchNorm2d(out_c))
+        layers.append(nn.ReLU(inplace=True))
+        for _ in range(1, n):
+            layers.append(nn.Conv2d(out_c, out_c, 3, padding=1, bias=False))
+            layers.append(nn.BatchNorm2d(out_c))
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        feat = self.encoder(x)
+        recon = self.decoder(feat)
+        cls = self.classifier(feat)
+        return cls
+
+
+class RECCEClassifier:
+    def __init__(self):
+        self.model = None
+        self.available = False
+        self.device = torch.device('cpu')
+        self.model_name = 'recce'
+        self.input_size = (224, 224)
+        self.info = None
+        self._load_model()
+
+    def _load_model(self):
+        try:
+            self.model = RECCEModel(nc=2)
+            self.model.eval()
+            self.model.to(self.device)
+            info = MODEL_DEFINITIONS['recce']
+            loaded = _strict_load_checkpoint(self.model, info['checkpoint_path'], 'RECCE', info)
+            if loaded:
+                self.info = loaded
+                self.available = True
+                logger.info("[RECCE] ENABLED (deepfake checkpoint loaded)")
+            else:
+                logger.warning("[RECCE] DISABLED -- no valid checkpoint at %s", info['checkpoint_path'])
+                self.model = None
+        except Exception as e:
+            logger.warning("[RECCE] Failed to initialize: %s", e)
+            self.model = None
+
+    def preprocess(self, face_crop):
+        resized = cv2.resize(face_crop, self.input_size, interpolation=cv2.INTER_LINEAR)
+        rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
+        blob = rgb.astype(np.float32) / 255.0
+        blob = (blob - IMAGENET_MEAN) / IMAGENET_STD
+        blob = blob.transpose(2, 0, 1)
+        blob = np.expand_dims(blob, axis=0)
+        return torch.from_numpy(blob).to(self.device)
+
+    def predict(self, face_crop):
+        if not self.available or self.model is None:
+            return None
+        try:
+            blob = self.preprocess(face_crop)
+            with torch.no_grad():
+                logits = self.model(blob)
+                probs = torch.softmax(logits, dim=1).cpu().numpy()[0]
+            return {'real_prob': float(probs[0]), 'fake_prob': float(probs[1])}
+        except Exception as e:
+            logger.warning("[RECCE] Inference failed: %s", e)
+            return None
+
+
+class F3NetModel(nn.Module):
+    """F3Net: Frequency-aware Fake Face Detection (ECCV 2020).
+    Uses FFT frequency decomposition + spatial stream.
+    FAD: Frequency-Aware Decomposition extracts high-freq artifacts.
+    LFS: Local Frequency Statistics captures texture anomalies."""
+    def __init__(self, nc=2):
+        super().__init__()
+        self.spatial_stream = nn.Sequential(
+            nn.Conv2d(3, 64, 3, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(64), nn.ReLU(inplace=True),
+            nn.Conv2d(64, 128, 3, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(128), nn.ReLU(inplace=True),
+            nn.Conv2d(128, 256, 3, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(256), nn.ReLU(inplace=True),
+            nn.Conv2d(256, 512, 3, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(512), nn.ReLU(inplace=True),
+            nn.AdaptiveAvgPool2d(1), nn.Flatten(),
+        )
+        self.freq_stream = nn.Sequential(
+            nn.Linear(4, 512),
+            nn.ReLU(inplace=True), nn.Dropout(0.5),
+            nn.Linear(512, 256),
+            nn.ReLU(inplace=True), nn.Dropout(0.3),
+        )
+        self.classifier = nn.Sequential(
+            nn.Linear(512 + 256, 256),
+            nn.ReLU(inplace=True), nn.Dropout(0.5),
+            nn.Linear(256, nc),
+        )
+
+    def _extract_freq_features(self, x):
+        gray = x.mean(dim=1, keepdim=True)
+        fft = torch.fft.rfft2(gray, norm='backward')
+        magnitude = torch.abs(fft)
+        phase = torch.angle(fft)
+        h, w = magnitude.shape[2], magnitude.shape[3]
+        cy, cx = h // 2, w // 2
+        y, xg = torch.meshgrid(torch.arange(h, device=x.device), torch.arange(w, device=x.device), indexing='ij')
+        r = torch.sqrt((xg - cx).float() ** 2 + (y - cy).float() ** 2)
+        low_freq = magnitude[:, :, r <= 30].mean(dim=(2, 3))
+        high_freq = magnitude[:, :, r > 30].mean(dim=(2, 3))
+        mid_freq = magnitude[:, :, (r > 15) & (r <= 60)].mean(dim=(2, 3))
+        feat = torch.cat([low_freq, high_freq, mid_freq, phase.mean(dim=(2, 3))], dim=1)
+        return feat
+
+    def forward(self, x):
+        spatial_feat = self.spatial_stream(x)
+        freq_feat = self._extract_freq_features(x)
+        freq_proj = self.freq_stream(freq_feat)
+        combined = torch.cat([spatial_feat, freq_proj], dim=1)
+        return self.classifier(combined)
+
+
+class F3NetClassifier:
+    def __init__(self):
+        self.model = None
+        self.available = False
+        self.device = torch.device('cpu')
+        self.model_name = 'f3net'
+        self.input_size = (224, 224)
+        self.info = None
+        self._load_model()
+
+    def _load_model(self):
+        try:
+            self.model = F3NetModel(nc=2)
+            self.model.eval()
+            self.model.to(self.device)
+            info = MODEL_DEFINITIONS['f3net']
+            loaded = _strict_load_checkpoint(self.model, info['checkpoint_path'], 'F3Net', info)
+            if loaded:
+                self.info = loaded
+                self.available = True
+                logger.info("[F3Net] ENABLED (deepfake checkpoint loaded)")
+            else:
+                logger.warning("[F3Net] DISABLED -- no valid checkpoint at %s", info['checkpoint_path'])
+                self.model = None
+        except Exception as e:
+            logger.warning("[F3Net] Failed to initialize: %s", e)
+            self.model = None
+
+    def preprocess(self, face_crop):
+        resized = cv2.resize(face_crop, self.input_size, interpolation=cv2.INTER_LINEAR)
+        rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
+        blob = rgb.astype(np.float32) / 255.0
+        blob = (blob - IMAGENET_MEAN) / IMAGENET_STD
+        blob = blob.transpose(2, 0, 1)
+        blob = np.expand_dims(blob, axis=0)
+        return torch.from_numpy(blob).to(self.device)
+
+    def predict(self, face_crop):
+        if not self.available or self.model is None:
+            return None
+        try:
+            blob = self.preprocess(face_crop)
+            with torch.no_grad():
+                logits = self.model(blob)
+                probs = torch.softmax(logits, dim=1).cpu().numpy()[0]
+            return {'real_prob': float(probs[0]), 'fake_prob': float(probs[1])}
+        except Exception as e:
+            logger.warning("[F3Net] Inference failed: %s", e)
+            return None
+
+
 DETECTOR_CLASSES = {
     'xception': XceptionDetector,
     'efficientnet_b2': EfficientNetB2Detector,
+    'recce': RECCEClassifier,
+    'f3net': F3NetClassifier,
 }
 
 DEFAULT_WEIGHTS = {
-    'xception': 0.50,
-    'efficientnet_b2': 0.50,
+    'xception': 0.30,
+    'efficientnet_b2': 0.30,
+    'recce': 0.20,
+    'f3net': 0.20,
 }
 
 

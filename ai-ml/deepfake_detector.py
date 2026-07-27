@@ -26,7 +26,7 @@ import torch.nn.functional as F
 logger = logging.getLogger(__name__)
 
 MODEL_DIR = os.path.join(os.path.dirname(__file__), 'models')
-DEEPFAKE_THRESHOLD = 0.45
+DEEPFAKE_THRESHOLD = 0.35
 IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
@@ -955,13 +955,22 @@ class DeepfakeDetector:
         avg_fake = float(np.mean(fake_probs))
         avg_real = float(np.mean(real_probs))
 
+        # Aggressive video-level voting logic
         any_deepfake = any(r['is_deepfake'] for r in results)
         deepfake_frames = [i for i, r in enumerate(results) if r['is_deepfake']]
+        suspicious_count = sum(1 for fp in fake_probs if fp > 0.35)
+        majority_fake = len(deepfake_frames) > len(results) / 2
+        video_is_deepfake = (
+            any_deepfake
+            or avg_fake > 0.40
+            or suspicious_count >= 2
+            or majority_fake
+        )
         confidence = max(avg_real, avg_fake)
 
         reasons = []
-        if any_deepfake:
-            reasons.append(f"Deepfake detected in frames: {deepfake_frames}")
+        if video_is_deepfake:
+            reasons.append(f"Deepfake detected: avg_fake={avg_fake:.3f} suspicious_frames={suspicious_count}/{len(results)}")
         else:
             reasons.append(f"Real face verified across {len(frames)} frames (avg_real={avg_real:.3f})")
 
@@ -976,7 +985,7 @@ class DeepfakeDetector:
         ]
 
         return {
-            'is_deepfake': any_deepfake,
+            'is_deepfake': video_is_deepfake,
             'confidence': round(confidence, 4),
             'fake_prob': round(avg_fake, 4),
             'real_prob': round(avg_real, 4),

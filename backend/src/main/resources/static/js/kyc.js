@@ -1063,6 +1063,7 @@ async function startLivenessChallenge() {
         } catch (e) {
             console.warn('[VIDEO] Frame extraction failed:', e);
         }
+    }
 
     if (useUploadedVideo) {
         uploadedVideoEl = document.createElement('video');

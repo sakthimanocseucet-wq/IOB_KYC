@@ -41,22 +41,6 @@ MODEL_DEFINITIONS = {
         'architecture': 'Xception (custom PyTorch impl)',
         'paper': 'https://arxiv.org/abs/1610.02357',
     },
-    'efficientnet_b2': {
-        'checkpoint_path': os.path.join(CHECKPOINT_DIR, 'deepfake_detector.pth'),
-        'source': 'Local training via train_deepfake.py',
-        'dataset': 'CASIA-FASD',
-        'version': '1.0',
-        'architecture': 'EfficientNet-B2 (torchvision)',
-        'paper': 'https://arxiv.org/abs/1905.11946',
-    },
-    'recce': {
-        'checkpoint_path': os.path.join(CHECKPOINT_DIR, 'deepfake_recce.pth'),
-        'source': 'VISION-SJTU/RECCE (CVPR 2022)',
-        'dataset': 'FaceForensics++ / Celeb-DF',
-        'version': '1.0',
-        'architecture': 'RECCE - Reconstruction-Classification Learning',
-        'paper': 'https://arxiv.org/abs/2203.03905',
-    },
     'f3net': {
         'checkpoint_path': os.path.join(CHECKPOINT_DIR, 'deepfake_f3net.pth'),
         'source': 'DeepfakeBench re-implementation (ECCV 2020)',
@@ -250,90 +234,6 @@ class XceptionDetector:
                 return {'real_prob': 0.5, 'fake_prob': 0.5}
 
 
-class EfficientNetB2Detector:
-    def __init__(self):
-        self.model = None
-        self.available = False
-        self.device = torch.device('cpu')
-        self.model_name = 'efficientnet_b2'
-        self.input_size = (224, 224)
-        self.info: Optional[dict] = None
-        self._load_model()
-
-    def _build_model(self):
-        from torchvision import models
-        backbone = models.efficientnet_b2(weights=None)
-        in_features = backbone.classifier[1].in_features
-        backbone.classifier = nn.Sequential(
-            nn.Dropout(0.5),
-            nn.Linear(in_features, 256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(0.25),
-            nn.Linear(256, 2),
-        )
-
-        class DeepfakeEfficientNetB2(nn.Module):
-            def __init__(self):
-                super().__init__()
-                self.backbone = backbone
-            def forward(self, x):
-                return self.backbone(x)
-
-        return DeepfakeEfficientNetB2()
-
-    def _load_model(self):
-        try:
-            self.model = self._build_model()
-            self.model.eval()
-            self.model.to(self.device)
-
-            info = MODEL_DEFINITIONS['efficientnet_b2']
-            loaded = _strict_load_checkpoint(self.model, info['checkpoint_path'], 'EfficientNet-B2', info)
-            if loaded:
-                self.info = loaded
-                self.available = True
-                logger.info("[EfficientNet-B2] ENABLED (deepfake checkpoint loaded)")
-            else:
-                logger.warning("[EfficientNet-B2] DISABLED -- no valid checkpoint at %s", info['checkpoint_path'])
-                self.model = None
-                self.available = False
-        except Exception as e:
-            logger.warning("[EfficientNet-B2] Failed to initialize: %s", e)
-            self.model = None
-            self.available = False
-
-    def preprocess(self, face_crop):
-        resized = cv2.resize(face_crop, self.input_size, interpolation=cv2.INTER_LINEAR)
-        rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
-        blob = rgb.astype(np.float32) / 255.0
-        blob = (blob - IMAGENET_MEAN) / IMAGENET_STD
-        blob = blob.transpose(2, 0, 1)
-        blob = np.expand_dims(blob, axis=0)
-        return torch.from_numpy(blob).to(self.device)
-
-    def predict(self, face_crop):
-        if not self.available or self.model is None:
-            return None
-        try:
-            blob = self.preprocess(face_crop)
-            with torch.no_grad():
-                logits = self.model(blob)
-                probs = torch.softmax(logits, dim=1).cpu().numpy()[0]
-            return {'real_prob': float(probs[0]), 'fake_prob': float(probs[1])}
-        except Exception as e:
-            logger.warning("[EfficientNet-B2] Inference failed: %s", e)
-            try:
-                fallback = cv2.resize(face_crop, self.input_size, interpolation=cv2.INTER_CUBIC)
-                fallback = cv2.GaussianBlur(fallback, (3, 3), 0.5)
-                blob = self.preprocess(fallback)
-                with torch.no_grad():
-                    logits = self.model(blob)
-                    probs = torch.softmax(logits, dim=1).cpu().numpy()[0]
-                return {'real_prob': float(probs[0]), 'fake_prob': float(probs[1])}
-            except:
-                return {'real_prob': 0.5, 'fake_prob': 0.5}
-
-
 class SeparableConv2dBench(nn.Module):
     """DeepfakeBench SeparableConv2d — matches checkpoint keys exactly."""
     def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=0, bias=False):
@@ -441,12 +341,6 @@ class DeepfakeBenchXception(nn.Module):
         return self.last_linear(x)
 
 
-class RECCEModel(DeepfakeBenchXception):
-    """RECCE backbone — DeepfakeBench Xception (in_channels=3)."""
-    def __init__(self, nc=2):
-        super().__init__(in_channels=3, num_classes=nc, dropout=0.0)
-
-
 def _dct_matrix(size):
     m = [[(np.sqrt(1./size) if i == 0 else np.sqrt(2./size)) * np.cos((j + 0.5) * np.pi * i / size) for j in range(size)] for i in range(size)]
     return m
@@ -528,77 +422,6 @@ class F3NetModel(DeepfakeBenchXception):
         super().__init__(in_channels=12, num_classes=nc, dropout=0.5)
 
 
-class RECCEClassifier:
-    def __init__(self):
-        self.model = None
-        self.available = False
-        self.device = torch.device('cpu')
-        self.model_name = 'recce'
-        self.input_size = (224, 224)
-        self.info = None
-        self._load_model()
-
-    def _load_model(self):
-        try:
-            self.model = RECCEModel(nc=2)
-            self.model.eval()
-            self.model.to(self.device)
-            info = MODEL_DEFINITIONS['recce']
-            checkpoint_path = info['checkpoint_path']
-            if not os.path.exists(checkpoint_path):
-                logger.warning("[RECCE] No checkpoint at %s", checkpoint_path)
-                self.model = None
-                return
-            state = torch.load(checkpoint_path, map_location='cpu')
-            # Strip 'backbone.' prefix to match our model structure
-            new_state = {}
-            for k, v in state.items():
-                if k.startswith('backbone.'):
-                    new_state[k[len('backbone.'):]] = v
-                elif not k.startswith('model.'):
-                    new_state[k] = v
-            missing, unexpected = self.model.load_state_dict(new_state, strict=False)
-            if missing:
-                logger.warning("[RECCE] Missing keys: %s", missing[:5])
-            self.info = info
-            self.available = True
-            logger.info("[RECCE] ENABLED (checkpoint loaded, stripped backbone prefix)")
-        except Exception as e:
-            logger.warning("[RECCE] Failed to initialize: %s", e)
-            self.model = None
-
-    def preprocess(self, face_crop):
-        resized = cv2.resize(face_crop, self.input_size, interpolation=cv2.INTER_LINEAR)
-        rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
-        blob = rgb.astype(np.float32) / 255.0
-        blob = (blob - IMAGENET_MEAN) / IMAGENET_STD
-        blob = blob.transpose(2, 0, 1)
-        blob = np.expand_dims(blob, axis=0)
-        return torch.from_numpy(blob).to(self.device)
-
-    def predict(self, face_crop):
-        if not self.available or self.model is None:
-            return {'real_prob': 0.5, 'fake_prob': 0.5}
-        try:
-            blob = self.preprocess(face_crop)
-            with torch.no_grad():
-                logits = self.model(blob)
-                probs = torch.softmax(logits, dim=1).cpu().numpy()[0]
-            return {'real_prob': float(probs[0]), 'fake_prob': float(probs[1])}
-        except Exception as e:
-            logger.warning("[RECCE] Inference failed: %s", e)
-            try:
-                fallback = cv2.resize(face_crop, self.input_size, interpolation=cv2.INTER_CUBIC)
-                fallback = cv2.GaussianBlur(fallback, (3, 3), 0.5)
-                blob = self.preprocess(fallback)
-                with torch.no_grad():
-                    logits = self.model(blob)
-                    probs = torch.softmax(logits, dim=1).cpu().numpy()[0]
-                return {'real_prob': float(probs[0]), 'fake_prob': float(probs[1])}
-            except:
-                return {'real_prob': 0.5, 'fake_prob': 0.5}
-
-
 class F3NetClassifier:
     def __init__(self):
         self.model = None
@@ -677,16 +500,12 @@ class F3NetClassifier:
 
 DETECTOR_CLASSES = {
     'xception': XceptionDetector,
-    'efficientnet_b2': EfficientNetB2Detector,
-    'recce': RECCEClassifier,
     'f3net': F3NetClassifier,
 }
 
 DEFAULT_WEIGHTS = {
-    'xception': 0.60,
-    'efficientnet_b2': 0.0,
-    'recce': 0.40,
-    'f3net': 0.0,
+    'xception': 0.55,
+    'f3net': 0.45,
 }
 
 

@@ -1115,6 +1115,13 @@ class DeepfakeDetector:
 
             fake_prob = ensemble['fake_prob']
             real_prob = ensemble['real_prob']
+            models_used = len(ensemble.get('per_model', {}))
+
+            if models_used < 3:
+                max_fake = 0.15 + (models_used * 0.17)
+                if fake_prob > max_fake:
+                    fake_prob = round(max_fake, 4)
+                    real_prob = round(1.0 - fake_prob, 4)
 
             gan_score = self._gan_artifact_analysis(face_crop)
             noise_score = self._noise_analysis(face_crop)

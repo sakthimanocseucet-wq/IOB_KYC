@@ -662,6 +662,55 @@ class DeepfakeDetector:
         crop_y2 = min(h, y2 + my)
         return img[crop_y1:crop_y2, crop_x1:crop_x2]
 
+    def _align_face(self, img, bbox):
+        """Align face using similarity transform based on eye centers.
+        Rotates and scales face so eyes are horizontal and centered."""
+        try:
+            x1, y1, x2, y2 = bbox
+            face_region = img[y1:y2, x1:x2]
+            gray = cv2.cvtColor(face_region, cv2.COLOR_BGR2GRAY)
+
+            left_eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
+            eyes = left_eye_cascade.detectMultiScale(gray, 1.1, 5, minSize=(15, 15))
+
+            if eyes is None or len(eyes) < 2:
+                return self._crop_face(img, bbox, margin=0.25)
+
+            eyes = sorted(eyes.tolist(), key=lambda e: e[0])
+            ex1, ey1, ew1, eh1 = eyes[0]
+            ex2, ey2, ew2, eh2 = eyes[1]
+
+            left_center = (x1 + ex1 + ew1 // 2, y1 + ey1 + eh1 // 2)
+            right_center = (x1 + ex2 + ew2 // 2, y1 + ey2 + eh2 // 2)
+
+            dx = right_center[0] - left_center[0]
+            dy = right_center[1] - left_center[1]
+            angle = np.degrees(np.arctan2(dy, dx))
+
+            eye_dist = np.sqrt(dx**2 + dy**2)
+            desired_dist = 60
+            scale = desired_dist / (eye_dist + 1e-6)
+
+            center = ((left_center[0] + right_center[0]) // 2,
+                      (left_center[1] + right_center[1]) // 2)
+
+            M = cv2.getRotationMatrix2D(center, angle, scale)
+            h, w = img.shape[:2]
+            aligned = cv2.warpAffine(img, M, (w, h), flags=cv2.INTER_LINEAR,
+                                      borderMode=cv2.BORDER_REFLECT_101)
+
+            new_cx = w // 2
+            new_cy = h // 2
+            crop_size = int(128 / scale)
+            crop_x1 = max(0, new_cx - crop_size)
+            crop_y1 = max(0, new_cy - crop_size)
+            crop_x2 = min(w, new_cx + crop_size)
+            crop_y2 = min(h, new_cy + crop_size)
+
+            return aligned[crop_y1:crop_y2, crop_x1:crop_x2]
+        except Exception:
+            return self._crop_face(img, bbox, margin=0.25)
+
     def decode_image(self, image_data):
         if isinstance(image_data, str):
             if ',' in image_data:
@@ -747,10 +796,41 @@ class DeepfakeDetector:
                 }
         return diagnostics
 
-    def _frequency_analysis(self, face_crop):
+    def _temporal_analysis(self, frames_fake_probs):
+        """Analyze temporal consistency across video frames.
+        Deepfakes often have flickering/inconsistent scores between frames."""
+        if len(frames_fake_probs) < 3:
+            return 0.0
+
+        probs = np.array(frames_fake_probs)
+
+        frame_diffs = np.abs(np.diff(probs))
+        flicker_score = float(np.mean(frame_diffs))
+        max_flicker = float(np.max(frame_diffs))
+
+        std_dev = float(np.std(probs))
+        cv = std_dev / (np.mean(probs) + 1e-6)
+
+        score = 0.0
+        if flicker_score > 0.10:
+            score += 0.3
+        if flicker_score > 0.20:
+            score += 0.2
+        if max_flicker > 0.30:
+            score += 0.2
+        if cv > 0.3:
+            score += 0.15
+        if std_dev > 0.15:
+            score += 0.15
+
+        return min(score, 1.0)
+
+    def _gan_artifact_analysis(self, face_crop):
+        """Detect GAN-specific artifacts: spectral artifacts, texture inconsistencies."""
         try:
             gray = cv2.cvtColor(face_crop, cv2.COLOR_BGR2GRAY)
             resized = cv2.resize(gray, (128, 128))
+
             f = np.fft.fft2(resized)
             fshift = np.fft.fftshift(f)
             magnitude = np.abs(fshift)
@@ -758,29 +838,36 @@ class DeepfakeDetector:
             cy, cx = h // 2, w // 2
             y, x = np.ogrid[:h, :w]
             r = np.sqrt((x - cx) ** 2 + (y - cy) ** 2)
-            high_freq = magnitude[r > 30].mean() if (r > 30).any() else 0
-            low_freq = magnitude[r <= 30].mean() if (r <= 30).any() else 1
-            ratio = high_freq / (low_freq + 1e-10)
+
+            score = 0.0
+
+            high_freq = magnitude[r > 40].mean() if (r > 40).any() else 0
+            mid_freq = magnitude[(r > 15) & (r <= 40)].mean() if ((r > 15) & (r <= 40)).any() else 1
+            spectral_ratio = high_freq / (mid_freq + 1e-6)
+            if spectral_ratio > 0.8:
+                score += 0.2
+            if spectral_ratio > 1.2:
+                score += 0.15
+
             edges = cv2.Canny(resized, 50, 150)
             edge_density = edges.mean() / 255.0
+            if edge_density < 0.04:
+                score += 0.25
+            if edge_density > 0.15:
+                score += 0.1
+
             laplacian = cv2.Laplacian(resized, cv2.CV_64F).var()
-            score = 0.0
-            if ratio > 0.5:
+            if laplacian < 8:
                 score += 0.2
-            if ratio > 0.8:
-                score += 0.2
-            if ratio > 1.2:
-                score += 0.15
-            if edge_density > 0.10:
-                score += 0.15
-            if edge_density > 0.18:
+            if laplacian > 100:
                 score += 0.1
-            if edge_density < 0.03:
-                score += 0.2
-            if laplacian > 50:
-                score += 0.1
-            if laplacian < 10:
+
+            blob = cv2.Laplacian(resized, cv2.CV_64F)
+            zero_crossings = np.sum(np.diff(np.sign(blob)) != 0)
+            zc_density = zero_crossings / (h * w)
+            if zc_density < 0.01:
                 score += 0.15
+
             return min(score, 1.0)
         except Exception:
             return 0.0
@@ -840,7 +927,7 @@ class DeepfakeDetector:
                 'processing_time_ms': round((time.time() - start) * 1000, 1),
             }
 
-        face_crop = self._crop_face(img, face_bbox)
+        face_crop = self._align_face(img, face_bbox)
         if face_crop.size == 0:
             return {
                 'is_deepfake': False,
@@ -878,9 +965,9 @@ class DeepfakeDetector:
             fake_prob = ensemble['fake_prob']
             real_prob = ensemble['real_prob']
 
-            freq_score = self._frequency_analysis(face_crop)
-            if freq_score > 0:
-                blended = 0.40 * fake_prob + 0.60 * freq_score
+            gan_score = self._gan_artifact_analysis(face_crop)
+            if gan_score > 0:
+                blended = 0.50 * fake_prob + 0.50 * gan_score
                 fake_prob = round(min(max(blended, 0.0), 1.0), 4)
                 real_prob = round(1.0 - fake_prob, 4)
 
@@ -955,15 +1042,21 @@ class DeepfakeDetector:
         avg_fake = float(np.mean(fake_probs))
         avg_real = float(np.mean(real_probs))
 
-        # Video-level voting: balanced approach
+        temporal_score = self._temporal_analysis(fake_probs)
+
         any_deepfake = any(r['is_deepfake'] for r in results)
         deepfake_frames = [i for i, r in enumerate(results) if r['is_deepfake']]
         frames_flagged = len(deepfake_frames)
         majority_fake = frames_flagged > len(results) / 2
+
+        combined_fake = avg_fake + (temporal_score * 0.3)
+        combined_fake = min(combined_fake, 1.0)
+
         video_is_deepfake = (
             any_deepfake
             or majority_fake
-            or avg_fake > 0.55
+            or combined_fake > 0.55
+            or avg_fake > 0.60
         )
         confidence = max(avg_real, avg_fake)
 
@@ -988,6 +1081,8 @@ class DeepfakeDetector:
             'confidence': round(confidence, 4),
             'fake_prob': round(avg_fake, 4),
             'real_prob': round(avg_real, 4),
+            'temporal_score': round(temporal_score, 4),
+            'combined_fake': round(combined_fake, 4),
             'frames_analyzed': len(frames),
             'deepfake_frame_indices': deepfake_frames,
             'frame_results': frame_results,

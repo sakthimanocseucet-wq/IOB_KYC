@@ -26,7 +26,7 @@ import torch.nn.functional as F
 logger = logging.getLogger(__name__)
 
 MODEL_DIR = os.path.join(os.path.dirname(__file__), 'models')
-DEEPFAKE_THRESHOLD = 0.50
+DEEPFAKE_THRESHOLD = 0.42
 IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
@@ -825,6 +825,111 @@ class DeepfakeDetector:
 
         return min(score, 1.0)
 
+    def _noise_analysis(self, face_crop):
+        """Analyze noise patterns - real camera photos have sensor noise, GAN outputs are cleaner."""
+        try:
+            gray = cv2.cvtColor(face_crop, cv2.COLOR_BGR2GRAY).astype(float)
+
+            noise_fine = cv2.GaussianBlur(gray, (3, 3), 0.5) - gray
+            fine_noise_var = float(np.var(noise_fine))
+
+            noise_coarse = cv2.GaussianBlur(gray, (7, 7), 1.5) - gray
+            coarse_noise_var = float(np.var(noise_coarse))
+
+            score = 0.0
+            if fine_noise_var < 8:
+                score += 0.25
+            elif fine_noise_var < 15:
+                score += 0.12
+
+            if coarse_noise_var < 3:
+                score += 0.20
+            elif coarse_noise_var < 8:
+                score += 0.10
+
+            ratio = fine_noise_var / (coarse_noise_var + 1e-6)
+            if ratio < 0.5:
+                score += 0.15
+            elif ratio < 1.0:
+                score += 0.08
+
+            h, w = gray.shape
+            block_size = 32
+            blocks_var = []
+            for i in range(0, h - block_size, block_size):
+                for j in range(0, w - block_size, block_size):
+                    block = gray[i:i+block_size, j:j+block_size]
+                    blocks_var.append(float(np.var(block)))
+            if len(blocks_var) > 4:
+                blocks_var = np.array(blocks_var)
+                bv_std = float(np.std(blocks_var))
+                bv_mean = float(np.mean(blocks_var))
+                cv_blocks = bv_std / (bv_mean + 1e-6)
+                if cv_blocks < 0.1:
+                    score += 0.15
+
+            return min(score, 1.0)
+        except Exception:
+            return 0.0
+
+    def _skin_texture_analysis(self, face_crop):
+        """Analyze skin texture - real skin has pores/texture, GAN faces are too smooth."""
+        try:
+            hsv = cv2.cvtColor(face_crop, cv2.COLOR_BGR2HSV)
+            s_ch = hsv[:, :, 1].astype(float)
+            v_ch = hsv[:, :, 2].astype(float)
+
+            gray = cv2.cvtColor(face_crop, cv2.COLOR_BGR2GRAY)
+            h_face, w_face = gray.shape
+
+            cx, cy = w_face // 2, h_face // 2
+            y_grid, x_grid = np.ogrid[:h_face, :w_face]
+            face_dist = np.sqrt((x_grid - cx)**2 + (y_grid - cy)**2)
+            face_mask = face_dist < (min(h_face, w_face) * 0.35)
+
+            if face_mask.sum() < 100:
+                return 0.0
+
+            face_region = gray[face_mask].astype(float)
+
+            score = 0.0
+
+            texture_laplacian = cv2.Laplacian(gray, cv2.CV_64F)
+            face_texture = texture_laplacian[face_mask]
+            texture_var = float(np.var(face_texture))
+            if texture_var < 15:
+                score += 0.20
+            elif texture_var < 30:
+                score += 0.10
+
+            texture_range = float(np.percentile(face_texture, 95) - np.percentile(face_texture, 5))
+            if texture_range < 30:
+                score += 0.15
+            elif texture_range < 60:
+                score += 0.08
+
+            local_means = []
+            block = 16
+            for i in range(0, h_face - block, block):
+                for j in range(0, w_face - block, block):
+                    local_means.append(float(np.mean(gray[i:i+block, j:j+block])))
+            if len(local_means) > 4:
+                local_means = np.array(local_means)
+                lm_var = float(np.var(local_means))
+                if lm_var < 20:
+                    score += 0.15
+
+            l_channel = cv2.cvtColor(face_crop, cv2.COLOR_BGR2LAB)[:, :, 0].astype(float)
+            face_l = l_channel[face_mask]
+            l_entropy = float(np.histogram(face_l, bins=32, range=(0, 255))[0].sum())
+            l_entropy_norm = l_entropy / (len(face_l) + 1e-6)
+            if l_entropy_norm < 0.5:
+                score += 0.10
+
+            return min(score, 1.0)
+        except Exception:
+            return 0.0
+
     def _gan_artifact_analysis(self, face_crop):
         """Detect GAN-specific artifacts: spectral artifacts, texture inconsistencies."""
         try:
@@ -845,28 +950,74 @@ class DeepfakeDetector:
             mid_freq = magnitude[(r > 15) & (r <= 40)].mean() if ((r > 15) & (r <= 40)).any() else 1
             spectral_ratio = high_freq / (mid_freq + 1e-6)
             if spectral_ratio > 0.8:
-                score += 0.2
-            if spectral_ratio > 1.2:
                 score += 0.15
+            if spectral_ratio > 1.2:
+                score += 0.10
 
             edges = cv2.Canny(resized, 50, 150)
             edge_density = edges.mean() / 255.0
             if edge_density < 0.04:
-                score += 0.25
+                score += 0.15
             if edge_density > 0.15:
-                score += 0.1
+                score += 0.08
 
             laplacian = cv2.Laplacian(resized, cv2.CV_64F).var()
             if laplacian < 8:
-                score += 0.2
+                score += 0.15
             if laplacian > 100:
-                score += 0.1
+                score += 0.08
 
             blob = cv2.Laplacian(resized, cv2.CV_64F)
             zero_crossings = np.sum(np.diff(np.sign(blob)) != 0)
             zc_density = zero_crossings / (h * w)
             if zc_density < 0.01:
+                score += 0.10
+
+            color = cv2.cvtColor(face_crop, cv2.COLOR_BGR2LAB)
+            l_channel = color[:, :, 0].astype(float)
+            lab_std = np.std(l_channel)
+            if lab_std < 25:
                 score += 0.15
+            if lab_std > 70:
+                score += 0.08
+
+            ycrcb = cv2.cvtColor(face_crop, cv2.COLOR_BGR2YCrCb)
+            cr = ycrcb[:, :, 1].astype(float)
+            cb = ycrcb[:, :, 2].astype(float)
+            cr_std = np.std(cr)
+            cb_std = np.std(cb)
+            if cr_std < 8 or cb_std < 8:
+                score += 0.12
+            if cr_std < 5 and cb_std < 5:
+                score += 0.10
+
+            hsv = cv2.cvtColor(face_crop, cv2.COLOR_BGR2HSV)
+            h_ch = hsv[:, :, 0].astype(float)
+            s_ch = hsv[:, :, 1].astype(float)
+            h_hist = cv2.calcHist([h_ch.astype(np.uint8)], [0], None, [18], [0, 180]).flatten()
+            h_hist = h_hist / (h_hist.sum() + 1e-6)
+            h_entropy = -np.sum(h_hist * np.log2(h_hist + 1e-6))
+            if h_entropy < 2.5:
+                score += 0.12
+            if h_entropy > 4.0:
+                score += 0.05
+
+            noise = cv2.GaussianBlur(resized, (5, 5), 0).astype(float) - resized.astype(float)
+            noise_var = np.var(noise)
+            if noise_var < 15:
+                score += 0.15
+            if noise_var > 300:
+                score += 0.08
+
+            skin_mask = cv2.inRange(face_crop, (0, 0, 0), (255, 255, 255))
+            skin_ratio = skin_mask.mean() / 255.0
+            if skin_ratio > 0.85:
+                skin_region = cv2.bitwise_and(face_crop, face_crop, mask=skin_mask)
+                skin_texture = cv2.Laplacian(
+                    cv2.cvtColor(skin_region, cv2.COLOR_BGR2GRAY), cv2.CV_64F
+                ).var()
+                if skin_texture < 5:
+                    score += 0.12
 
             return min(score, 1.0)
         except Exception:
@@ -966,9 +1117,20 @@ class DeepfakeDetector:
             real_prob = ensemble['real_prob']
 
             gan_score = self._gan_artifact_analysis(face_crop)
-            if gan_score > 0:
-                blended = 0.50 * fake_prob + 0.50 * gan_score
-                fake_prob = round(min(max(blended, 0.0), 1.0), 4)
+            noise_score = self._noise_analysis(face_crop)
+            skin_score = self._skin_texture_analysis(face_crop)
+
+            auxiliary_score = max(gan_score, noise_score, skin_score)
+            auxiliary_boost = 0.0
+            if gan_score > 0.15:
+                auxiliary_boost += gan_score * 0.40
+            if noise_score > 0.15:
+                auxiliary_boost += noise_score * 0.35
+            if skin_score > 0.15:
+                auxiliary_boost += skin_score * 0.30
+
+            if auxiliary_boost > 0:
+                fake_prob = round(min(max(fake_prob + auxiliary_boost, 0.0), 1.0), 4)
                 real_prob = round(1.0 - fake_prob, 4)
 
             is_deepfake = fake_prob > DEEPFAKE_THRESHOLD
@@ -1055,8 +1217,8 @@ class DeepfakeDetector:
         video_is_deepfake = (
             any_deepfake
             or majority_fake
-            or combined_fake > 0.55
-            or avg_fake > 0.60
+            or combined_fake > 0.45
+            or avg_fake > 0.50
         )
         confidence = max(avg_real, avg_fake)
 

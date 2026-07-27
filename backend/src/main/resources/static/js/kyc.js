@@ -1034,6 +1034,37 @@ async function startLivenessChallenge() {
     }
 
     if (useUploadedVideo) {
+        window.__uploadedVideoFrames = [];
+        try {
+            var extractVideo = document.createElement('video');
+            extractVideo.muted = true;
+            extractVideo.playsInline = true;
+            await new Promise(function(resolve, reject) {
+                extractVideo.onloadeddata = resolve;
+                extractVideo.onerror = reject;
+                extractVideo.src = URL.createObjectURL(uploadedVideoFile);
+            });
+            extractVideo.play();
+            var duration = extractVideo.duration;
+            var numExtract = Math.min(Math.max(Math.floor(duration * 2), 3), 8);
+            var interval = duration / numExtract;
+            var extractCanvas = document.createElement('canvas');
+            var extractCtx = extractCanvas.getContext('2d');
+            extractCanvas.width = 320;
+            extractCanvas.height = 320;
+            for (var fi = 0; fi < numExtract; fi++) {
+                extractVideo.currentTime = fi * interval;
+                await new Promise(function(r) { extractVideo.onseeked = r; });
+                extractCtx.drawImage(extractVideo, 0, 0, 320, 320);
+                window.__uploadedVideoFrames.push(extractCanvas.toDataURL('image/jpeg', 0.8));
+            }
+            extractVideo.pause();
+            extractVideo.src = '';
+        } catch (e) {
+            console.warn('[VIDEO] Frame extraction failed:', e);
+        }
+
+    if (useUploadedVideo) {
         uploadedVideoEl = document.createElement('video');
         uploadedVideoEl.muted = true;
         uploadedVideoEl.playsInline = true;

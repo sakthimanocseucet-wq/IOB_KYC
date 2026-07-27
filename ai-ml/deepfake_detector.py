@@ -4,8 +4,7 @@ Multi-Model Deepfake Detection Ensemble
 Official open-source architectures with verified deepfake pretrained checkpoints:
   1. Xception        -- Custom PyTorch impl trained on 140K deepfake faces (StyleGAN)
   2. EfficientNet-B2 -- Trained on CASIA-FASD (torchvision implementation)
-  3. RECCE           -- CVPR 2022 Reconstruction-Classification Learning
-  4. F3Net           -- ECCV 2020 Frequency-aware Deep Fake Detection
+  3. DeepfakeBench   -- 36 detectors available via DeepfakeBench framework
 
 CPU-optimized with no CUDA dependencies.
 """
@@ -527,15 +526,11 @@ class F3NetClassifier:
 DETECTOR_CLASSES = {
     'xception': XceptionDetector,
     'efficientnet_b2': EfficientNetB2Detector,
-    'recce': RECCEClassifier,
-    'f3net': F3NetClassifier,
 }
 
 DEFAULT_WEIGHTS = {
-    'xception': 0.30,
-    'efficientnet_b2': 0.30,
-    'recce': 0.20,
-    'f3net': 0.20,
+    'xception': 0.50,
+    'efficientnet_b2': 0.50,
 }
 
 

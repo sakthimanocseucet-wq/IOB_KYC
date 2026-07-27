@@ -192,7 +192,7 @@
     <script src="../js/auth.js?v=x7k9m2" defer></script>
     <script src="../js/kyc.js?v=11" defer></script>
     <script>
-    (function() {
+    document.addEventListener('DOMContentLoaded', function() {
         var approvedApp = null;
 
         function initReKyc() {
@@ -335,7 +335,7 @@
         };
 
         initReKyc();
-    })();
+    });
     </script>
 </body>
 </html>

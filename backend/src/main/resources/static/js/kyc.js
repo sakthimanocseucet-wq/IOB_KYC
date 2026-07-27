@@ -760,6 +760,9 @@ var REAL_CAMERA_KEYWORDS = [
 
 function isRealCamera(label) {
     var lower = label.toLowerCase();
+    for (var i = 0; i < VIRTUAL_CAMERA_KEYWORDS.length; i++) {
+        if (lower.indexOf(VIRTUAL_CAMERA_KEYWORDS[i]) !== -1) return false;
+    }
     for (var i = 0; i < REAL_CAMERA_KEYWORDS.length; i++) {
         if (lower.indexOf(REAL_CAMERA_KEYWORDS[i]) !== -1) return true;
     }
@@ -775,12 +778,16 @@ async function detectVirtualCamera() {
         var hasRealCam = false;
         for (var i = 0; i < videoDevices.length; i++) {
             var label = (videoDevices[i].label || '').toLowerCase();
-            if (isRealCamera(label)) { hasRealCam = true; continue; }
+            var isVirtual = false;
             for (var j = 0; j < VIRTUAL_CAMERA_KEYWORDS.length; j++) {
                 if (label.indexOf(VIRTUAL_CAMERA_KEYWORDS[j]) !== -1) {
                     virtualCams.push(videoDevices[i].label);
+                    isVirtual = true;
                     break;
                 }
+            }
+            if (!isVirtual && isRealCamera(label)) {
+                hasRealCam = true;
             }
         }
         if (hasRealCam && virtualCams.length > 0) virtualCams = [];
@@ -1799,7 +1806,8 @@ async function performFaceVerification() {
 
         var fm = Math.round(((data.confidence && data.confidence.face_similarity !== undefined) ? data.confidence.face_similarity : (data.face_match_score || 0)) * 100) || 0;
         var lv = Math.round(((data.confidence && data.confidence.liveness !== undefined) ? data.confidence.liveness : (data.liveness_score || 0)) * 100) || 0;
-        var df = Math.round(((data.confidence && data.confidence.deepfake !== undefined) ? data.confidence.deepfake : 0) * 100) || 0;
+        var dfProb = (data.confidence && data.confidence.deepfake_fake_prob !== undefined) ? data.confidence.deepfake_fake_prob : ((data.confidence && data.confidence.deepfake !== undefined) ? data.confidence.deepfake : 0);
+        var df = Math.round(dfProb * 100) || 0;
         var status = data.status || data.verdict || 'REJECTED';
 
         // Trust backend verdict — no frontend override

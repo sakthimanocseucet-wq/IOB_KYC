@@ -877,6 +877,7 @@ def detailed_verify():
             'face_similarity': face_similarity,
             'liveness': liveness_confidence,
             'deepfake': deepfake_confidence,
+            'deepfake_fake_prob': round(_safe_get(deepfake_result, 'fake_prob', 0.5), 4),
             'screen_replay': screen_replay_conf,
         },
         'deepfake_per_model': deepfake_per_model,

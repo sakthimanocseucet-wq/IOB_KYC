@@ -26,7 +26,7 @@ import torch.nn.functional as F
 logger = logging.getLogger(__name__)
 
 MODEL_DIR = os.path.join(os.path.dirname(__file__), 'models')
-DEEPFAKE_THRESHOLD = 0.65
+DEEPFAKE_THRESHOLD = 0.55
 IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
@@ -723,14 +723,23 @@ class DeepfakeDetector:
             ratio = high_freq / (low_freq + 1e-10)
             edges = cv2.Canny(resized, 50, 150)
             edge_density = edges.mean() / 255.0
+            laplacian = cv2.Laplacian(resized, cv2.CV_64F).var()
             score = 0.0
+            if ratio > 0.5:
+                score += 0.2
             if ratio > 0.8:
-                score += 0.3
-            if ratio > 1.5:
                 score += 0.2
-            if edge_density > 0.15:
-                score += 0.2
+            if ratio > 1.2:
+                score += 0.15
+            if edge_density > 0.10:
+                score += 0.15
+            if edge_density > 0.18:
+                score += 0.1
             if edge_density < 0.03:
+                score += 0.2
+            if laplacian > 50:
+                score += 0.1
+            if laplacian < 10:
                 score += 0.15
             return min(score, 1.0)
         except Exception:
@@ -831,7 +840,7 @@ class DeepfakeDetector:
 
             freq_score = self._frequency_analysis(face_crop)
             if freq_score > 0:
-                blended = 0.55 * fake_prob + 0.45 * freq_score
+                blended = 0.40 * fake_prob + 0.60 * freq_score
                 fake_prob = round(min(max(blended, 0.0), 1.0), 4)
                 real_prob = round(1.0 - fake_prob, 4)
 

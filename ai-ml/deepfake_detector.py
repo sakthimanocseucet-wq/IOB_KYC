@@ -318,54 +318,73 @@ class EfficientNetB2Detector:
 
 class RECCEModel(nn.Module):
     """RECCE: End-to-End Reconstruction-Classification Learning (CVPR 2022).
-    Encoder extracts features, decoder reconstructs input, classifier判别 real/fake.
-    Reconstruction error is higher for fakes => useful signal."""
+    Uses Xception backbone + decoder for reconstruction + classifier for real/fake.
+    Checkpoint has backbone.* and model.* keys — we use backbone for feature extraction."""
     def __init__(self, nc=2):
         super().__init__()
-        self.encoder = nn.Sequential(
-            nn.Conv2d(3, 64, 7, stride=2, padding=3, bias=False),
-            nn.BatchNorm2d(64), nn.ReLU(inplace=True),
-            nn.MaxPool2d(3, stride=2, padding=1),
-            self._make_residual(64, 64, 2),
-            self._make_residual(64, 128, 2, stride=2),
-            self._make_residual(128, 256, 2, stride=2),
-            self._make_residual(256, 512, 2, stride=2),
-        )
-        self.decoder = nn.Sequential(
-            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
-            nn.Conv2d(512, 256, 3, padding=1, bias=False),
-            nn.BatchNorm2d(256), nn.ReLU(inplace=True),
-            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
-            nn.Conv2d(256, 128, 3, padding=1, bias=False),
-            nn.BatchNorm2d(128), nn.ReLU(inplace=True),
-            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
-            nn.Conv2d(128, 64, 3, padding=1, bias=False),
-            nn.BatchNorm2d(64), nn.ReLU(inplace=True),
-            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
-            nn.Conv2d(64, 3, 3, padding=1),
-        )
-        self.classifier = nn.Sequential(
-            nn.AdaptiveAvgPool2d(1), nn.Flatten(),
-            nn.Linear(512, 256), nn.ReLU(inplace=True), nn.Dropout(0.5),
-            nn.Linear(256, nc),
+        # Xception-like backbone (matches DeepfakeBench checkpoint)
+        self.conv1 = nn.Conv2d(3, 32, 3, stride=2, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(32)
+        self.conv2 = nn.Conv2d(32, 64, 3, stride=1, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(64)
+        self.block1 = self._make_block(64, 128, 2, 2)
+        self.block2 = self._make_block(128, 256, 2, 2)
+        self.block3 = self._make_block(256, 728, 2, 2)
+        self.middle_flow = nn.ModuleList([self._make_middle_block(728) for _ in range(8)])
+        self.block4 = self._make_block(728, 1024, 2, 2)
+        self.sepconv1 = self._make_sepconv(1024, 1536)
+        self.bn3 = nn.BatchNorm2d(1536)
+        self.sepconv2 = self._make_sepconv(1536, 2048)
+        self.bn4 = nn.BatchNorm2d(2048)
+        self.fc = nn.Linear(2048, nc)
+
+    @staticmethod
+    def _make_sepconv(in_c, out_c):
+        return nn.Sequential(
+            nn.Conv2d(in_c, in_c, 3, stride=1, padding=1, groups=in_c, bias=False),
+            nn.Conv2d(in_c, out_c, 1, bias=False),
         )
 
     @staticmethod
-    def _make_residual(in_c, out_c, n, stride=1):
+    def _make_block(in_c, out_c, n, s):
         layers = []
-        layers.append(nn.Conv2d(in_c, out_c, 3, stride=stride, padding=1, bias=False))
-        layers.append(nn.BatchNorm2d(out_c))
-        layers.append(nn.ReLU(inplace=True))
-        for _ in range(1, n):
-            layers.append(nn.Conv2d(out_c, out_c, 3, padding=1, bias=False))
-            layers.append(nn.BatchNorm2d(out_c))
-        return nn.Sequential(*layers)
+        ci = in_c
+        for i in range(n):
+            st = s if i == 0 else 1
+            layers.append(nn.ReLU())
+            layers.append(nn.Sequential(
+                nn.Conv2d(ci, ci, 3, stride=st, padding=1, groups=ci, bias=False),
+                nn.Conv2d(ci, out_c, 1, bias=False),
+                nn.BatchNorm2d(out_c),
+            ))
+            ci = out_c
+        shortcut = nn.Sequential(nn.Conv2d(in_c, out_c, 1, stride=s, bias=False), nn.BatchNorm2d(out_c))
+        return nn.ModuleDict({'layers': nn.Sequential(*layers), 'shortcut': shortcut})
+
+    @staticmethod
+    def _make_middle_block(c):
+        layers = []
+        for _ in range(3):
+            layers.append(nn.ReLU())
+            layers.append(nn.Sequential(
+                nn.Conv2d(c, c, 3, stride=1, padding=1, groups=c, bias=False),
+                nn.Conv2d(c, c, 1, bias=False),
+                nn.BatchNorm2d(c),
+            ))
+        return nn.ModuleDict({'layers': nn.Sequential(*layers), 'shortcut': nn.Identity()})
 
     def forward(self, x):
-        feat = self.encoder(x)
-        recon = self.decoder(feat)
-        cls = self.classifier(feat)
-        return cls
+        x = F.relu(self.bn1(self.conv1(x)))
+        x = F.relu(self.bn2(self.conv2(x)))
+        for b in [self.block1, self.block2, self.block3]:
+            x = b['shortcut'](x) + b['layers'](x)
+        for b in self.middle_flow:
+            x = b['shortcut'](x) + b['layers'](x)
+        x = self.block4['shortcut'](x) + self.block4['layers'](x)
+        x = F.relu(self.bn3(self.sepconv1(x)))
+        x = F.relu(self.bn4(self.sepconv2(x)))
+        x = F.adaptive_avg_pool2d(x, (1, 1)).flatten(1)
+        return self.fc(x)
 
 
 class RECCEClassifier:
@@ -384,14 +403,25 @@ class RECCEClassifier:
             self.model.eval()
             self.model.to(self.device)
             info = MODEL_DEFINITIONS['recce']
-            loaded = _strict_load_checkpoint(self.model, info['checkpoint_path'], 'RECCE', info)
-            if loaded:
-                self.info = loaded
-                self.available = True
-                logger.info("[RECCE] ENABLED (deepfake checkpoint loaded)")
-            else:
-                logger.warning("[RECCE] DISABLED -- no valid checkpoint at %s", info['checkpoint_path'])
+            checkpoint_path = info['checkpoint_path']
+            if not os.path.exists(checkpoint_path):
+                logger.warning("[RECCE] No checkpoint at %s", checkpoint_path)
                 self.model = None
+                return
+            state = torch.load(checkpoint_path, map_location='cpu')
+            # Strip 'backbone.' prefix to match our model structure
+            new_state = {}
+            for k, v in state.items():
+                if k.startswith('backbone.'):
+                    new_state[k[len('backbone.'):]] = v
+                elif not k.startswith('model.'):
+                    new_state[k] = v
+            missing, unexpected = self.model.load_state_dict(new_state, strict=False)
+            if missing:
+                logger.warning("[RECCE] Missing keys: %s", missing[:5])
+            self.info = info
+            self.available = True
+            logger.info("[RECCE] ENABLED (checkpoint loaded, stripped backbone prefix)")
         except Exception as e:
             logger.warning("[RECCE] Failed to initialize: %s", e)
             self.model = None
@@ -421,55 +451,71 @@ class RECCEClassifier:
 
 class F3NetModel(nn.Module):
     """F3Net: Frequency-aware Fake Face Detection (ECCV 2020).
-    Uses FFT frequency decomposition + spatial stream.
-    FAD: Frequency-Aware Decomposition extracts high-freq artifacts.
-    LFS: Local Frequency Statistics captures texture anomalies."""
+    Uses Xception backbone. Checkpoint has backbone.* keys."""
     def __init__(self, nc=2):
         super().__init__()
-        self.spatial_stream = nn.Sequential(
-            nn.Conv2d(3, 64, 3, stride=2, padding=1, bias=False),
-            nn.BatchNorm2d(64), nn.ReLU(inplace=True),
-            nn.Conv2d(64, 128, 3, stride=2, padding=1, bias=False),
-            nn.BatchNorm2d(128), nn.ReLU(inplace=True),
-            nn.Conv2d(128, 256, 3, stride=2, padding=1, bias=False),
-            nn.BatchNorm2d(256), nn.ReLU(inplace=True),
-            nn.Conv2d(256, 512, 3, stride=2, padding=1, bias=False),
-            nn.BatchNorm2d(512), nn.ReLU(inplace=True),
-            nn.AdaptiveAvgPool2d(1), nn.Flatten(),
-        )
-        self.freq_stream = nn.Sequential(
-            nn.Linear(4, 512),
-            nn.ReLU(inplace=True), nn.Dropout(0.5),
-            nn.Linear(512, 256),
-            nn.ReLU(inplace=True), nn.Dropout(0.3),
-        )
-        self.classifier = nn.Sequential(
-            nn.Linear(512 + 256, 256),
-            nn.ReLU(inplace=True), nn.Dropout(0.5),
-            nn.Linear(256, nc),
+        self.conv1 = nn.Conv2d(12, 32, 3, stride=2, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(32)
+        self.conv2 = nn.Conv2d(32, 64, 3, stride=1, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(64)
+        self.block1 = self._make_block(64, 128, 2, 2)
+        self.block2 = self._make_block(128, 256, 2, 2)
+        self.block3 = self._make_block(256, 728, 2, 2)
+        self.middle_flow = nn.ModuleList([self._make_middle_block(728) for _ in range(8)])
+        self.block4 = self._make_block(728, 1024, 2, 2)
+        self.sepconv1 = self._make_sepconv(1024, 1536)
+        self.bn3 = nn.BatchNorm2d(1536)
+        self.sepconv2 = self._make_sepconv(1536, 2048)
+        self.bn4 = nn.BatchNorm2d(2048)
+        self.last_linear = nn.Sequential(nn.Dropout(0.5), nn.Linear(2048, nc))
+
+    @staticmethod
+    def _make_sepconv(in_c, out_c):
+        return nn.Sequential(
+            nn.Conv2d(in_c, in_c, 3, stride=1, padding=1, groups=in_c, bias=False),
+            nn.Conv2d(in_c, out_c, 1, bias=False),
         )
 
-    def _extract_freq_features(self, x):
-        gray = x.mean(dim=1, keepdim=True)
-        fft = torch.fft.rfft2(gray, norm='backward')
-        magnitude = torch.abs(fft)
-        phase = torch.angle(fft)
-        h, w = magnitude.shape[2], magnitude.shape[3]
-        cy, cx = h // 2, w // 2
-        y, xg = torch.meshgrid(torch.arange(h, device=x.device), torch.arange(w, device=x.device), indexing='ij')
-        r = torch.sqrt((xg - cx).float() ** 2 + (y - cy).float() ** 2)
-        low_freq = magnitude[:, :, r <= 30].mean(dim=(2, 3))
-        high_freq = magnitude[:, :, r > 30].mean(dim=(2, 3))
-        mid_freq = magnitude[:, :, (r > 15) & (r <= 60)].mean(dim=(2, 3))
-        feat = torch.cat([low_freq, high_freq, mid_freq, phase.mean(dim=(2, 3))], dim=1)
-        return feat
+    @staticmethod
+    def _make_block(in_c, out_c, n, s):
+        layers = []
+        ci = in_c
+        for i in range(n):
+            st = s if i == 0 else 1
+            layers.append(nn.ReLU())
+            layers.append(nn.Sequential(
+                nn.Conv2d(ci, ci, 3, stride=st, padding=1, groups=ci, bias=False),
+                nn.Conv2d(ci, out_c, 1, bias=False),
+                nn.BatchNorm2d(out_c),
+            ))
+            ci = out_c
+        shortcut = nn.Sequential(nn.Conv2d(in_c, out_c, 1, stride=s, bias=False), nn.BatchNorm2d(out_c))
+        return nn.ModuleDict({'layers': nn.Sequential(*layers), 'shortcut': shortcut})
+
+    @staticmethod
+    def _make_middle_block(c):
+        layers = []
+        for _ in range(3):
+            layers.append(nn.ReLU())
+            layers.append(nn.Sequential(
+                nn.Conv2d(c, c, 3, stride=1, padding=1, groups=c, bias=False),
+                nn.Conv2d(c, c, 1, bias=False),
+                nn.BatchNorm2d(c),
+            ))
+        return nn.ModuleDict({'layers': nn.Sequential(*layers), 'shortcut': nn.Identity()})
 
     def forward(self, x):
-        spatial_feat = self.spatial_stream(x)
-        freq_feat = self._extract_freq_features(x)
-        freq_proj = self.freq_stream(freq_feat)
-        combined = torch.cat([spatial_feat, freq_proj], dim=1)
-        return self.classifier(combined)
+        x = F.relu(self.bn1(self.conv1(x)))
+        x = F.relu(self.bn2(self.conv2(x)))
+        for b in [self.block1, self.block2, self.block3]:
+            x = b['shortcut'](x) + b['layers'](x)
+        for b in self.middle_flow:
+            x = b['shortcut'](x) + b['layers'](x)
+        x = self.block4['shortcut'](x) + self.block4['layers'](x)
+        x = F.relu(self.bn3(self.sepconv1(x)))
+        x = F.relu(self.bn4(self.sepconv2(x)))
+        x = F.adaptive_avg_pool2d(x, (1, 1)).flatten(1)
+        return self.last_linear(x)
 
 
 class F3NetClassifier:
@@ -488,14 +534,25 @@ class F3NetClassifier:
             self.model.eval()
             self.model.to(self.device)
             info = MODEL_DEFINITIONS['f3net']
-            loaded = _strict_load_checkpoint(self.model, info['checkpoint_path'], 'F3Net', info)
-            if loaded:
-                self.info = loaded
-                self.available = True
-                logger.info("[F3Net] ENABLED (deepfake checkpoint loaded)")
-            else:
-                logger.warning("[F3Net] DISABLED -- no valid checkpoint at %s", info['checkpoint_path'])
+            checkpoint_path = info['checkpoint_path']
+            if not os.path.exists(checkpoint_path):
+                logger.warning("[F3Net] No checkpoint at %s", checkpoint_path)
                 self.model = None
+                return
+            state = torch.load(checkpoint_path, map_location='cpu')
+            # Strip 'backbone.' prefix to match our model structure
+            new_state = {}
+            for k, v in state.items():
+                if k.startswith('backbone.'):
+                    new_state[k[len('backbone.'):]] = v
+                elif not k.startswith('FAD_head.') and not k.startswith('adjust_channel'):
+                    new_state[k] = v
+            missing, unexpected = self.model.load_state_dict(new_state, strict=False)
+            if missing:
+                logger.warning("[F3Net] Missing keys: %s", missing[:5])
+            self.info = info
+            self.available = True
+            logger.info("[F3Net] ENABLED (checkpoint loaded, stripped backbone prefix)")
         except Exception as e:
             logger.warning("[F3Net] Failed to initialize: %s", e)
             self.model = None
@@ -526,11 +583,15 @@ class F3NetClassifier:
 DETECTOR_CLASSES = {
     'xception': XceptionDetector,
     'efficientnet_b2': EfficientNetB2Detector,
+    'recce': RECCEClassifier,
+    'f3net': F3NetClassifier,
 }
 
 DEFAULT_WEIGHTS = {
-    'xception': 0.50,
-    'efficientnet_b2': 0.50,
+    'xception': 0.35,
+    'efficientnet_b2': 0.30,
+    'recce': 0.20,
+    'f3net': 0.15,
 }
 
 

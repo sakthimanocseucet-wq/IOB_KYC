@@ -123,29 +123,10 @@
     <script src="../js/auth.js?v=10" defer></script>
     <script>
     (function() {
-        try {
-            var kd = JSON.parse(localStorage.getItem('kycData') || '{}');
-            if (!kd || (!kd.status && !kd.ocrName)) {
-                localStorage.removeItem('kycData');
-                return;
-            }
-            if (kd.status === 'APPROVED') {
-                document.getElementById('bankDetailsCard').style.display = '';
-                if (kd.ocrName) document.getElementById('accountHolder').textContent = kd.ocrName;
-                if (kd.accountNumber) document.getElementById('accountNumber').textContent = kd.accountNumber;
-                if (kd.ifscCode) document.getElementById('ifscCode').textContent = kd.ifscCode;
-                if (kd.branchId) document.getElementById('branchName').textContent = kd.branchId;
-                if (kd.email) document.getElementById('bankEmail').textContent = kd.email;
-                if (kd.mobile) document.getElementById('bankMobile').textContent = kd.mobile;
-                if (kd.ocrIdNumber) document.getElementById('bankAadhaar').textContent = kd.ocrIdNumber;
-                if (kd.ocrPanNumber) document.getElementById('bankPan').textContent = kd.ocrPanNumber;
-                if (kd.ocrName) document.getElementById('userName').textContent = kd.ocrName.split(' ')[0];
-                if (kd.email) document.getElementById('userEmail').textContent = kd.email;
-            }
-        } catch(e) {}
+        localStorage.removeItem('kycData');
     })();
     </script>
-    <script src="../js/kyc.js?v=18" defer></script>
+    <script src="../js/kyc.js?v=19" defer></script>
     <script>
     (function() {
         var kycActionsEl = document.getElementById('kycActions');

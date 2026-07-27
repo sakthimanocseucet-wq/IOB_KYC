@@ -161,7 +161,7 @@ class ChallengeLivenessDetector:
     """Interactive challenge-response liveness detection using MediaPipe FaceMesh + Pose."""
 
     # --- Thresholds (tuned for real-world webcam 640x480 @ 6-10 fps) ---
-    EAR_CLOSED_THRESHOLD = 0.12   # EAR below this = eye closed (stricter)
+    EAR_CLOSED_THRESHOLD = 0.16   # EAR below this = eye closed
     MAR_OPEN_THRESHOLD = 0.18     # MAR above this = mouth open (stricter)
     SHAKE_YAW_DEGREES = 10.0      # min yaw deviation for shake (stricter)
     LOOK_YAW_DEGREES = 10.0       # min yaw change for gaze look left/right (stricter)
@@ -588,10 +588,10 @@ class ChallengeLivenessDetector:
         baseline_left = float(np.mean(left_ears[:baseline_end]))
         baseline_right = float(np.mean(right_ears[:baseline_end]))
 
-        # Threshold: eye closed when EAR drops below 60% of baseline or absolute threshold
-        closed_threshold = min(self.EAR_CLOSED_THRESHOLD, baseline_ear * 0.60)
+        # Threshold: eye closed when EAR drops below 65% of baseline or absolute threshold
+        closed_threshold = max(self.EAR_CLOSED_THRESHOLD, baseline_ear * 0.65)
         # Reopen threshold: slightly higher than close threshold to avoid noise
-        open_threshold = closed_threshold * 1.15
+        open_threshold = closed_threshold * 1.10
 
         logger.info("%s frames=%d baseline_ear=%.4f closed_thresh=%.4f open_thresh=%.4f required_blinks=%d",
                      tag, n, baseline_ear, closed_threshold, open_threshold, REQUIRED_BLINKS)

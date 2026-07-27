@@ -2279,7 +2279,7 @@ function sendFramesToDeepfake(frames, resultDiv) {
     var headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = 'Bearer ' + token;
 
-    resultDiv.innerHTML = '<div style="text-align:center;padding:16px"><div class="spinner" style="margin:0 auto 8px"></div><p style="font-size:13px;color:var(--gray-500)">Sending ' + frames.length + ' frames to deepfake model...</p></div>';
+    resultDiv.innerHTML = '<div style="text-align:center;padding:16px"><div class="spinner" style="margin:0 auto 8px"></div><p style="font-size:13px;color:var(--gray-500)">Analyzing ' + frames.length + ' frames...</p></div>';
 
     fetch('/api/ai/deepfake-test', {
         method: 'POST',
@@ -2292,44 +2292,18 @@ function sendFramesToDeepfake(frames, resultDiv) {
             resultDiv.innerHTML = '<div style="padding:12px;color:var(--danger)">&#10060; ' + (data.error || 'Analysis failed') + '</div>';
             return;
         }
-        var results = data.data || [];
         var summary = data.video_summary || {};
-        var html = '<div style="border:1px solid var(--gray-200);border-radius:8px;overflow:hidden">';
-        html += '<div style="background:var(--gray-100);padding:8px 12px;font-weight:600;font-size:13px">Deepfake Analysis Results (' + results.length + ' frames)</div>';
-        html += '<table style="width:100%;border-collapse:collapse;font-size:12px">';
-        html += '<tr style="background:var(--gray-50)"><th style="padding:6px 10px;text-align:left;border-bottom:1px solid var(--gray-200)">Frame</th><th style="padding:6px 10px;text-align:left;border-bottom:1px solid var(--gray-200)">Time</th><th style="padding:6px 10px;text-align:center;border-bottom:1px solid var(--gray-200)">Fake Prob</th><th style="padding:6px 10px;text-align:center;border-bottom:1px solid var(--gray-200)">Verdict</th></tr>';
-
-        for (var i = 0; i < results.length; i++) {
-            var r = results[i];
-            var fp = r.fake_prob || 0;
-            var isFake = r.is_deepfake;
-            var verdictColor = isFake ? 'var(--danger)' : 'var(--success)';
-            var verdictText = isFake ? 'FAKE' : 'REAL';
-            var rowBg = isFake ? 'background:rgba(220,38,38,0.03)' : '';
-            html += '<tr style="' + rowBg + '">';
-            html += '<td style="padding:6px 10px;border-bottom:1px solid var(--gray-100)">#' + (i + 1) + '</td>';
-            html += '<td style="padding:6px 10px;border-bottom:1px solid var(--gray-100)">' + (r.time || '--') + '</td>';
-            html += '<td style="padding:6px 10px;border-bottom:1px solid var(--gray-100);text-align:center;font-weight:600;color:' + verdictColor + '">' + (fp * 100).toFixed(1) + '%</td>';
-            html += '<td style="padding:6px 10px;border-bottom:1px solid var(--gray-100);text-align:center;font-weight:600;color:' + verdictColor + '">' + verdictText + '</td>';
-            html += '</tr>';
-        }
-
-        var videoVerdict = summary.verdict || 'UNKNOWN';
         var videoIsFake = summary.video_is_deepfake || false;
-        var avgFake = summary.avg_fake_prob || 0;
-        var flagged = summary.frames_flagged || 0;
-        var threshold = summary.threshold || 0.65;
-        var summaryBg = videoIsFake ? 'background:rgba(220,38,38,0.08)' : 'background:rgba(22,163,74,0.08)';
-        var summaryBorder = videoIsFake ? 'border:2px solid var(--danger)' : 'border:2px solid var(--success)';
-        var summaryColor = videoIsFake ? 'var(--danger)' : 'var(--success)';
-        html += '</table>';
-        html += '<div style="padding:12px;margin:8px;border-radius:8px;' + summaryBg + ';' + summaryBorder + '">';
-        html += '<div style="font-size:15px;font-weight:700;color:' + summaryColor + ';margin-bottom:6px">' + (videoIsFake ? '&#9888; VIDEO DETECTED AS FAKE' : '&#10003; VIDEO LIKELY REAL') + '</div>';
-        html += '<div style="font-size:12px;color:var(--gray-600)">';
-        html += '<strong>Average Fake Prob:</strong> <span style="color:' + summaryColor + ';font-weight:700">' + (avgFake * 100).toFixed(1) + '%</span>';
-        html += ' &bull; <strong>Flagged Frames:</strong> ' + flagged + '/' + results.length;
-        html += ' &bull; <strong>Threshold:</strong> ' + (threshold * 100).toFixed(0) + '%';
-        html += '</div></div></div>';
+        var verdict = videoIsFake ? 'FAKE' : 'REAL';
+        var icon = videoIsFake ? '&#9888;' : '&#10003;';
+        var bgColor = videoIsFake ? 'rgba(220,38,38,0.1)' : 'rgba(22,163,74,0.1)';
+        var borderColor = videoIsFake ? 'var(--danger)' : 'var(--success)';
+        var textColor = videoIsFake ? 'var(--danger)' : 'var(--success)';
+
+        var html = '<div style="padding:16px;border-radius:8px;background:' + bgColor + ';border:2px solid ' + borderColor + ';text-align:center">';
+        html += '<div style="font-size:40px;margin-bottom:8px">' + icon + '</div>';
+        html += '<div style="font-size:18px;font-weight:700;color:' + textColor + '">' + verdict + '</div>';
+        html += '</div>';
 
         resultDiv.innerHTML = html;
     })

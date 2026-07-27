@@ -26,7 +26,7 @@ import torch.nn.functional as F
 logger = logging.getLogger(__name__)
 
 MODEL_DIR = os.path.join(os.path.dirname(__file__), 'models')
-DEEPFAKE_THRESHOLD = 0.42
+DEEPFAKE_THRESHOLD = 0.50
 IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
@@ -1120,14 +1120,14 @@ class DeepfakeDetector:
             noise_score = self._noise_analysis(face_crop)
             skin_score = self._skin_texture_analysis(face_crop)
 
-            auxiliary_score = max(gan_score, noise_score, skin_score)
             auxiliary_boost = 0.0
-            if gan_score > 0.15:
-                auxiliary_boost += gan_score * 0.40
-            if noise_score > 0.15:
-                auxiliary_boost += noise_score * 0.35
-            if skin_score > 0.15:
-                auxiliary_boost += skin_score * 0.30
+            if fake_prob > 0.30:
+                if gan_score > 0.20:
+                    auxiliary_boost += gan_score * 0.15
+                if noise_score > 0.20:
+                    auxiliary_boost += noise_score * 0.12
+                if skin_score > 0.20:
+                    auxiliary_boost += skin_score * 0.10
 
             if auxiliary_boost > 0:
                 fake_prob = round(min(max(fake_prob + auxiliary_boost, 0.0), 1.0), 4)
@@ -1217,8 +1217,8 @@ class DeepfakeDetector:
         video_is_deepfake = (
             any_deepfake
             or majority_fake
-            or combined_fake > 0.45
-            or avg_fake > 0.50
+            or combined_fake > 0.55
+            or avg_fake > 0.60
         )
         confidence = max(avg_real, avg_fake)
 

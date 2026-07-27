@@ -562,7 +562,6 @@ def compare_fields(ocr_data, qr_data, doc_type):
         ('dob', 'dob', 'Date of Birth'),
         ('aadhaar_number', 'aadhaar_number', 'Aadhaar Number'),
         ('pan_number', 'pan_number', 'PAN Number'),
-        ('address', 'address', 'Address'),
     ]
 
     for ocr_key, qr_key, label in fields_to_compare:
@@ -582,9 +581,6 @@ def compare_fields(ocr_data, qr_data, doc_type):
         elif ocr_key == 'dob':
             norm_ocr = normalize_date(str(ocr_val))
             norm_qr = normalize_date(str(qr_val))
-        elif ocr_key == 'address':
-            norm_ocr = normalize_address(str(ocr_val))
-            norm_qr = normalize_address(str(qr_val))
         else:
             norm_ocr = normalize_id_number(str(ocr_val))
             norm_qr = normalize_id_number(str(qr_val))

@@ -621,6 +621,7 @@ def detailed_verify():
     profile_photo = data.get('profile_photo')
     challenge = data.get('challenge')
     frames = data.get('frames', [])
+    video_frames = data.get('video_frames', [])
     session_result = data.get('session_result')
     is_rekyc = bool(data.get('rekyc', False))
 
@@ -815,13 +816,21 @@ def detailed_verify():
         screen_replay_conf = round(replay_det.get('confidence', 0.0), 4)
 
     # ============================================================
-    # 3. DEEPFAKE (Official Models: Xception + EfficientNet-B2)
+    # 3. DEEPFAKE (Official Models: Xception + EfficientNet-B2 + RECCE + F3Net)
     # ============================================================
-    deepfake_result = _safe_detect(
-        lambda: deepfake_detector.detect(selfie),
-        'deepfake_detect',
-        {'is_deepfake': False, 'confidence': 0.5}
-    )
+    # If video frames provided, run deepfake on all frames and use worst result
+    if video_frames:
+        deepfake_result = _safe_detect(
+            lambda: deepfake_detector.detect_frames(video_frames[:5]),
+            'deepfake_detect_frames',
+            {'is_deepfake': False, 'confidence': 0.5}
+        )
+    else:
+        deepfake_result = _safe_detect(
+            lambda: deepfake_detector.detect(selfie),
+            'deepfake_detect',
+            {'is_deepfake': False, 'confidence': 0.5}
+        )
 
     deepfakeDetected = bool(_safe_get(deepfake_result, 'is_deepfake', False))
     deepfake_confidence = round(_safe_get(deepfake_result, 'confidence', 0.5), 4)

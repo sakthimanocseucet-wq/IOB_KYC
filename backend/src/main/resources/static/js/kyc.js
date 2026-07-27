@@ -1,6 +1,7 @@
 const KYC_API = '/api/kyc';
 const AI_API = '/api/ai';
 var uploadedVideoFile = null;
+window.__uploadedVideoFrames = [];
 
 window.addEventListener('error', function (e) {
     console.groupCollapsed('[Global Error] ' + e.message);
@@ -1758,6 +1759,10 @@ async function performFaceVerification() {
         if (profilePhotoBase64) {
             payload.profile_photo = profilePhotoBase64;
         }
+        if (window.__uploadedVideoFrames && window.__uploadedVideoFrames.length > 0) {
+            payload.video_frames = window.__uploadedVideoFrames;
+            window.__uploadedVideoFrames = [];
+        }
         if (isReKyc) {
             payload.rekyc = true;
         }
@@ -2252,6 +2257,7 @@ function handleDeepfakeVideo(event) {
 
         function captureFrame() {
             if (currentFrame >= numFrames) {
+                window.__uploadedVideoFrames = frames.map(function(f) { return f.image; });
                 sendFramesToDeepfake(frames, resultDiv);
                 return;
             }
@@ -2323,6 +2329,7 @@ function sendFramesToDeepfake(frames, resultDiv) {
 function clearUploadedVideo() {
     uploadedVideoFile = null;
     window.__uploadedVideoEl = null;
+    window.__uploadedVideoFrames = [];
     var input = document.getElementById('deepfakeVideoInput');
     if (input) input.value = '';
     var startBtn = document.getElementById('startChallengeBtn');

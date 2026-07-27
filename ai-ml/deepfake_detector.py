@@ -316,75 +316,123 @@ class EfficientNetB2Detector:
             return None
 
 
-class RECCEModel(nn.Module):
-    """RECCE: End-to-End Reconstruction-Classification Learning (CVPR 2022).
-    Uses Xception backbone + decoder for reconstruction + classifier for real/fake.
-    Checkpoint has backbone.* and model.* keys — we use backbone for feature extraction."""
-    def __init__(self, nc=2):
+class SeparableConv2dBench(nn.Module):
+    """DeepfakeBench SeparableConv2d — matches checkpoint keys exactly."""
+    def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=0, bias=False):
         super().__init__()
-        # Xception-like backbone (matches DeepfakeBench checkpoint)
-        self.conv1 = nn.Conv2d(3, 32, 3, stride=2, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(32)
-        self.conv2 = nn.Conv2d(32, 64, 3, stride=1, padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(64)
-        self.block1 = self._make_block(64, 128, 2, 2)
-        self.block2 = self._make_block(128, 256, 2, 2)
-        self.block3 = self._make_block(256, 728, 2, 2)
-        self.middle_flow = nn.ModuleList([self._make_middle_block(728) for _ in range(8)])
-        self.block4 = self._make_block(728, 1024, 2, 2)
-        self.sepconv1 = self._make_sepconv(1024, 1536)
-        self.bn3 = nn.BatchNorm2d(1536)
-        self.sepconv2 = self._make_sepconv(1536, 2048)
-        self.bn4 = nn.BatchNorm2d(2048)
-        self.fc = nn.Linear(2048, nc)
-
-    @staticmethod
-    def _make_sepconv(in_c, out_c):
-        return nn.Sequential(
-            nn.Conv2d(in_c, in_c, 3, stride=1, padding=1, groups=in_c, bias=False),
-            nn.Conv2d(in_c, out_c, 1, bias=False),
-        )
-
-    @staticmethod
-    def _make_block(in_c, out_c, n, s):
-        layers = []
-        ci = in_c
-        for i in range(n):
-            st = s if i == 0 else 1
-            layers.append(nn.ReLU())
-            layers.append(nn.Sequential(
-                nn.Conv2d(ci, ci, 3, stride=st, padding=1, groups=ci, bias=False),
-                nn.Conv2d(ci, out_c, 1, bias=False),
-                nn.BatchNorm2d(out_c),
-            ))
-            ci = out_c
-        shortcut = nn.Sequential(nn.Conv2d(in_c, out_c, 1, stride=s, bias=False), nn.BatchNorm2d(out_c))
-        return nn.ModuleDict({'layers': nn.Sequential(*layers), 'shortcut': shortcut})
-
-    @staticmethod
-    def _make_middle_block(c):
-        layers = []
-        for _ in range(3):
-            layers.append(nn.ReLU())
-            layers.append(nn.Sequential(
-                nn.Conv2d(c, c, 3, stride=1, padding=1, groups=c, bias=False),
-                nn.Conv2d(c, c, 1, bias=False),
-                nn.BatchNorm2d(c),
-            ))
-        return nn.ModuleDict({'layers': nn.Sequential(*layers), 'shortcut': nn.Identity()})
+        self.conv1 = nn.Conv2d(in_channels, in_channels, kernel_size, stride, padding, groups=in_channels, bias=bias)
+        self.pointwise = nn.Conv2d(in_channels, out_channels, 1, 1, 0, 1, 1, bias=bias)
 
     def forward(self, x):
-        x = F.relu(self.bn1(self.conv1(x)))
-        x = F.relu(self.bn2(self.conv2(x)))
-        for b in [self.block1, self.block2, self.block3]:
-            x = b['shortcut'](x) + b['layers'](x)
-        for b in self.middle_flow:
-            x = b['shortcut'](x) + b['layers'](x)
-        x = self.block4['shortcut'](x) + self.block4['layers'](x)
-        x = F.relu(self.bn3(self.sepconv1(x)))
-        x = F.relu(self.bn4(self.sepconv2(x)))
+        return self.pointwise(self.conv1(x))
+
+
+class BlockBench(nn.Module):
+    """DeepfakeBench Block — matches checkpoint keys: blockX.rep.Y"""
+    def __init__(self, in_filters, out_filters, reps, strides=1, start_with_relu=True, grow_first=True):
+        super().__init__()
+        if out_filters != in_filters or strides != 1:
+            self.skip = nn.Conv2d(in_filters, out_filters, 1, stride=strides, bias=False)
+            self.skipbn = nn.BatchNorm2d(out_filters)
+        else:
+            self.skip = None
+        self.relu = nn.ReLU(inplace=True)
+        rep = []
+        filters = in_filters
+        if grow_first:
+            rep.append(nn.ReLU(inplace=False))
+            rep.append(SeparableConv2dBench(in_filters, out_filters, 3, stride=1, padding=1, bias=False))
+            rep.append(nn.BatchNorm2d(out_filters))
+            filters = out_filters
+        for i in range(reps - 1):
+            rep.append(nn.ReLU(inplace=False))
+            rep.append(SeparableConv2dBench(filters, filters, 3, stride=1, padding=1, bias=False))
+            rep.append(nn.BatchNorm2d(filters))
+        if not grow_first:
+            rep.append(nn.ReLU(inplace=False))
+            rep.append(SeparableConv2dBench(in_filters, out_filters, 3, stride=1, padding=1, bias=False))
+            rep.append(nn.BatchNorm2d(out_filters))
+        if not start_with_relu:
+            rep = rep[1:]
+        if strides != 1:
+            rep.append(nn.MaxPool2d(3, strides, 1))
+        self.rep = nn.Sequential(*rep)
+
+    def forward(self, inp):
+        x = self.rep(inp)
+        if self.skip is not None:
+            skip = self.skip(inp)
+            skip = self.skipbn(skip)
+        else:
+            skip = inp
+        return x + skip
+
+
+class DeepfakeBenchXception(nn.Module):
+    """DeepfakeBench Xception — exact architecture from training/networks/xception.py.
+    12 blocks: block1-3 entry, block4-11 middle, block12 exit."""
+    def __init__(self, in_channels=3, num_classes=2, dropout=0.5):
+        super().__init__()
+        self.conv1 = nn.Conv2d(in_channels, 32, 3, 2, 0, bias=False)
+        self.bn1 = nn.BatchNorm2d(32)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv2 = nn.Conv2d(32, 64, 3, bias=False)
+        self.bn2 = nn.BatchNorm2d(64)
+        # Entry flow
+        self.block1 = BlockBench(64, 128, 2, 2, start_with_relu=False, grow_first=True)
+        self.block2 = BlockBench(128, 256, 2, 2, start_with_relu=True, grow_first=True)
+        self.block3 = BlockBench(256, 728, 2, 2, start_with_relu=True, grow_first=True)
+        # Middle flow (8 blocks)
+        self.block4 = BlockBench(728, 728, 3, 1, start_with_relu=True, grow_first=True)
+        self.block5 = BlockBench(728, 728, 3, 1, start_with_relu=True, grow_first=True)
+        self.block6 = BlockBench(728, 728, 3, 1, start_with_relu=True, grow_first=True)
+        self.block7 = BlockBench(728, 728, 3, 1, start_with_relu=True, grow_first=True)
+        self.block8 = BlockBench(728, 728, 3, 1, start_with_relu=True, grow_first=True)
+        self.block9 = BlockBench(728, 728, 3, 1, start_with_relu=True, grow_first=True)
+        self.block10 = BlockBench(728, 728, 3, 1, start_with_relu=True, grow_first=True)
+        self.block11 = BlockBench(728, 728, 3, 1, start_with_relu=True, grow_first=True)
+        # Exit flow
+        self.block12 = BlockBench(728, 1024, 2, 2, start_with_relu=True, grow_first=False)
+        self.conv3 = SeparableConv2dBench(1024, 1536, 3, 1, 1)
+        self.bn3 = nn.BatchNorm2d(1536)
+        self.conv4 = SeparableConv2dBench(1536, 2048, 3, 1, 1)
+        self.bn4 = nn.BatchNorm2d(2048)
+        if dropout:
+            self.last_linear = nn.Sequential(nn.Dropout(p=dropout), nn.Linear(2048, num_classes))
+        else:
+            self.last_linear = nn.Linear(2048, num_classes)
+
+    def forward(self, x):
+        x = self.relu(self.bn1(self.conv1(x)))
+        x = self.relu(self.bn2(self.conv2(x)))
+        x = self.block1(x)
+        x = self.block2(x)
+        x = self.block3(x)
+        x = self.block4(x)
+        x = self.block5(x)
+        x = self.block6(x)
+        x = self.block7(x)
+        x = self.block8(x)
+        x = self.block9(x)
+        x = self.block10(x)
+        x = self.block11(x)
+        x = self.block12(x)
+        x = F.relu(self.bn3(self.conv3(x)))
+        x = F.relu(self.bn4(self.conv4(x)))
         x = F.adaptive_avg_pool2d(x, (1, 1)).flatten(1)
-        return self.fc(x)
+        return self.last_linear(x)
+
+
+class RECCEModel(DeepfakeBenchXception):
+    """RECCE backbone — DeepfakeBench Xception (in_channels=3)."""
+    def __init__(self, nc=2):
+        super().__init__(in_channels=3, num_classes=nc, dropout=0.0)
+
+
+class F3NetModel(DeepfakeBenchXception):
+    """F3Net backbone — DeepfakeBench Xception (in_channels=12 for FAD head)."""
+    def __init__(self, nc=2):
+        super().__init__(in_channels=12, num_classes=nc, dropout=0.5)
 
 
 class RECCEClassifier:
@@ -447,75 +495,6 @@ class RECCEClassifier:
         except Exception as e:
             logger.warning("[RECCE] Inference failed: %s", e)
             return None
-
-
-class F3NetModel(nn.Module):
-    """F3Net: Frequency-aware Fake Face Detection (ECCV 2020).
-    Uses Xception backbone. Checkpoint has backbone.* keys."""
-    def __init__(self, nc=2):
-        super().__init__()
-        self.conv1 = nn.Conv2d(12, 32, 3, stride=2, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(32)
-        self.conv2 = nn.Conv2d(32, 64, 3, stride=1, padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(64)
-        self.block1 = self._make_block(64, 128, 2, 2)
-        self.block2 = self._make_block(128, 256, 2, 2)
-        self.block3 = self._make_block(256, 728, 2, 2)
-        self.middle_flow = nn.ModuleList([self._make_middle_block(728) for _ in range(8)])
-        self.block4 = self._make_block(728, 1024, 2, 2)
-        self.sepconv1 = self._make_sepconv(1024, 1536)
-        self.bn3 = nn.BatchNorm2d(1536)
-        self.sepconv2 = self._make_sepconv(1536, 2048)
-        self.bn4 = nn.BatchNorm2d(2048)
-        self.last_linear = nn.Sequential(nn.Dropout(0.5), nn.Linear(2048, nc))
-
-    @staticmethod
-    def _make_sepconv(in_c, out_c):
-        return nn.Sequential(
-            nn.Conv2d(in_c, in_c, 3, stride=1, padding=1, groups=in_c, bias=False),
-            nn.Conv2d(in_c, out_c, 1, bias=False),
-        )
-
-    @staticmethod
-    def _make_block(in_c, out_c, n, s):
-        layers = []
-        ci = in_c
-        for i in range(n):
-            st = s if i == 0 else 1
-            layers.append(nn.ReLU())
-            layers.append(nn.Sequential(
-                nn.Conv2d(ci, ci, 3, stride=st, padding=1, groups=ci, bias=False),
-                nn.Conv2d(ci, out_c, 1, bias=False),
-                nn.BatchNorm2d(out_c),
-            ))
-            ci = out_c
-        shortcut = nn.Sequential(nn.Conv2d(in_c, out_c, 1, stride=s, bias=False), nn.BatchNorm2d(out_c))
-        return nn.ModuleDict({'layers': nn.Sequential(*layers), 'shortcut': shortcut})
-
-    @staticmethod
-    def _make_middle_block(c):
-        layers = []
-        for _ in range(3):
-            layers.append(nn.ReLU())
-            layers.append(nn.Sequential(
-                nn.Conv2d(c, c, 3, stride=1, padding=1, groups=c, bias=False),
-                nn.Conv2d(c, c, 1, bias=False),
-                nn.BatchNorm2d(c),
-            ))
-        return nn.ModuleDict({'layers': nn.Sequential(*layers), 'shortcut': nn.Identity()})
-
-    def forward(self, x):
-        x = F.relu(self.bn1(self.conv1(x)))
-        x = F.relu(self.bn2(self.conv2(x)))
-        for b in [self.block1, self.block2, self.block3]:
-            x = b['shortcut'](x) + b['layers'](x)
-        for b in self.middle_flow:
-            x = b['shortcut'](x) + b['layers'](x)
-        x = self.block4['shortcut'](x) + self.block4['layers'](x)
-        x = F.relu(self.bn3(self.sepconv1(x)))
-        x = F.relu(self.bn4(self.sepconv2(x)))
-        x = F.adaptive_avg_pool2d(x, (1, 1)).flatten(1)
-        return self.last_linear(x)
 
 
 class F3NetClassifier:

@@ -51,7 +51,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/admin/applications/*/selfie", "/api/admin/applications/*/photo", "/api/admin/applications/*/aadhaar-front", "/api/admin/applications/*/aadhaar-back", "/api/admin/applications/*/pan-card", "/api/admin/applications/*/document").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/admin/applications/*/selfie", "/api/admin/applications/*/photo", "/api/admin/applications/*/aadhaar-front", "/api/admin/applications/*/aadhaar-back", "/api/admin/applications/*/pan-card", "/api/admin/applications/*/document").permitAll()
                 .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "MANAGER", "OFFICER")
-                .requestMatchers(HttpMethod.GET, "/api/kyc/branches").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/kyc/branches", "/api/kyc/report").permitAll()
                 .requestMatchers("/api/kyc/**").hasAnyRole("USER", "ADMIN")
                 .anyRequest().authenticated()
             )

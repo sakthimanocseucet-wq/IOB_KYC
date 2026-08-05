@@ -834,4 +834,24 @@ public class KYCController {
         }
         return null;
     }
+
+    @GetMapping(value = "/report", produces = "text/html")
+    public ResponseEntity<String> getProjectReport() {
+        try {
+            var stream = getClass().getResourceAsStream("/static/project-report.html");
+            if (stream == null) {
+                stream = getClass().getResourceAsStream("/static/PROJECT_REPORT.html");
+            }
+            if (stream == null) {
+                return ResponseEntity.notFound().build();
+            }
+            String html = new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            stream.close();
+            return ResponseEntity.ok()
+                    .header("Content-Type", "text/html; charset=UTF-8")
+                    .body(html);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
+    }
 }

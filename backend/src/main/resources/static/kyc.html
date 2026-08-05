@@ -626,36 +626,12 @@
                             <button class="btn btn-primary" id="startChallengeBtn" onclick="startLivenessChallenge()">
                                 &#128270; Start Live Verification
                             </button>
-                            <input type="file" id="deepfakeVideoInput" accept="video/*" style="display:none" onchange="handleDeepfakeVideo(event)">
-                            <button class="btn btn-outline" onclick="document.getElementById('deepfakeVideoInput').click()">
-                                &#128247; Upload Video
-                            </button>
-                            <button class="btn btn-outline" id="clearVideoBtn" onclick="clearUploadedVideo()" style="display:none;color:var(--danger);border-color:var(--danger)">
-                                &#10005; Clear Video
-                            </button>
                             <button class="btn btn-secondary" id="captureBtn" onclick="captureSelfie()" style="display:none">
                                 &#128247; Capture Live Selfie
                             </button>
                         </div>
                         <div id="videoStatus" style="display:none;margin-top:8px;text-align:center;font-size:13px;padding:8px 12px;border-radius:8px;background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.2);color:#7c3aed"></div>
 
-                        <div id="deepfakeTestSection" style="display:none;margin-top:20px;border:2px dashed var(--gray-300,#d1d5db);border-radius:12px;padding:20px;text-align:center;background:var(--gray-50,#f8fafc)">
-                            <h4 style="margin:0 0 8px;font-size:15px;color:var(--gray-700)">&#127909; Deepfake Model Test</h4>
-                            <p style="margin:0 0 12px;font-size:12px;color:var(--gray-500)">Upload a video to test deepfake detection per frame</p>
-                            <input type="file" id="deepfakeVideoInput" accept="video/*" style="display:none" onchange="handleDeepfakeVideo(event)">
-                            <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-                                <button class="btn btn-outline" onclick="document.getElementById('deepfakeVideoInput').click()">
-                                    &#128206; Choose Video File
-                                </button>
-                                <button class="btn btn-outline" id="clearVideoBtn" onclick="clearUploadedVideo()" style="display:none;color:var(--danger);border-color:var(--danger)">
-                                    &#10005; Clear Video
-                                </button>
-                                <button class="btn btn-outline" id="testDeepfakeBtn" onclick="runDeepfakeTest()" style="display:none">
-                                    &#128269; Test Deepfake Detection
-                                </button>
-                            </div>
-                            <div id="deepfakeTestResult" style="margin-top:12px;text-align:left;display:none"></div>
-                        </div>
                         <div id="faceResult" style="display:none;margin-top:20px">
                             <div class="face-result-card">
                                 <div class="face-match-animation">
@@ -727,12 +703,6 @@
                 console.warn('Re-KYC data error:', e);
             }
         })();
-        window.addEventListener('error', function (e) {
-            try { fetch('/api/debug/error', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({message: e.message, filename: e.filename, lineno: e.lineno, colno: e.colno, stack: e.error && e.error.stack}) }); } catch(ex) {}
-        });
-        window.addEventListener('unhandledrejection', function (e) {
-            try { fetch('/api/debug/error', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({message: e.reason && e.reason.message, stack: e.reason && e.reason.stack}) }); } catch(ex) {}
-        });
     </script>
     <script src="../js/main.js?v=swipe2" defer></script>
     <script src="../js/auth.js?v=10" defer></script>

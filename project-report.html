@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IOB KYC - AI-Powered Digital Identity Verification System - Project Report</title>
+<style>
+  @page { size: A4; margin: 20mm; }
+  @media print {
+    .no-print { display: none !important; }
+    body { font-size: 11pt; }
+    .page-break { page-break-before: always; }
+    h1, h2, h3 { page-break-after: avoid; }
+    table, figure { page-break-inside: avoid; }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #1e293b; background: #f8fafc; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+  .cover { background: linear-gradient(135deg, #0f172a 0%, #1e40af 50%, #0f172a 100%); color: white; text-align: center; padding: 80px 40px; border-radius: 16px; margin-bottom: 40px; }
+  .cover h1 { font-size: 2.4em; margin-bottom: 12px; letter-spacing: -0.5px; }
+  .cover .subtitle { font-size: 1.2em; opacity: 0.85; margin-bottom: 30px; }
+  .cover .meta { font-size: 0.95em; opacity: 0.7; }
+  .cover .meta div { margin: 4px 0; }
+  .cover .badge { display: inline-block; background: rgba(255,255,255,0.15); padding: 6px 18px; border-radius: 20px; margin: 8px 4px; font-size: 0.85em; border: 1px solid rgba(255,255,255,0.25); }
+  .toc { background: white; border-radius: 12px; padding: 32px; margin-bottom: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .toc h2 { color: #1e40af; margin-bottom: 16px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
+  .toc ol { padding-left: 24px; }
+  .toc li { margin: 6px 0; }
+  .toc a { color: #1e40af; text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  section { background: white; border-radius: 12px; padding: 32px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  h2 { color: #1e40af; font-size: 1.5em; margin-bottom: 16px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
+  h3 { color: #334155; font-size: 1.15em; margin: 20px 0 10px; }
+  h4 { color: #475569; font-size: 1em; margin: 14px 0 8px; }
+  p { margin: 8px 0; }
+  ul, ol { padding-left: 24px; margin: 8px 0; }
+  li { margin: 4px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.9em; }
+  th { background: #1e40af; color: white; padding: 10px 12px; text-align: left; font-weight: 600; }
+  td { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  .diagram { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin: 16px 0; text-align: center; overflow-x: auto; }
+  .diagram svg { max-width: 100%; height: auto; }
+  .diagram-title { font-weight: 700; color: #1e40af; margin-bottom: 12px; font-size: 1.05em; }
+  .code-block { background: #0f172a; color: #e2e8f0; padding: 16px; border-radius: 8px; font-family: 'Consolas', monospace; font-size: 0.85em; overflow-x: auto; margin: 12px 0; line-height: 1.5; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 16px 0; }
+  .stat-card { background: linear-gradient(135deg, #eff6ff, #dbeafe); border-radius: 10px; padding: 16px; text-align: center; border: 1px solid #bfdbfe; }
+  .stat-card .number { font-size: 2em; font-weight: 800; color: #1e40af; }
+  .stat-card .label { font-size: 0.85em; color: #64748b; margin-top: 4px; }
+  .tag { display: inline-block; background: #eff6ff; color: #1e40af; padding: 3px 10px; border-radius: 12px; font-size: 0.8em; margin: 2px; border: 1px solid #bfdbfe; }
+  .tag.green { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+  .tag.red { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+  .tag.purple { background: #faf5ff; color: #7c3aed; border-color: #ddd6fe; }
+  .info-box { background: #eff6ff; border-left: 4px solid #1e40af; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; }
+  .warn-box { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; }
+  .download-btn { display: inline-block; background: #1e40af; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 16px 0; cursor: pointer; border: none; font-size: 1em; }
+  .download-btn:hover { background: #1e3a8a; }
+  .flex-row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .flex-col { flex: 1; min-width: 280px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- COVER PAGE -->
+<div class="cover">
+  <div style="font-size:3em;margin-bottom:16px">&#127970;</div>
+  <h1>AI-Powered Digital KYC<br>Onboarding &amp; Identity Threat<br>Mitigation System</h1>
+  <div class="subtitle">Indian Overseas Bank (IOB) — Complete Project Report</div>
+  <div style="margin:24px 0">
+    <span class="badge">Java Spring Boot</span>
+    <span class="badge">Python Flask AI/ML</span>
+    <span class="badge">Deepfake Detection</span>
+    <span class="badge">Face Verification</span>
+    <span class="badge">QR Code Verification</span>
+    <span class="badge">Liveness Detection</span>
+    <span class="badge">OCR</span>
+    <span class="badge">RBAC</span>
+  </div>
+  <div class="meta">
+    <div><strong>Repository:</strong> github.com/sakthimanocseucet-wq/IOB_KYC</div>
+    <div><strong>Live URL:</strong> iobkyc-production.up.railway.app</div>
+    <div><strong>Platform:</strong> Railway Cloud Deployment</div>
+  </div>
+</div>
+
+<!-- TABLE OF CONTENTS -->
+<div class="toc">
+  <h2>Table of Contents</h2>
+  <ol>
+    <li><a href="#exec">Executive Summary</a></li>
+    <li><a href="#arch">System Architecture</a></li>
+    <li><a href="#tech">Technology Stack</a></li>
+    <li><a href="#db">Database Schema</a></li>
+    <li><a href="#workflow">Workflow Diagrams</a></li>
+    <li><a href="#ai">AI/ML Pipeline</a></li>
+    <li><a href="#security">Security Architecture</a></li>
+    <li><a href="#api">API Reference</a></li>
+    <li><a href="#frontend">Frontend Architecture</a></li>
+    <li><a href="#deploy">Deployment Architecture</a></li>
+    <li><a href="#features">Feature Summary</a></li>
+  </ol>
+</div>
+<button class="download-btn no-print" onclick="window.print()">&#128424; Download as PDF (Print → Save as PDF)</button>
+
+<!-- 1. EXECUTIVE SUMMARY -->
+<section id="exec">
+  <h2>1. Executive Summary</h2>
+  <p>This project implements an <strong>AI-powered Digital KYC (Know Your Customer) Onboarding and Identity Threat Mitigation System</strong> for Indian Overseas Bank. The system automates the entire customer onboarding pipeline — from document upload and OCR extraction, through multi-modal biometric verification (face matching, liveness detection, deepfake detection), to QR code verification and risk scoring.</p>
+  
+  <div class="stat-grid">
+    <div class="stat-card"><div class="number">3</div><div class="label">Security Gates</div></div>
+    <div class="stat-card"><div class="number">6</div><div class="label">AI/ML Models</div></div>
+    <div class="stat-card"><div class="number">8</div><div class="label">Liveness Challenges</div></div>
+    <div class="stat-card"><div class="number">60+</div><div class="label">API Endpoints</div></div>
+    <div class="stat-card"><div class="number">12</div><div class="label">Database Tables</div></div>
+    <div class="stat-card"><div class="number">26</div><div class="label">Frontend Pages</div></div>
+  </div>
+
+  <h3>Key Capabilities</h3>
+  <ul>
+    <li><strong>Document OCR:</strong> Aadhaar &amp; PAN card text extraction with field validation</li>
+    <li><strong>Face Verification:</strong> ArcFace embeddings with 55% similarity threshold</li>
+    <li><strong>Liveness Detection:</strong> 8 random challenges (turn head, raise hand, blink, nod, etc.) with pose landmark tracking</li>
+    <li><strong>Deepfake Detection:</strong> 2-model ensemble — Xception (55%) + F3Net (45%) with 0.65 threshold</li>
+    <li><strong>QR Verification:</strong> Aadhaar/PAN QR code field-by-field comparison (Name, DOB, ID Number, PAN)</li>
+    <li><strong>Risk Scoring:</strong> Multi-factor risk assessment (face match, liveness, deepfake, QR, duplicate detection)</li>
+    <li><strong>Re-KYC:</strong> Existing customers can update KYC with diff comparison</li>
+    <li><strong>RBAC:</strong> User / Employee / Admin role-based access control</li>
+  </ul>
+</section>
+
+<!-- 2. SYSTEM ARCHITECTURE -->
+<section id="arch" class="page-break">
+  <h2>2. System Architecture</h2>
+  <p>The system follows a <strong>3-tier architecture</strong> with a microservice AI backend, a Spring Boot REST API, and a static HTML/JS frontend.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Figure 2.1 — High-Level System Architecture</div>
+    <svg viewBox="0 0 900 620" xmlns="http://www.w3.org/2000/svg" style="max-width:850px">
+      <!-- Background -->
+      <defs>
+        <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#1e40af;stop-opacity:0.08"/>
+          <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:0.08"/>
+        </linearGradient>
+        <filter id="shadow" x="-4%" y="-4%" width="108%" height="112%">
+          <feDropShadow dx="1" dy="2" stdDeviation="3" flood-opacity="0.1"/>
+        </filter>
+      </defs>
+
+      <!-- User Browser -->
+      <rect x="30" y="20" width="180" height="80" rx="12" fill="#0f172a" filter="url(#shadow)"/>
+      <text x="120" y="52" text-anchor="middle" fill="white" font-size="13" font-weight="700">&#128187; User Browser</text>
+      <text x="120" y="72" text-anchor="middle" fill="#94a3b8" font-size="10">HTML + CSS + JavaScript</text>
+      <text x="120" y="86" text-anchor="middle" fill="#94a3b8" font-size="10">Static SPA (No Framework)</text>
+
+      <!-- Arrow -->
+      <line x1="210" y1="60" x2="280" y2="60" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+      <text x="245" y="50" text-anchor="middle" fill="#64748b" font-size="9">HTTPS</text>
+
+      <!-- Spring Boot Backend -->
+      <rect x="280" y="10" width="320" height="140" rx="12" fill="#1e40af" filter="url(#shadow)" opacity="0.95"/>
+      <text x="440" y="36" text-anchor="middle" fill="white" font-size="14" font-weight="700">&#9881; Spring Boot Backend</text>
+      <text x="440" y="56" text-anchor="middle" fill="#bfdbfe" font-size="10">Java 17 | Spring Boot 3.2 | Spring Security + JWT</text>
+      <rect x="295" y="68" width="90" height="36" rx="6" fill="rgba(255,255,255,0.15)"/>
+      <text x="340" y="90" text-anchor="middle" fill="white" font-size="9" font-weight="600">KYCController</text>
+      <rect x="400" y="68" width="90" height="36" rx="6" fill="rgba(255,255,255,0.15)"/>
+      <text x="445" y="90" text-anchor="middle" fill="white" font-size="9" font-weight="600">AdminController</text>
+      <rect x="505" y="68" width="80" height="36" rx="6" fill="rgba(255,255,255,0.15)"/>
+      <text x="545" y="90" text-anchor="middle" fill="white" font-size="9" font-weight="600">AuthController</text>
+      <rect x="295" y="110" width="130" height="30" rx="6" fill="rgba(255,255,255,0.1)"/>
+      <text x="360" y="130" text-anchor="middle" fill="#bfdbfe" font-size="9">KYCService | AuditService</text>
+      <rect x="440" y="110" width="145" height="30" rx="6" fill="rgba(255,255,255,0.1)"/>
+      <text x="512" y="130" text-anchor="middle" fill="#bfdbfe" font-size="9">SecurityConfig | JWT Filter</text>
+
+      <!-- Database -->
+      <rect x="280" y="170" width="150" height="60" rx="10" fill="#059669" filter="url(#shadow)"/>
+      <text x="355" y="195" text-anchor="middle" fill="white" font-size="12" font-weight="700">&#128451; PostgreSQL</text>
+      <text x="355" y="213" text-anchor="middle" fill="#d1fae5" font-size="9">12 Tables | JPA/Hibernate</text>
+      <line x1="370" y1="150" x2="370" y2="170" stroke="#059669" stroke-width="2" marker-end="url(#arrowG)"/>
+
+      <!-- File Storage -->
+      <rect x="460" y="170" width="140" height="60" rx="10" fill="#7c3aed" filter="url(#shadow)"/>
+      <text x="530" y="195" text-anchor="middle" fill="white" font-size="12" font-weight="700">&#128193; File Storage</text>
+      <text x="530" y="213" text-anchor="middle" fill="#ddd6fe" font-size="9">Documents | Selfies | Photos</text>
+      <line x1="520" y1="150" x2="520" y2="170" stroke="#7c3aed" stroke-width="2" marker-end="url(#arrowP)"/>
+
+      <!-- AI/ML Microservice -->
+      <rect x="280" y="260" width="320" height="150" rx="12" fill="#dc2626" filter="url(#shadow)" opacity="0.92"/>
+      <text x="440" y="286" text-anchor="middle" fill="white" font-size="14" font-weight="700">&#129302; Python AI/ML Microservice</text>
+      <text x="440" y="304" text-anchor="middle" fill="#fecaca" font-size="10">Flask | PyTorch | OpenCV | Tesseract | MediaPipe</text>
+
+      <rect x="295" y="315" width="88" height="40" rx="6" fill="rgba(255,255,255,0.15)"/>
+      <text x="339" y="332" text-anchor="middle" fill="white" font-size="8.5" font-weight="600">Face</text>
+      <text x="339" y="345" text-anchor="middle" fill="white" font-size="8.5">Detection</text>
+
+      <rect x="392" y="315" width="88" height="40" rx="6" fill="rgba(255,255,255,0.15)"/>
+      <text x="436" y="332" text-anchor="middle" fill="white" font-size="8.5" font-weight="600">Deepfake</text>
+      <text x="436" y="345" text-anchor="middle" fill="white" font-size="8.5">Detection</text>
+
+      <rect x="489" y="315" width="88" height="40" rx="6" fill="rgba(255,255,255,0.15)"/>
+      <text x="533" y="332" text-anchor="middle" fill="white" font-size="8.5" font-weight="600">Liveness</text>
+      <text x="533" y="345" text-anchor="middle" fill="white" font-size="8.5">Detection</text>
+
+      <rect x="295" y="363" width="88" height="36" rx="6" fill="rgba(255,255,255,0.12)"/>
+      <text x="339" y="385" text-anchor="middle" fill="white" font-size="8.5" font-weight="600">OCR Engine</text>
+
+      <rect x="392" y="363" width="88" height="36" rx="6" fill="rgba(255,255,255,0.12)"/>
+      <text x="436" y="385" text-anchor="middle" fill="white" font-size="8.5" font-weight="600">QR Verify</text>
+
+      <rect x="489" y="363" width="88" height="36" rx="6" fill="rgba(255,255,255,0.12)"/>
+      <text x="533" y="385" text-anchor="middle" fill="white" font-size="8.5" font-weight="600">Risk Score</text>
+
+      <line x1="440" y1="230" x2="440" y2="260" stroke="#dc2626" stroke-width="2" marker-end="url(#arrowR)"/>
+      <text x="460" y="250" fill="#64748b" font-size="9">REST API (Port 5001)</text>
+
+      <!-- Arrows from AI to Spring Boot -->
+      <line x1="340" y1="260" x2="340" y2="155" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowhead)"/>
+      <text x="310" y="240" fill="#64748b" font-size="8">RestTemplate</text>
+
+      <!-- Arrow markers -->
+      <defs>
+        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
+        </marker>
+        <marker id="arrowG" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#059669"/>
+        </marker>
+        <marker id="arrowP" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#7c3aed"/>
+        </marker>
+        <marker id="arrowR" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#dc2626"/>
+        </marker>
+      </defs>
+
+      <!-- Admin Panel -->
+      <rect x="640" y="20" width="230" height="80" rx="12" fill="#f59e0b" filter="url(#shadow)"/>
+      <text x="755" y="50" text-anchor="middle" fill="white" font-size="13" font-weight="700">&#128188; Admin Panel</text>
+      <text x="755" y="68" text-anchor="middle" fill="#78350f" font-size="10">Application Review</text>
+      <text x="755" y="82" text-anchor="middle" fill="#78350f" font-size="10">QR Verify | Fraud Alerts</text>
+      <line x1="600" y1="60" x2="640" y2="60" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+      <!-- AI Models -->
+      <rect x="640" y="130" width="230" height="110" rx="12" fill="#6366f1" filter="url(#shadow)"/>
+      <text x="755" y="155" text-anchor="middle" fill="white" font-size="13" font-weight="700">&#129504; AI Model Weights</text>
+      <text x="755" y="175" text-anchor="middle" fill="#c7d2fe" font-size="10">deepfake_xception.pth (98 MB)</text>
+      <text x="755" y="191" text-anchor="middle" fill="#c7d2fe" font-size="10">deepfake_f3net.pth (86 MB)</text>
+      <text x="755" y="207" text-anchor="middle" fill="#c7d2fe" font-size="10">ArcFace embeddings (InsightFace)</text>
+      <text x="755" y="223" text-anchor="middle" fill="#c7d2fe" font-size="10">RetinaFace detection</text>
+      <line x1="600" y1="335" x2="640" y2="200" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowI)"/>
+
+      <!-- Railway -->
+      <rect x="640" y="270" width="230" height="60" rx="12" fill="#0f172a" filter="url(#shadow)"/>
+      <text x="755" y="298" text-anchor="middle" fill="white" font-size="12" font-weight="700">&#9729; Railway Cloud</text>
+      <text x="755" y="316" text-anchor="middle" fill="#94a3b8" font-size="10">Container Deployment | Auto-scaling</text>
+
+      <defs>
+        <marker id="arrowI" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#6366f1"/>
+        </marker>
+      </defs>
+
+      <!-- External Services -->
+      <rect x="30" y="260" width="200" height="150" rx="12" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5" filter="url(#shadow)"/>
+      <text x="130" y="286" text-anchor="middle" fill="#334155" font-size="12" font-weight="700">&#127760; External Services</text>
+      <text x="130" y="310" text-anchor="middle" fill="#64748b" font-size="10">Firebase Authentication</text>
+      <text x="130" y="328" text-anchor="middle" fill="#64748b" font-size="10">OTP via SMS/Email</text>
+      <text x="130" y="346" text-anchor="middle" fill="#64748b" font-size="10">Tesseract OCR Engine</text>
+      <text x="130" y="364" text-anchor="middle" fill="#64748b" font-size="10">pyzbar QR Decoder</text>
+      <text x="130" y="382" text-anchor="middle" fill="#64748b" font-size="10">InsightFace Models</text>
+      <text x="130" y="400" text-anchor="middle" fill="#64748b" font-size="10">MediaPipe PoseLandmarker</text>
+      <line x1="230" y1="335" x2="295" y2="335" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowhead)"/>
+    </svg>
+  </div>
+
+  <h3>Architecture Principles</h3>
+  <ul>
+    <li><strong>Separation of Concerns:</strong> AI/ML logic fully isolated in Python Flask microservice; Java handles business logic, auth, and data persistence</li>
+    <li><strong>Stateless API:</strong> JWT-based authentication with no server-side sessions</li>
+    <li><strong>Lazy Loading:</strong> <code>spring.jpa.open-in-view=false</code> with EntityGraph for controlled fetching</li>
+    <li><strong>DTO Pattern:</strong> Lightweight DTOs for list endpoints to exclude large base64 blob data</li>
+    <li><strong>Defense in Depth:</strong> 3-gate verification — Face Match + Liveness + Deepfake must ALL pass</li>
+  </ul>
+</section>
+
+<!-- 3. TECHNOLOGY STACK -->
+<section id="tech" class="page-break">
+  <h2>3. Technology Stack</h2>
+  
+  <div class="flex-row">
+    <div class="flex-col">
+      <h3>Backend (Java)</h3>
+      <table>
+        <tr><th>Component</th><th>Technology</th></tr>
+        <tr><td>Framework</td><td>Spring Boot 3.2.x</td></tr>
+        <tr><td>Language</td><td>Java 17</td></tr>
+        <tr><td>Security</td><td>Spring Security + JWT</td></tr>
+        <tr><td>ORM</td><td>Hibernate / JPA</td></tr>
+        <tr><td>Database</td><td>PostgreSQL</td></tr>
+        <tr><td>Build</td><td>Maven</td></tr>
+        <tr><td>PDF Generation</td><td>iText (Lowagie)</td></tr>
+        <tr><td>HTTP Client</td><td>Spring RestTemplate</td></tr>
+      </table>
+    </div>
+    <div class="flex-col">
+      <h3>AI/ML Microservice (Python)</h3>
+      <table>
+        <tr><th>Component</th><th>Technology</th></tr>
+        <tr><td>Web Framework</td><td>Flask</td></tr>
+        <tr><td>Deep Learning</td><td>PyTorch</td></tr>
+        <tr><td>Face Detection</td><td>RetinaFace (insightface)</td></tr>
+        <tr><td>Face Recognition</td><td>ArcFace (insightface)</td></tr>
+        <tr><td>Liveness</td><td>MediaPipe PoseLandmarker</td></tr>
+        <tr><td>OCR</td><td>Tesseract + OpenCV</td></tr>
+        <tr><td>QR Decode</td><td>pyzbar + OpenCV</td></tr>
+        <tr><td>Image Processing</td><td>OpenCV, Pillow</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <h3>Frontend</h3>
+  <table>
+    <tr><th>Technology</th><th>Usage</th></tr>
+    <tr><td>HTML5 + CSS3</td><td>Responsive layout, CSS Variables, Dark Mode</td></tr>
+    <tr><td>Vanilla JavaScript</td><td>No framework — pure ES5/ES6, Fetch API</td></tr>
+    <tr><td>WebRTC</td><td>Live webcam capture for face verification</td></tr>
+    <tr><td>Canvas API</td><td>Selfie capture, frame extraction</td></tr>
+    <tr><td>localStorage</td><td>Session state, KYC data caching</td></tr>
+    <tr><td>Firebase JS SDK</td><td>Phone OTP verification</td></tr>
+  </table>
+</section>
+
+<!-- 4. DATABASE SCHEMA -->
+<section id="db" class="page-break">
+  <h2>4. Database Schema</h2>
+  <p>PostgreSQL database with 12 entity tables managed via JPA/Hibernate.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Figure 4.1 — Entity Relationship Diagram</div>
+    <svg viewBox="0 0 880 520" xmlns="http://www.w3.org/2000/svg" style="max-width:840px">
+      <!-- Users -->
+      <rect x="20" y="20" width="160" height="110" rx="8" fill="#1e40af" filter="url(#shadow)"/>
+      <text x="100" y="44" text-anchor="middle" fill="white" font-size="12" font-weight="700">users</text>
+      <text x="30" y="64" fill="#bfdbfe" font-size="8.5">id (PK)</text>
+      <text x="30" y="78" fill="#bfdbfe" font-size="8.5">email (unique)</text>
+      <text x="30" y="92" fill="#bfdbfe" font-size="8.5">phone</text>
+      <text x="30" y="106" fill="#bfdbfe" font-size="8.5">password_hash</text>
+      <text x="30" y="120" fill="#bfdbfe" font-size="8.5">role = 'USER'</text>
+
+      <!-- Employees -->
+      <rect x="240" y="20" width="160" height="110" rx="8" fill="#059669" filter="url(#shadow)"/>
+      <text x="320" y="44" text-anchor="middle" fill="white" font-size="12" font-weight="700">employees</text>
+      <text x="250" y="64" fill="#d1fae5" font-size="8.5">id (PK)</text>
+      <text x="250" y="78" fill="#d1fae5" font-size="8.5">employee_id (unique)</text>
+      <text x="250" y="92" fill="#d1fae5" font-size="8.5">email (unique)</text>
+      <text x="250" y="106" fill="#d1fae5" font-size="8.5">role (ADMIN/MGR/OFFICER)</text>
+      <text x="250" y="120" fill="#d1fae5" font-size="8.5">branch_id</text>
+
+      <!-- KYC Applications -->
+      <rect x="180" y="180" width="520" height="200" rx="8" fill="#7c3aed" filter="url(#shadow)"/>
+      <text x="440" y="204" text-anchor="middle" fill="white" font-size="13" font-weight="700">kyc_applications (Core Table)</text>
+      <text x="195" y="226" fill="#ddd6fe" font-size="8.5">id (PK) | application_ref | user_id (FK→users)</text>
+      <text x="195" y="240" fill="#ddd6fe" font-size="8.5">doc_type (AADHAAR/PAN) | application_type (NORMAL/RE_KYC)</text>
+      <text x="195" y="254" fill="#ddd6fe" font-size="8.5">ocr_name | ocr_dob | ocr_id_number | ocr_pan_number | ocr_address</text>
+      <text x="195" y="268" fill="#ddd6fe" font-size="8.5">mobile | email | gender | face_match_percentage | liveness_passed</text>
+      <text x="195" y="282" fill="#ddd6fe" font-size="8.5">risk_score | risk_level (LOW/MED/HIGH) | status (DRAFT→PENDING→REVIEW→APPROVED/REJECTED)</text>
+      <text x="195" y="296" fill="#ddd6fe" font-size="8.5">account_number | ifsc_code | branch_id | account_type | account_status</text>
+      <text x="195" y="310" fill="#ddd6fe" font-size="8.5">qr_verified | qr_verification_status | qr_match_percentage</text>
+      <text x="195" y="324" fill="#ddd6fe" font-size="8.5">doc_file_path | aadhaar_front_path | aadhaar_back_path | pan_card_path</text>
+      <text x="195" y="338" fill="#ddd6fe" font-size="8.5">selfie_file_path | photo_file_path</text>
+      <text x="195" y="352" fill="#ddd6fe" font-size="8.5">doc_file_base64 | selfie_base64 | photo_base64 | aadhaar_*_base64 | pan_card_base64</text>
+      <text x="195" y="366" fill="#ddd6fe" font-size="8.5">reviewed_by (FK→employees) | review_notes | reviewed_at</text>
+
+      <!-- Lines to kyc_applications -->
+      <line x1="100" y1="130" x2="300" y2="180" stroke="#1e40af" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+      <line x1="320" y1="130" x2="400" y2="180" stroke="#059669" stroke-width="1.5" marker-end="url(#arrowG)"/>
+
+      <!-- QR Verification Results -->
+      <rect x="20" y="410" width="200" height="90" rx="8" fill="#dc2626" filter="url(#shadow)"/>
+      <text x="120" y="434" text-anchor="middle" fill="white" font-size="11" font-weight="700">qr_verification_results</text>
+      <text x="30" y="454" fill="#fecaca" font-size="8.5">id (PK) | application_id (FK)</text>
+      <text x="30" y="468" fill="#fecaca" font-size="8.5">qr_detected | match_percentage</text>
+      <text x="30" y="482" fill="#fecaca" font-size="8.5">verification_status</text>
+      <text x="30" y="496" fill="#fecaca" font-size="8.5">ocr_name | qr_name | name_match</text>
+
+      <!-- Audit Logs -->
+      <rect x="260" y="410" width="180" height="90" rx="8" fill="#0f172a" filter="url(#shadow)"/>
+      <text x="350" y="434" text-anchor="middle" fill="white" font-size="11" font-weight="700">audit_logs</text>
+      <text x="270" y="454" fill="#94a3b8" font-size="8.5">id (PK) | user_id</text>
+      <text x="270" y="468" fill="#94a3b8" font-size="8.5">action | entity_type</text>
+      <text x="270" y="482" fill="#94a3b8" font-size="8.5">entity_id | details</text>
+      <text x="270" y="496" fill="#94a3b8" font-size="8.5">created_at</text>
+
+      <!-- Branches -->
+      <rect x="480" y="410" width="160" height="70" rx="8" fill="#f59e0b" filter="url(#shadow)"/>
+      <text x="560" y="434" text-anchor="middle" fill="white" font-size="11" font-weight="700">branches</text>
+      <text x="490" y="454" fill="#78350f" font-size="8.5">id | branch_id | branch_name</text>
+      <text x="490" y="468" fill="#78350f" font-size="8.5">ifsc_prefix | is_active</text>
+
+      <!-- Lines to QR results -->
+      <line x1="280" y1="380" x2="160" y2="410" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowR)"/>
+    </svg>
+  </div>
+
+  <h3>Table Summary</h3>
+  <table>
+    <tr><th>Table</th><th>Purpose</th><th>Key Fields</th></tr>
+    <tr><td><code>users</code></td><td>Customer accounts</td><td>email, phone, password_hash, role</td></tr>
+    <tr><td><code>employees</code></td><td>Bank staff accounts</td><td>employee_id, role (ADMIN/MANAGER/OFFICER), branch_id</td></tr>
+    <tr><td><code>kyc_applications</code></td><td>Core KYC records</td><td>20+ fields including OCR data, verification results, account details, base64 blobs</td></tr>
+    <tr><td><code>qr_verification_results</code></td><td>QR verification audit trail</td><td>field-by-field match results</td></tr>
+    <tr><td><code>audit_logs</code></td><td>System audit trail</td><td>user_id, action, entity_type, details</td></tr>
+    <tr><td><code>branches</code></td><td>Bank branch master data</td><td>branch_name, IFSC prefix</td></tr>
+  </table>
+</section>
+
+<!-- 5. WORKFLOW DIAGRAMS -->
+<section id="workflow" class="page-break">
+  <h2>5. Workflow Diagrams</h2>
+
+  <div class="diagram">
+    <div class="diagram-title">Figure 5.1 — Complete KYC Onboarding Workflow</div>
+    <svg viewBox="0 0 880 750" xmlns="http://www.w3.org/2000/svg" style="max-width:840px">
+      <defs>
+        <marker id="a1" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#64748b"/></marker>
+        <marker id="aG" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#059669"/></marker>
+        <marker id="aR" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#dc2626"/></marker>
+      </defs>
+
+      <!-- Start -->
+      <ellipse cx="440" cy="30" rx="60" ry="20" fill="#1e40af"/>
+      <text x="440" y="35" text-anchor="middle" fill="white" font-size="11" font-weight="600">User Registers</text>
+
+      <!-- Step 1: Login -->
+      <rect x="350" y="70" width="180" height="40" rx="8" fill="#1e40af"/>
+      <text x="440" y="95" text-anchor="middle" fill="white" font-size="11">Step 1: Login &amp; OTP</text>
+      <line x1="440" y1="50" x2="440" y2="70" stroke="#64748b" stroke-width="1.5" marker-end="url(#a1)"/>
+
+      <!-- Step 2: Document Upload -->
+      <rect x="350" y="130" width="180" height="40" rx="8" fill="#1e40af"/>
+      <text x="440" y="155" text-anchor="middle" fill="white" font-size="11">Step 2: Upload Documents</text>
+      <line x1="440" y1="110" x2="440" y2="130" stroke="#64748b" stroke-width="1.5" marker-end="url(#a1)"/>
+
+      <!-- OCR Processing -->
+      <rect x="350" y="190" width="180" height="40" rx="8" fill="#7c3aed"/>
+      <text x="440" y="215" text-anchor="middle" fill="white" font-size="11">OCR → Extract Fields</text>
+      <line x1="440" y1="170" x2="440" y2="190" stroke="#64748b" stroke-width="1.5" marker-end="url(#a1)"/>
+
+      <!-- Branch to side: AI OCR -->
+      <rect x="600" y="185" width="180" height="50" rx="8" fill="#dc2626" opacity="0.9"/>
+      <text x="690" y="207" text-anchor="middle" fill="white" font-size="10">Python: Tesseract + OpenCV</text>
+      <text x="690" y="222" text-anchor="middle" fill="#fecaca" font-size="9">Name, DOB, ID, PAN, Address</text>
+      <line x1="530" y1="210" x2="600" y2="210" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#aR)"/>
+
+      <!-- Step 3: Face Verification -->
+      <rect x="350" y="250" width="180" height="50" rx="8" fill="#059669"/>
+      <text x="440" y="273" text-anchor="middle" fill="white" font-size="11" font-weight="600">Step 3: Face Verification</text>
+      <text x="440" y="290" text-anchor="middle" fill="#d1fae5" font-size="9">8 Liveness Challenges</text>
+      <line x1="440" y1="230" x2="440" y2="250" stroke="#64748b" stroke-width="1.5" marker-end="url(#a1)"/>
+
+      <!-- Face detail boxes -->
+      <rect x="580" y="245" width="200" height="60" rx="6" fill="#f8fafc" stroke="#e2e8f0"/>
+      <text x="680" y="265" text-anchor="middle" fill="#334155" font-size="9" font-weight="600">Challenge Types:</text>
+      <text x="680" y="280" text-anchor="middle" fill="#64748b" font-size="8.5">Turn Head L/R | Raise Hand | Blink</text>
+      <text x="680" y="294" text-anchor="middle" fill="#64748b" font-size="8.5">Nod | Smile | Open Mouth | Look Up | Neutral</text>
+      <line x1="530" y1="275" x2="580" y2="275" stroke="#059669" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#aG)"/>
+
+      <!-- Gate Decision -->
+      <polygon points="440,330 520,365 440,400 360,365" fill="#f59e0b"/>
+      <text x="440" y="362" text-anchor="middle" fill="white" font-size="10" font-weight="600">Gate 1: Face</text>
+      <text x="440" y="375" text-anchor="middle" fill="white" font-size="10">Match ≥ 55%?</text>
+      <line x1="440" y1="300" x2="440" y2="330" stroke="#64748b" stroke-width="1.5" marker-end="url(#a1)"/>
+
+      <!-- Pass Gate 1 -->
+      <rect x="350" y="415" width="180" height="40" rx="8" fill="#059669"/>
+      <text x="440" y="440" text-anchor="middle" fill="white" font-size="11">Gate 2: Liveness</text>
+      <line x1="440" y1="400" x2="440" y2="415" stroke="#059669" stroke-width="1.5" marker-end="url(#aG)"/>
+
+      <!-- Fail Gate 1 -->
+      <rect x="100" y="350" width="160" height="35" rx="8" fill="#dc2626"/>
+      <text x="180" y="372" text-anchor="middle" fill="white" font-size="10">Reject: Low Match</text>
+      <line x1="360" y1="365" x2="260" y2="367" stroke="#dc2626" stroke-width="1.5" marker-end="url(#aR)"/>
+
+      <!-- Gate 2 Decision -->
+      <polygon points="440,475 520,510 440,545 360,510" fill="#f59e0b"/>
+      <text x="440" y="507" text-anchor="middle" fill="white" font-size="10" font-weight="600">Gate 2:</text>
+      <text x="440" y="520" text-anchor="middle" fill="white" font-size="10">Liveness OK?</text>
+      <line x1="440" y1="455" x2="440" y2="475" stroke="#64748b" stroke-width="1.5" marker-end="url(#a1)"/>
+
+      <!-- Deepfake Detection -->
+      <rect x="350" y="560" width="180" height="50" rx="8" fill="#7c3aed"/>
+      <text x="440" y="583" text-anchor="middle" fill="white" font-size="11">Gate 3: Deepfake</text>
+      <text x="440" y="598" text-anchor="middle" fill="#ddd6fe" font-size="9">Xception + F3Net Ensemble</text>
+      <line x1="440" y1="545" x2="440" y2="560" stroke="#64748b" stroke-width="1.5" marker-end="url(#a1)"/>
+
+      <!-- Gate 3 Decision -->
+      <polygon points="440,635 530,670 440,705 350,670" fill="#f59e0b"/>
+      <text x="440" y="667" text-anchor="middle" fill="white" font-size="10" font-weight="600">Gate 3:</text>
+      <text x="440" y="680" text-anchor="middle" fill="white" font-size="10">Deepfake?</text>
+      <line x1="440" y1="610" x2="440" y2="635" stroke="#64748b" stroke-width="1.5" marker-end="url(#a1)"/>
+
+      <!-- Verified -->
+      <rect x="350" y="715" width="180" height="35" rx="8" fill="#059669"/>
+      <text x="440" y="737" text-anchor="middle" fill="white" font-size="11" font-weight="600">&#9989; Verified — Submit KYC</text>
+      <line x1="440" y1="705" x2="440" y2="715" stroke="#059669" stroke-width="1.5" marker-end="url(#aG)"/>
+
+      <!-- Fail Gates 2&3 -->
+      <rect x="600" y="480" width="200" height="35" rx="8" fill="#dc2626"/>
+      <text x="700" y="502" text-anchor="middle" fill="white" font-size="10">Fail: Spoof/Deepfake</text>
+      <line x1="520" y1="510" x2="600" y2="497" stroke="#dc2626" stroke-width="1.5" marker-end="url(#aR)"/>
+
+      <rect x="600" y="650" width="200" height="35" rx="8" fill="#dc2626"/>
+      <text x="700" y="672" text-anchor="middle" fill="white" font-size="10">Fail: Deepfake Detected</text>
+      <line x1="530" y1="670" x2="600" y2="667" stroke="#dc2626" stroke-width="1.5" marker-end="url(#aR)"/>
+
+      <!-- Risk Score box -->
+      <rect x="600" y="415" width="200" height="50" rx="6" fill="#f8fafc" stroke="#e2e8f0"/>
+      <text x="700" y="435" text-anchor="middle" fill="#334155" font-size="9" font-weight="600">Risk Scoring Engine</text>
+      <text x="700" y="452" text-anchor="middle" fill="#64748b" font-size="8">Face + Liveness + QR + Duplicates</text>
+      <line x1="530" y1="435" x2="600" y2="440" stroke="#64748b" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#a1)"/>
+    </svg>
+  </div>
+
+  <div class="diagram page-break">
+    <div class="diagram-title">Figure 5.2 — Admin Review Workflow</div>
+    <svg viewBox="0 0 800 380" xmlns="http://www.w3.org/2000/svg" style="max-width:760px">
+      <defs>
+        <marker id="a2" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#64748b"/></marker>
+      </defs>
+
+      <!-- Employee Login -->
+      <rect x="20" y="20" width="140" height="40" rx="8" fill="#0f172a"/>
+      <text x="90" y="45" text-anchor="middle" fill="white" font-size="11">Employee Login</text>
+
+      <!-- View Queue -->
+      <rect x="200" y="20" width="140" height="40" rx="8" fill="#1e40af"/>
+      <text x="270" y="45" text-anchor="middle" fill="white" font-size="11">View KYC Queue</text>
+      <line x1="160" y1="40" x2="200" y2="40" stroke="#64748b" stroke-width="1.5" marker-end="url(#a2)"/>
+
+      <!-- Review Application -->
+      <rect x="380" y="20" width="160" height="40" rx="8" fill="#1e40af"/>
+      <text x="460" y="45" text-anchor="middle" fill="white" font-size="11">Review Application</text>
+      <line x1="340" y1="40" x2="380" y2="40" stroke="#64748b" stroke-width="1.5" marker-end="url(#a2)"/>
+
+      <!-- Review details -->
+      <rect x="380" y="80" width="160" height="90" rx="6" fill="#f8fafc" stroke="#e2e8f0"/>
+      <text x="460" y="100" text-anchor="middle" fill="#334155" font-size="10" font-weight="600">Admin checks:</text>
+      <text x="390" y="116" fill="#64748b" font-size="9">- OCR extracted data</text>
+      <text x="390" y="130" fill="#64748b" font-size="9">- Face match %</text>
+      <text x="390" y="144" fill="#64748b" font-size="9">- QR verification result</text>
+      <text x="390" y="158" fill="#64748b" font-size="9">- Risk score &amp; level</text>
+      <line x1="460" y1="60" x2="460" y2="80" stroke="#64748b" stroke-width="1" marker-end="url(#a2)"/>
+
+      <!-- Decision -->
+      <polygon points="460,195 540,230 460,265 380,230" fill="#f59e0b"/>
+      <text x="460" y="228" text-anchor="middle" fill="white" font-size="10" font-weight="600">Approve?</text>
+      <line x1="460" y1="170" x2="460" y2="195" stroke="#64748b" stroke-width="1.5" marker-end="url(#a2)"/>
+
+      <!-- Approve -->
+      <rect x="580" y="215" width="140" height="35" rx="8" fill="#059669"/>
+      <text x="650" y="237" text-anchor="middle" fill="white" font-size="11" font-weight="600">&#9989; Approve</text>
+      <line x1="540" y1="230" x2="580" y2="232" stroke="#059669" stroke-width="1.5"/>
+
+      <!-- Account Created -->
+      <rect x="580" y="270" width="140" height="40" rx="8" fill="#7c3aed"/>
+      <text x="650" y="295" text-anchor="middle" fill="white" font-size="10">Account Created</text>
+      <text x="650" y="307" text-anchor="middle" fill="#ddd6fe" font-size="8">Account#, IFSC, Branch</text>
+      <line x1="650" y1="250" x2="650" y2="270" stroke="#64748b" stroke-width="1.5" marker-end="url(#a2)"/>
+
+      <!-- Reject -->
+      <rect x="580" y="150" width="140" height="35" rx="8" fill="#dc2626"/>
+      <text x="650" y="172" text-anchor="middle" fill="white" font-size="11" font-weight="600">&#10060; Reject</text>
+      <line x1="380" y1="230" x2="580" y2="167" stroke="#dc2626" stroke-width="1.5"/>
+
+      <!-- Email Notify -->
+      <rect x="580" y="340" width="140" height="30" rx="6" fill="#f59e0b"/>
+      <text x="650" y="360" text-anchor="middle" fill="white" font-size="10">Email Notification</text>
+      <line x1="650" y1="310" x2="650" y2="340" stroke="#64748b" stroke-width="1" marker-end="url(#a2)"/>
+
+      <!-- QR Verify flow -->
+      <rect x="20" y="130" width="140" height="40" rx="8" fill="#7c3aed"/>
+      <text x="90" y="155" text-anchor="middle" fill="white" font-size="10">QR Verification</text>
+      <line x1="270" y1="60" x2="90" y2="130" stroke="#7c3aed" stroke-width="1.5" stroke-dasharray="4,3"/>
+
+      <rect x="20" y="190" width="140" height="70" rx="6" fill="#f8fafc" stroke="#e2e8f0"/>
+      <text x="90" y="210" text-anchor="middle" fill="#334155" font-size="9" font-weight="600">QR Check:</text>
+      <text x="30" y="226" fill="#64748b" font-size="8.5">Name match</text>
+      <text x="30" y="240" fill="#64748b" font-size="8.5">DOB match</text>
+      <text x="30" y="254" fill="#64748b" font-size="8.5">ID Number match</text>
+    </svg>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Figure 5.3 — Deepfake Detection Pipeline</div>
+    <svg viewBox="0 0 800 250" xmlns="http://www.w3.org/2000/svg" style="max-width:760px">
+      <defs>
+        <marker id="a3" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#64748b"/></marker>
+      </defs>
+
+      <!-- Input -->
+      <rect x="20" y="80" width="120" height="60" rx="8" fill="#0f172a"/>
+      <text x="80" y="105" text-anchor="middle" fill="white" font-size="10" font-weight="600">Face Image</text>
+      <text x="80" y="120" text-anchor="middle" fill="#94a3b8" font-size="8.5">(from webcam)</text>
+
+      <!-- Xception -->
+      <rect x="200" y="30" width="160" height="55" rx="8" fill="#1e40af"/>
+      <text x="280" y="55" text-anchor="middle" fill="white" font-size="11" font-weight="600">Xception (55%)</text>
+      <text x="280" y="72" text-anchor="middle" fill="#bfdbfe" font-size="8.5">StyleGAN-trained, 98MB</text>
+
+      <!-- F3Net -->
+      <rect x="200" y="110" width="160" height="55" rx="8" fill="#7c3aed"/>
+      <text x="280" y="135" text-anchor="middle" fill="white" font-size="11" font-weight="600">F3Net (45%)</text>
+      <text x="280" y="152" text-anchor="middle" fill="#ddd6fe" font-size="8.5">Official DeepfakeBench, 86MB</text>
+
+      <!-- Arrows -->
+      <line x1="140" y1="95" x2="200" y2="57" stroke="#64748b" stroke-width="1.5" marker-end="url(#a3)"/>
+      <line x1="140" y1="115" x2="200" y2="137" stroke="#64748b" stroke-width="1.5" marker-end="url(#a3)"/>
+
+      <!-- Weighted Average -->
+      <rect x="420" y="60" width="140" height="70" rx="8" fill="#f59e0b"/>
+      <text x="490" y="88" text-anchor="middle" fill="white" font-size="11" font-weight="600">Weighted Average</text>
+      <text x="490" y="105" text-anchor="middle" fill="#78350f" font-size="9">score = 0.55 * xception</text>
+      <text x="490" y="118" text-anchor="middle" fill="#78350f" font-size="9">+ 0.45 * f3net</text>
+
+      <line x1="360" y1="57" x2="420" y2="75" stroke="#64748b" stroke-width="1.5" marker-end="url(#a3)"/>
+      <line x1="360" y1="137" x2="420" y2="115" stroke="#64748b" stroke-width="1.5" marker-end="url(#a3)"/>
+
+      <!-- Threshold -->
+      <polygon points="620,60 700,95 620,130 540,95" fill="#059669"/>
+      <text x="620" y="92" text-anchor="middle" fill="white" font-size="10" font-weight="600">Score &gt; 0.65?</text>
+      <line x1="560" y1="95" x2="585" y2="95" stroke="#64748b" stroke-width="1.5" marker-end="url(#a3)"/>
+
+      <!-- Result -->
+      <rect x="720" y="75" width="70" height="40" rx="8" fill="#dc2626"/>
+      <text x="755" y="100" text-anchor="middle" fill="white" font-size="10" font-weight="700">FAKE</text>
+      <line x1="700" y1="95" x2="720" y2="95" stroke="#dc2626" stroke-width="1.5"/>
+
+      <rect x="600" y="150" width="80" height="35" rx="8" fill="#059669"/>
+      <text x="640" y="172" text-anchor="middle" fill="white" font-size="10" font-weight="700">REAL</text>
+      <line x1="620" y1="130" x2="640" y2="150" stroke="#059669" stroke-width="1.5"/>
+    </svg>
+  </div>
+</section>
+
+<!-- 6. AI/ML PIPELINE -->
+<section id="ai" class="page-break">
+  <h2>6. AI/ML Pipeline — Models &amp; Algorithms</h2>
+  
+  <h3>6.1 Active AI Models</h3>
+  <table>
+    <tr><th>Model</th><th>Purpose</th><th>Technology</th><th>Size</th><th>Output</th></tr>
+    <tr><td><strong>Xception</strong></td><td>Deepfake Detection (Primary)</td><td>PyTorch, StyleGAN-trained</td><td>98 MB</td><td>fake_prob (0–1)</td></tr>
+    <tr><td><strong>F3Net</strong></td><td>Deepfake Detection (Secondary)</td><td>PyTorch, DeepfakeBench official</td><td>86 MB</td><td>fake_prob (0–1)</td></tr>
+    <tr><td><strong>ArcFace</strong></td><td>Face Recognition</td><td>InsightFace, cosine similarity</td><td>~25 MB</td><td>similarity (0–1)</td></tr>
+    <tr><td><strong>RetinaFace</strong></td><td>Face Detection</td><td>InsightFace</td><td>~10 MB</td><td>bounding box + landmarks</td></tr>
+    <tr><td><strong>MediaPipe</strong></td><td>Pose Landmarks (Liveness)</td><td>Google MediaPipe PoseLandmarker</td><td>~15 MB</td><td>33 pose landmarks</td></tr>
+    <tr><td><strong>Tesseract + pyzbar</strong></td><td>OCR + QR Decode</td><td>OpenCV heuristics</td><td>N/A</td><td>Text fields / QR data</td></tr>
+  </table>
+
+  <h3>6.2 Liveness Detection — 8 Challenge Types</h3>
+  <div class="info-box">Each session randomly picks 3 challenges. The user must complete all 3 correctly using real-time pose tracking. Anti-spoofing features: printed photo detection, screen replay detection, pre-recorded video detection.</div>
+  
+  <table>
+    <tr><th>#</th><th>Challenge</th><th>Landmarks Used</th><th>Verification Method</th></tr>
+    <tr><td>1</td><td>Turn Head Left/Right</td><td>Nose, Shoulders</td><td>Horizontal displacement threshold</td></tr>
+    <tr><td>2</td><td>Raise Hand</td><td>Wrist vs Shoulder Y-position</td><td>Wrist above shoulder line</td></tr>
+    <tr><td>3</td><td>Blink Eyes</td><td>Eye landmarks (EAR ratio)</td><td>EAR_CLOSED_THRESHOLD = 0.16</td></tr>
+    <tr><td>4</td><td>Nod Head</td><td>Nose Y-coordinate change</td><td>Vertical displacement threshold</td></tr>
+    <tr><td>5</td><td>Smile</td><td>Mouth corners</td><td>Mouth width increase</td></tr>
+    <tr><td>6</td><td>Open Mouth</td><td>Upper/Lower lip</td><td>Lip distance threshold</td></tr>
+    <tr><td>7</td><td>Look Up/Down</td><td>Nose Y-coordinate</td><td>Vertical nose displacement</td></tr>
+    <tr><td>8</td><td>Neutral Pose</td><td>All landmarks</td><td>Stable pose for 2 seconds</td></tr>
+  </table>
+
+  <h3>6.3 Three-Gate Verification Logic</h3>
+  <div class="code-block">
+verified = gate1_pass AND gate2_pass AND gate3_pass
+
+gate1_pass = (face_similarity >= 0.55)        // ArcFace threshold
+gate2_pass = (liveness_score >= 3)            // At least 3 of 3 challenges passed
+gate3_pass = (deepfake_score <= 0.65)         // Combined ensemble ≤ 0.65
+
+// Deepfake ensemble:
+ensemble_score = 0.55 * xception_score + 0.45 * f3net_score
+
+// All models NEVER return null — 3-layer fallback:
+// 1. Try model inference
+// 2. Try alternative model
+// 3. Return 0.5/0.5 neutral (guaranteed non-null)
+  </div>
+
+  <h3>6.4 Risk Scoring Factors</h3>
+  <table>
+    <tr><th>Factor</th><th>Weight</th><th>Impact</th></tr>
+    <tr><td>QR verification FAILED</td><td>+25 points</td><td>High risk if QR data mismatch</td></tr>
+    <tr><td>QR verification SKIPPED</td><td>+10 points</td><td>Medium penalty for no QR</td></tr>
+    <tr><td>QR verification PASSED</td><td>-15 points</td><td>Risk reduction for verified QR</td></tr>
+    <tr><td>Duplicate mobile detected</td><td>+10 points</td><td>Potential fraud indicator</td></tr>
+    <tr><td>Duplicate Aadhaar/PAN</td><td>+25 points</td><td>High fraud risk</td></tr>
+    <tr><td>Suspicious IP pattern</td><td>+15 points</td><td>Multiple apps from same IP</td></tr>
+  </table>
+</section>
+
+<!-- 7. SECURITY ARCHITECTURE -->
+<section id="security" class="page-break">
+  <h2>7. Security Architecture</h2>
+  
+  <div class="diagram">
+    <div class="diagram-title">Figure 7.1 — Security Layers</div>
+    <svg viewBox="0 0 700 320" xmlns="http://www.w3.org/2000/svg" style="max-width:660px">
+      <!-- Layer 1: Network -->
+      <rect x="30" y="20" width="640" height="280" rx="16" fill="none" stroke="#1e40af" stroke-width="2" stroke-dasharray="6,3"/>
+      <text x="50" y="42" fill="#1e40af" font-size="11" font-weight="700">Layer 1: Network Security</text>
+      <text x="50" y="58" fill="#64748b" font-size="9">HTTPS/TLS | Railway Cloud Firewall | CORS Policy</text>
+
+      <!-- Layer 2: Auth -->
+      <rect x="60" y="70" width="580" height="210" rx="12" fill="none" stroke="#059669" stroke-width="2" stroke-dasharray="5,3"/>
+      <text x="80" y="92" fill="#059669" font-size="11" font-weight="700">Layer 2: Authentication &amp; Authorization</text>
+
+      <rect x="80" y="105" width="160" height="50" rx="8" fill="#1e40af"/>
+      <text x="160" y="128" text-anchor="middle" fill="white" font-size="10" font-weight="600">JWT Token Auth</text>
+      <text x="160" y="142" text-anchor="middle" fill="#bfdbfe" font-size="8.5">Stateless, HttpOnly cookies</text>
+
+      <rect x="260" y="105" width="160" height="50" rx="8" fill="#059669"/>
+      <text x="340" y="128" text-anchor="middle" fill="white" font-size="10" font-weight="600">RBAC</text>
+      <text x="340" y="142" text-anchor="middle" fill="#d1fae5" font-size="8.5">USER / EMPLOYEE / ADMIN</text>
+
+      <rect x="440" y="105" width="180" height="50" rx="8" fill="#7c3aed"/>
+      <text x="530" y="128" text-anchor="middle" fill="white" font-size="10" font-weight="600">Rate Limiting</text>
+      <text x="530" y="142" text-anchor="middle" fill="#ddd6fe" font-size="8.5">5 login attempts / 15 min lockout</text>
+
+      <!-- Layer 3: Data -->
+      <rect x="60" y="170" width="580" height="100" rx="12" fill="none" stroke="#f59e0b" stroke-width="2" stroke-dasharray="5,3"/>
+      <text x="80" y="192" fill="#f59e0b" font-size="11" font-weight="700">Layer 3: Data Protection</text>
+
+      <rect x="80" y="205" width="170" height="45" rx="8" fill="#f59e0b"/>
+      <text x="165" y="225" text-anchor="middle" fill="white" font-size="10" font-weight="600">BCrypt Passwords</text>
+      <text x="165" y="240" text-anchor="middle" fill="#78350f" font-size="8.5">Hashed + Salted</text>
+
+      <rect x="270" y="205" width="170" height="45" rx="8" fill="#dc2626"/>
+      <text x="355" y="225" text-anchor="middle" fill="white" font-size="10" font-weight="600">@JsonIgnore Passwords</text>
+      <text x="355" y="240" text-anchor="middle" fill="#fecaca" font-size="8.5">Never serialized to JSON</text>
+
+      <rect x="460" y="205" width="170" height="45" rx="8" fill="#0f172a"/>
+      <text x="545" y="225" text-anchor="middle" fill="white" font-size="10" font-weight="600">Audit Logging</text>
+      <text x="545" y="240" text-anchor="middle" fill="#94a3b8" font-size="8.5">All actions tracked</text>
+
+      <text x="350" y="305" text-anchor="middle" fill="#64748b" font-size="9" font-style="italic">SecurityConfig disables CSRF, enables CORS, stateless sessions</text>
+    </svg>
+  </div>
+
+  <h3>7.1 Security Configuration</h3>
+  <ul>
+    <li><strong>CSRF:</strong> Disabled (REST API, stateless)</li>
+    <li><strong>CORS:</strong> Enabled for frontend origin</li>
+    <li><strong>Session:</strong> Stateless (no server-side sessions)</li>
+    <li><strong>Password Encoding:</strong> BCrypt</li>
+    <li><strong>JWT:</strong> Custom filter before Spring Security filter chain</li>
+    <li><strong>Rate Limiting:</strong> 5 failed attempts → 15-minute account lockout</li>
+    <li><strong>open-in-view:</strong> Disabled (prevents lazy loading leaks)</li>
+    <li><strong>PII Logging:</strong> Suppressed — only metadata logged</li>
+  </ul>
+
+  <h3>7.2 Role-Based Access Control</h3>
+  <table>
+    <tr><th>Role</th><th>Can Do</th><th>Cannot Do</th></tr>
+    <tr><td><span class="tag">USER</span></td><td>Submit KYC, view own status, Re-KYC</td><td>View other users, approve/reject</td></tr>
+    <tr><td><span class="tag green">EMPLOYEE</span></td><td>Review assigned apps, approve/reject, QR verify</td><td>Create accounts, delete apps</td></tr>
+    <tr><td><span class="tag purple">ADMIN</span></td><td>All operations, employee management, fraud alerts, audit logs</td><td>Nothing restricted</td></tr>
+  </table>
+</section>
+
+<!-- 8. API REFERENCE -->
+<section id="api" class="page-break">
+  <h2>8. API Reference</h2>
+  <p>All endpoints are prefixed with the base URL: <code>https://iobkyc-production.up.railway.app</code></p>
+
+  <h3>8.1 Authentication Endpoints</h3>
+  <table>
+    <tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Auth</th></tr>
+    <tr><td><span class="tag">POST</span></td><td><code>/api/auth/register</code></td><td>User registration</td><td>None</td></tr>
+    <tr><td><span class="tag">POST</span></td><td><code>/api/auth/login</code></td><td>User login (JSON)</td><td>None</td></tr>
+    <tr><td><span class="tag">POST</span></td><td><code>/api/auth/forgot-password/check</code></td><td>Check email for reset</td><td>None</td></tr>
+    <tr><td><span class="tag">POST</span></td><td><code>/api/auth/forgot-password/reset</code></td><td>Reset password</td><td>None</td></tr>
+    <tr><td><span class="tag">POST</span></td><td><code>/api/auth/admin/login</code></td><td>Employee/Admin login</td><td>None</td></tr>
+    <tr><td><span class="tag">POST</span></td><td><code>/api/auth/otp/generate</code></td><td>Generate OTP for phone</td><td>JWT</td></tr>
+    <tr><td><span class="tag">POST</span></td><td><code>/api/auth/otp/verify</code></td><td>Verify OTP</td><td>JWT</td></tr>
+  </table>
+
+  <h3>8.2 KYC Endpoints (User)</h3>
+  <table>
+    <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+    <tr><td><span class="tag">GET</span></td><td><code>/api/kyc/status</code></td><td>Get user's KYC applications (DTO, lightweight)</td></tr>
+    <tr><td><span class="tag">POST</span></td><td><code>/api/kyc/submit</code></td><td>Submit KYC application</td></tr>
+    <tr><td><span class="tag">GET</span></td><td><code>/api/kyc/branches</code></td><td>List active bank branches</td></tr>
+    <tr><td><span class="tag">GET</span></td><td><code>/api/kyc/approved</code></td><td>Get user's latest approved application</td></tr>
+    <tr><td><span class="tag">GET</span></td><td><code>/api/kyc/profile-photo</code></td><td>Get user's profile photo</td></tr>
+    <tr><td><span class="tag">POST</span></td><td><code>/api/kyc/{id}/document</code></td><td>Upload identity document</td></tr>
+    <tr><td><span class="tag">POST</span></td><td><code>/api/kyc/{id}/selfie</code></td><td>Upload selfie</td></tr>
+    <tr><td><span class="tag">POST</span></td><td><code>/api/kyc/{id}/photo</code></td><td>Upload profile photo</td></tr>
+    <tr><td><span class="tag">POST</span></td><td><code>/api/kyc/{id}/aadhaar-front</code></td><td>Upload Aadhaar front</td></tr>
+    <tr><td><span class="tag">POST</span></td><td><code>/api/kyc/{id}/aadhaar-back</code></td><td>Upload Aadhaar back</td></tr>
+    <tr><td><span class="tag">POST</span></td><td><code>/api/kyc/{id}/pan-card</code></td><td>Upload PAN card</td></tr>
+    <tr><td><span class="tag">POST</span></td><td><code>/api/kyc/{id}/qr-verify</code></td><td>Trigger QR code verification</td></tr>
+    <tr><td><span class="tag">GET</span></td><td><code>/api/kyc/{id}/qr-verify</code></td><td>Get QR verification result</td></tr>
+    <tr><td><span class="tag">GET</span></td><td><code>/api/kyc/{id}/details</code></td><td>Get application details</td></tr>
+    <tr><td><span class="tag">GET</span></td><td><code>/api/kyc/{id}/pdf</code></td><td>Download KYC PDF</td></tr>
+  </table>
+
+  <h3>8.3 Admin Endpoints</h3>
+  <table>
+    <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+    <tr><td><span class="tag">GET</span></td><td><code>/api/admin/applications</code></td><td>List all applications (paginated)</td></tr>
+    <tr><td><span class="tag">GET</span></td><td><code>/api/admin/applications/{id}</code></td><td>Get application details</td></tr>
+    <tr><td><span class="tag">PUT</span></td><td><code>/api/admin/applications/{id}/approve</code></td><td>Approve application</td></tr>
+    <tr><td><span class="tag">PUT</span></td><td><code>/api/admin/applications/{id}/reject</code></td><td>Reject application</td></tr>
+    <tr><td><span class="tag">POST</span></td><td><code>/api/admin/applications/{id}/qr-verify</code></td><td>Admin QR verification</td></tr>
+    <tr><td><span class="tag">GET</span></td><td><code>/api/admin/dashboard/stats</code></td><td>Dashboard statistics</td></tr>
+    <tr><td><span class="tag">GET</span></td><td><code>/api/admin/fraud/alerts</code></td><td>Fraud alerts</td></tr>
+    <tr><td><span class="tag">GET</span></td><td><code>/api/admin/audit-logs</code></td><td>Audit log entries</td></tr>
+    <tr><td><span class="tag">GET</span></td><td><code>/api/admin/employees</code></td><td>List employees</td></tr>
+    <tr><td><span class="tag">POST</span></td><td><code>/api/admin/create-account</code></td><td>Create employee account</td></tr>
+  </table>
+
+  <h3>8.4 AI/ML Endpoints (Python Flask — Port 5001)</h3>
+  <table>
+    <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+    <tr><td><span class="tag">POST</span></td><td><code>/api/ai/ocr</code></td><td>OCR extraction from document image</td></tr>
+    <tr><td><span class="tag">POST</span></td><td><code>/api/ai/face-verify</code></td><td>Face similarity comparison</td></tr>
+    <tr><td><span class="tag">POST</span></td><td><code>/api/ai/liveness/challenge</code></td><td>Generate liveness challenge</td></tr>
+    <tr><td><span class="tag">POST</span></td><td><code>/api/ai/liveness/verify-challenge</code></td><td>Verify liveness response</td></tr>
+    <tr><td><span class="tag">POST</span></td><td><code>/api/ai/liveness/combined</code></td><td>Combined liveness + deepfake</td></tr>
+    <tr><td><span class="tag">POST</span></td><td><code>/api/ai/detailed-verify</code></td><td>Full pipeline: face + liveness + deepfake</td></tr>
+    <tr><td><span class="tag">POST</span></td><td><code>/api/ai/qr-verify</code></td><td>QR code field verification</td></tr>
+    <tr><td><span class="tag">GET</span></td><td><code>/api/ai/diagnose</code></td><td>System health diagnostic</td></tr>
+    <tr><td><span class="tag">GET</span></td><td><code>/api/ai/health</code></td><td>AI service health check</td></tr>
+  </table>
+</section>
+
+<!-- 9. FRONTEND ARCHITECTURE -->
+<section id="frontend" class="page-break">
+  <h2>9. Frontend Architecture</h2>
+  <p>Static HTML + vanilla JavaScript SPA served by Spring Boot's static resource handler.</p>
+
+  <h3>9.1 Page Map</h3>
+  <table>
+    <tr><th>Page</th><th>URL Path</th><th>Purpose</th></tr>
+    <tr><td>Login</td><td><code>/user/login.html</code></td><td>User authentication</td></tr>
+    <tr><td>Dashboard</td><td><code>/user/dashboard.html</code></td><td>Welcome, bank details card, KYC status</td></tr>
+    <tr><td>KYC Form</td><td><code>/user/kyc.html</code></td><td>4-step KYC wizard (OCR → Face → Submit)</td></tr>
+    <tr><td>KYC Status</td><td><code>/user/kyc-status.html</code></td><td>Timeline view of KYC progress</td></tr>
+    <tr><td>Re-KYC</td><td><code>/user/rekyc.html</code></td><td>Re-verification for existing customers</td></tr>
+    <tr><td>Re-KYC Review</td><td><code>/user/rekyc-review.html</code></td><td>Edit and submit Re-KYC details</td></tr>
+    <tr><td>Admin Login</td><td><code>/admin/admin-login.html</code></td><td>Employee/Admin authentication</td></tr>
+    <tr><td>Admin Dashboard</td><td><code>/admin/admin-dashboard.html</code></td><td>Application queue, stats, fraud alerts</td></tr>
+    <tr><td>Account Details</td><td><code>/admin/account-details.html</code></td><td>Search and view customer accounts</td></tr>
+  </table>
+
+  <h3>9.2 Shared JavaScript Modules</h3>
+  <table>
+    <tr><th>File</th><th>Purpose</th><th>Key Functions</th></tr>
+    <tr><td><code>auth.js</code></td><td>Authentication &amp; session management</td><td><code>getAuthToken()</code>, <code>clearAuthData()</code>, <code>handleLogout()</code></td></tr>
+    <tr><td><code>kyc.js</code></td><td>KYC wizard logic</td><td><code>startLivenessChallenge()</code>, <code>performFaceVerification()</code>, <code>submitKYC()</code></td></tr>
+    <tr><td><code>main.js</code></td><td>UI utilities</td><td><code>toggleDarkMode()</code>, <code>toggleMobileMenu()</code></td></tr>
+    <tr><td><code>admin.js</code></td><td>Admin panel logic</td><td><code>loadApplications()</code>, <code>approveApplication()</code>, <code>rejectApplication()</code></td></tr>
+    <tr><td><code>swipe.js</code></td><td>Touch gesture support</td><td>Swipe navigation for mobile</td></tr>
+  </table>
+
+  <h3>9.3 KYC Form Steps</h3>
+  <ol>
+    <li><strong>Step 1 — Document Upload:</strong> Select Aadhaar/PAN, upload front/back images, enter branch &amp; account type</li>
+    <li><strong>Step 2 — OTP Verification:</strong> Phone number OTP via Firebase or custom SMS gateway</li>
+    <li><strong>Step 3 — Face Verification:</strong> 8 random liveness challenges + webcam selfie capture + deepfake check</li>
+    <li><strong>Step 4 — Review &amp; Submit:</strong> Summary of all extracted data, risk score preview, final submit</li>
+  </ol>
+</section>
+
+<!-- 10. DEPLOYMENT -->
+<section id="deploy" class="page-break">
+  <h2>10. Deployment Architecture</h2>
+
+  <div class="diagram">
+    <div class="diagram-title">Figure 10.1 — Railway Cloud Deployment</div>
+    <svg viewBox="0 0 750 280" xmlns="http://www.w3.org/2000/svg" style="max-width:710px">
+      <defs>
+        <marker id="ad" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#64748b"/></marker>
+      </defs>
+
+      <!-- GitHub -->
+      <rect x="20" y="40" width="130" height="60" rx="10" fill="#0f172a"/>
+      <text x="85" y="68" text-anchor="middle" fill="white" font-size="11" font-weight="600">GitHub Repo</text>
+      <text x="85" y="84" text-anchor="middle" fill="#94a3b8" font-size="9">main branch</text>
+
+      <!-- Railway -->
+      <rect x="200" y="20" width="530" height="240" rx="16" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2"/>
+      <text x="465" y="48" text-anchor="middle" fill="#334155" font-size="13" font-weight="700">Railway Cloud Platform</text>
+
+      <!-- Java Service -->
+      <rect x="220" y="70" width="220" height="100" rx="10" fill="#1e40af"/>
+      <text x="330" y="96" text-anchor="middle" fill="white" font-size="12" font-weight="700">Spring Boot Service</text>
+      <text x="330" y="114" text-anchor="middle" fill="#bfdbfe" font-size="9">Java 17 + Embedded Tomcat</text>
+      <text x="330" y="130" text-anchor="middle" fill="#bfdbfe" font-size="9">Port: 8080 (mapped to 443)</text>
+      <text x="330" y="146" text-anchor="middle" fill="#bfdbfe" font-size="9">Static files served from /static/</text>
+      <text x="330" y="162" text-anchor="middle" fill="#bfdbfe" font-size="9">JPA + PostgreSQL connection</text>
+
+      <!-- Python Service -->
+      <rect x="470" y="70" width="230" height="100" rx="10" fill="#dc2626"/>
+      <text x="585" y="96" text-anchor="middle" fill="white" font-size="12" font-weight="700">Python AI/ML Service</text>
+      <text x="585" y="114" text-anchor="middle" fill="#fecaca" font-size="9">Flask + PyTorch + OpenCV</text>
+      <text x="585" y="130" text-anchor="middle" fill="#fecaca" font-size="9">Port: 5001 (internal)</text>
+      <text x="585" y="146" text-anchor="middle" fill="#fecaca" font-size="9">214 MB model weights</text>
+      <text x="585" y="162" text-anchor="middle" fill="#fecaca" font-size="9">CPU inference (~13s/image)</text>
+
+      <!-- DB -->
+      <rect x="220" y="190" width="220" height="55" rx="8" fill="#059669"/>
+      <text x="330" y="215" text-anchor="middle" fill="white" font-size="11" font-weight="600">PostgreSQL Database</text>
+      <text x="330" y="233" text-anchor="middle" fill="#d1fae5" font-size="9">Managed by Railway | 12 tables</text>
+
+      <!-- Internal connection -->
+      <line x1="440" y1="120" x2="470" y2="120" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <text x="455" y="112" text-anchor="middle" fill="#64748b" font-size="8">REST</text>
+
+      <!-- Git push -->
+      <line x1="150" y1="70" x2="200" y2="70" stroke="#64748b" stroke-width="1.5" marker-end="url(#ad)"/>
+      <text x="175" y="62" text-anchor="middle" fill="#64748b" font-size="8">git push</text>
+
+      <!-- External URL -->
+      <rect x="510" y="190" width="190" height="55" rx="8" fill="#f59e0b"/>
+      <text x="605" y="215" text-anchor="middle" fill="white" font-size="11" font-weight="600">Public URL</text>
+      <text x="605" y="233" text-anchor="middle" fill="#78350f" font-size="9">iobkyc-production.up.railway.app</text>
+      <line x1="550" y1="170" x2="605" y2="190" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#ad)"/>
+    </svg>
+  </div>
+
+  <h3>10.1 Deployment Steps</h3>
+  <ol>
+    <li><strong>Code Push:</strong> <code>git push origin main</code> triggers Railway auto-deploy</li>
+    <li><strong>Java Build:</strong> Maven builds JAR, Railway deploys as web service on port 8080</li>
+    <li><strong>Python Build:</strong> pip install requirements, Flask starts on port 5001</li>
+    <li><strong>Database:</strong> Railway managed PostgreSQL, auto-provisioned</li>
+    <li><strong>SSL:</strong> Automatic HTTPS via Railway's built-in TLS termination</li>
+  </ol>
+
+  <h3>10.2 Key Configuration</h3>
+  <div class="code-block">
+# application.properties (key settings)
+spring.datasource.url=jdbc:postgresql://...
+spring.jpa.open-in-view=false
+spring.jpa.hibernate.ddl-auto=update
+
+# AI service internal URL
+ai-service.url=http://localhost:5001
+
+# File upload directory
+file.upload-dir=./uploads
+
+# JWT Secret
+jwt.secret=...
+jwt.expiration=86400000
+  </div>
+</section>
+
+<!-- 11. FEATURE SUMMARY -->
+<section id="features">
+  <h2>11. Feature Summary</h2>
+  
+  <h3>Complete Feature Matrix</h3>
+  <table>
+    <tr><th>Category</th><th>Feature</th><th>Status</th></tr>
+    <tr><td><strong>Authentication</strong></td><td>User Registration with email/password</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td></td><td>JWT Token Authentication</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td></td><td>Phone OTP Verification (Firebase + Custom)</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td></td><td>Rate Limiting (5 attempts / 15 min)</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td></td><td>Password Reset via Email</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td><strong>Document Processing</strong></td><td>Aadhaar Card Upload (Front + Back)</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td></td><td>PAN Card Upload</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td></td><td>OCR Text Extraction (Name, DOB, ID, PAN, Address)</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td></td><td>QR Code Detection &amp; Field Verification</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td><strong>Biometric Verification</strong></td><td>Face Detection (RetinaFace)</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td></td><td>Face Matching (ArcFace, threshold 0.55)</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td></td><td>8-Type Liveness Detection (MediaPipe)</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td></td><td>Deepfake Detection (Xception + F3Net, threshold 0.65)</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td></td><td>Anti-Spoofing (Printed Photo, Screen, Video)</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td><strong>KYC Workflow</strong></td><td>4-Step Wizard (Document → OTP → Face → Submit)</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td></td><td>Risk Scoring Engine (Multi-factor)</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td></td><td>Duplicate Detection (Mobile, Aadhaar, PAN, IP)</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td></td><td>Re-KYC with Diff Comparison</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td></td><td>KYC PDF Generation (iText)</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td><strong>Admin Panel</strong></td><td>Application Queue with Filters</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td></td><td>Approve / Reject with Notes</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td></td><td>QR Verification (Admin-triggered)</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td></td><td>Fraud Alerts Dashboard</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td></td><td>Audit Log Viewer</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td></td><td>Employee Account Management</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td></td><td>Account Details Search</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td><strong>UI/UX</strong></td><td>Responsive Design (Mobile + Desktop)</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td></td><td>Dark Mode Toggle</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td></td><td>Step-by-step KYC Progress Timeline</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td></td><td>Bank Account Details Card (Post-Approval)</td><td><span class="tag green">&#9989; Active</span></td></tr>
+    <tr><td></td><td>Real-time Face Match Percentage Display</td><td><span class="tag green">&#9989; Active</span></td></tr>
+  </table>
+
+  <h3>Development Statistics</h3>
+  <div class="stat-grid">
+    <div class="stat-card"><div class="number">13</div><div class="label">Python Files (AI/ML)</div></div>
+    <div class="stat-card"><div class="number">12</div><div class="label">Java Entity Classes</div></div>
+    <div class="stat-card"><div class="number">7</div><div class="label">Java Controllers</div></div>
+    <div class="stat-card"><div class="number">9</div><div class="label">Java Service Classes</div></div>
+    <div class="stat-card"><div class="number">26</div><div class="label">HTML Pages</div></div>
+    <div class="stat-card"><div class="number">7</div><div class="label">JavaScript Modules</div></div>
+  </div>
+</section>
+
+<!-- Footer -->
+<div style="text-align:center;padding:40px 0;color:#94a3b8;font-size:0.9em">
+  <p><strong>IOB KYC — AI-Powered Digital Identity Verification System</strong></p>
+  <p>Project Report Generated: August 2026</p>
+  <p>Repository: github.com/sakthimanocseucet-wq/IOB_KYC</p>
+</div>
+
+<button class="download-btn no-print" onclick="window.print()" style="position:fixed;bottom:30px;right:30px;border-radius:50px;box-shadow:0 4px 12px rgba(0,0,0,0.3)">&#128424; Download PDF</button>
+
+</div>
+</body>
+</html>
